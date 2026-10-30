@@ -1,5 +1,6 @@
 package com.homebase.collect;
 
+import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import com.homebase.data.Ids;
 import com.homebase.data.ItemsData;
@@ -20,6 +21,8 @@ import net.runelite.api.Player;
 import net.runelite.api.Skill;
 import net.runelite.api.clan.ClanChannel;
 import net.runelite.api.clan.ClanID;
+import net.runelite.api.clan.ClanSettings;
+import net.runelite.api.events.ClanChannelChanged;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.GameTick;
 import net.runelite.api.events.ItemContainerChanged;
@@ -53,7 +56,7 @@ public class LocalCollector
 	@Getter
 	private volatile String memberId;
 
-	private ProfileData profile;
+	private volatile ProfileData profile;
 	private int loginTicks = -1;
 	private final Map<Section, Object> pending = new EnumMap<>(Section.class);
 	private final Map<Section, Long> lastPublished = new EnumMap<>(Section.class);
@@ -63,6 +66,15 @@ public class LocalCollector
 	{
 		this.client = client;
 		this.gson = gson;
+	}
+
+	/**
+	 * @return the logged in player's name, or null when logged out
+	 */
+	public String getLocalName()
+	{
+		ProfileData p = profile;
+		return memberId == null || p == null ? null : p.getName();
 	}
 
 	public void setEngine(SyncEngine engine)
@@ -151,6 +163,16 @@ public class LocalCollector
 	}
 
 	@Subscribe
+	public void onClanChannelChanged(ClanChannelChanged event)
+	{
+		// the group chat channel can load a few seconds after login, which is when we learn the group name
+		if (event.getClanId() == ClanID.GROUP_IRONMAN && memberId != null)
+		{
+			capture(Section.PROFILE, readProfile());
+		}
+	}
+
+	@Subscribe
 	public void onItemContainerChanged(ItemContainerChanged event)
 	{
 		Section section = sectionFor(event.getContainerId());
@@ -225,9 +247,22 @@ public class LocalCollector
 		{
 			return null;
 		}
-		ClanChannel gim = client.getClanChannel(ClanID.GROUP_IRONMAN);
-		profile = new ProfileData(player.getName(), client.getWorld(), gim == null ? null : gim.getName());
+		profile = new ProfileData(player.getName(), client.getWorld(), readGroupName());
 		return profile;
+	}
+
+	/**
+	 * @return the player's Group Ironman group name, such as "HungryHorse", or null if they aren't in one
+	 */
+	private String readGroupName()
+	{
+		ClanChannel channel = client.getClanChannel(ClanID.GROUP_IRONMAN);
+		if (channel != null && !Strings.isNullOrEmpty(channel.getName()))
+		{
+			return channel.getName();
+		}
+		ClanSettings settings = client.getClanSettings(ClanID.GROUP_IRONMAN);
+		return settings == null ? null : Strings.emptyToNull(settings.getName());
 	}
 
 	private SkillsData readSkills()

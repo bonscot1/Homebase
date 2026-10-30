@@ -30,6 +30,25 @@ You need a JDK (Java 11 or 17, for example [Eclipse Temurin](https://adoptium.ne
 4. Open the house icon in the sidebar and click **Create group**, then **Copy passphrase** and send it to your group.
 5. Everyone else pastes the passphrase into the plugin's settings (**Group passphrase**).
 
+### What to check
+
+With one account:
+
+- [ ] The house icon appears in the sidebar, and **Create group** changes the status to "Connected".
+- [ ] After logging in, the header shows your Group Ironman group's name (for example HungryHorse) under "Group Homebase".
+- [ ] Your card appears on the **Members** tab with a green world number. Clicking your name shows your skills, inventory and equipment.
+- [ ] Opening your bank adds a **Bank** line to your card. Clicking it shows the items. The seed vault and looting bag work the same way.
+- [ ] Opening the group storage adds a **Group storage** section at the top, saying who saw it last.
+- [ ] On the **Requests** tab, requesting an item adds it to the list. **Cancel** removes it.
+- [ ] After closing and reopening RuneLite, everything is still there before you log in.
+
+With a second group member running the plugin:
+
+- [ ] Each of you sees the other's card, with live HP, prayer and run energy while they're online.
+- [ ] A request one of you makes appears for the other, with a chat message starting "[Homebase]".
+- [ ] **I'll get it**, **Done** and **Clear** update for both of you.
+- [ ] When one of you logs out, the other's panel shows "Seen … ago" for them.
+
 ## To-do
 
 Items are ticked when they're built. Each stage's last box is ticked once it has been tested in game.
@@ -51,7 +70,10 @@ Items are ticked when they're built. Each stage's last box is ticked once it has
 - [x] Live HP, prayer and run energy for online members
 - [x] Sidebar panel: members with online status or last seen, live stats and total level
 - [x] Expand a member to see skills, inventory, equipment, bank, seed vault and looting bag
+- [x] Bank, seed vault and looting bag start collapsed, with an item count, so a full bank doesn't take over the panel
 - [x] Group storage section showing when it was last seen and by whom
+- [x] Your Group Ironman group's name (for example HungryHorse) shown in the panel header
+- [x] Tested in a simulated RuneLite: three players, the real plugin code, 42 checks
 - [ ] Tested in game with at least two group members
 
 ### Stage 2: On-screen features
@@ -80,10 +102,12 @@ Items are ticked when they're built. Each stage's last box is ticked once it has
 
 ### Stage 4: Request panel
 
-- [ ] Request an item from the group (for example a rune scimitar)
-- [ ] Members can assign themselves to a request
-- [ ] Mark requests done or cancel them
-- [ ] In-game chat message when a request is made or claimed
+- [x] Request an item from the group (for example a rune scimitar), with a quantity and a note
+- [x] Members can assign themselves to a request, or give it back
+- [x] Mark requests done, cancel them, or clear finished ones
+- [x] In-game chat message when someone makes, takes on or finishes a request (can be turned off in settings)
+- [x] Text from other players is cleaned before it's shown, so a request can't inject formatting or load images
+- [x] Tested in the simulated RuneLite
 - [ ] Tested in game
 
 ### Stage 5: Bank bounties
