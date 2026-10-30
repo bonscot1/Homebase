@@ -2,31 +2,41 @@ package com.homebase.collect;
 
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
+import com.homebase.data.DiariesData;
 import com.homebase.data.Ids;
 import com.homebase.data.ItemsData;
 import com.homebase.data.ProfileData;
+import com.homebase.data.QuestsData;
 import com.homebase.data.Section;
 import com.homebase.data.SkillsData;
 import com.homebase.sync.SyncEngine;
 import java.util.EnumMap;
 import java.util.Iterator;
+import java.util.Locale;
 import java.util.Map;
+import java.util.function.Consumer;
+import java.util.function.Predicate;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
 import net.runelite.api.GameState;
 import net.runelite.api.Player;
+import net.runelite.api.Quest;
+import net.runelite.api.QuestState;
 import net.runelite.api.Skill;
 import net.runelite.api.clan.ClanChannel;
 import net.runelite.api.clan.ClanID;
 import net.runelite.api.clan.ClanSettings;
+import net.runelite.api.events.ChatMessage;
 import net.runelite.api.events.ClanChannelChanged;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.GameTick;
 import net.runelite.api.events.ItemContainerChanged;
 import net.runelite.api.events.StatChanged;
+import net.runelite.api.events.VarbitChanged;
 import net.runelite.api.gameval.InventoryID;
 import net.runelite.client.eventbus.Subscribe;
 
@@ -45,6 +55,17 @@ public class LocalCollector
 	 */
 	private static final int LOGIN_DELAY_TICKS = 2;
 
+	/**
+	 * Quests are read a little after login so the game has loaded them, otherwise a member would
+	 * briefly appear to have finished nothing and then "complete" every quest at once.
+	 */
+	private static final int QUEST_DELAY_TICKS = 10;
+
+	/**
+	 * Quests are also re-read about once a minute, in case a completion was missed.
+	 */
+	private static final int QUEST_REFRESH_TICKS = 100;
+
 	private final Client client;
 	private final Gson gson;
 
@@ -58,6 +79,19 @@ public class LocalCollector
 
 	private volatile ProfileData profile;
 	private int loginTicks = -1;
+	private int questTicks = -1;
+	private int ticksSinceQuests;
+
+	/**
+	 * Told the Group Ironman group name each time it is read, on the client thread.
+	 */
+	private volatile Consumer<String> groupListener;
+
+	/**
+	 * Decides whether the logged in account's data belongs in the current group. Data waits until it
+	 * does, so an alt that isn't in the group never shares anything.
+	 */
+	private volatile Predicate<ProfileData> sharePolicy = p -> true;
 	private final Map<Section, Object> pending = new EnumMap<>(Section.class);
 	private final Map<Section, Long> lastPublished = new EnumMap<>(Section.class);
 
@@ -75,6 +109,16 @@ public class LocalCollector
 	{
 		ProfileData p = profile;
 		return memberId == null || p == null ? null : p.getName();
+	}
+
+	public void setGroupListener(Consumer<String> groupListener)
+	{
+		this.groupListener = groupListener;
+	}
+
+	public void setSharePolicy(Predicate<ProfileData> sharePolicy)
+	{
+		this.sharePolicy = sharePolicy;
 	}
 
 	public void setEngine(SyncEngine engine)
@@ -99,6 +143,9 @@ public class LocalCollector
 	public void stop()
 	{
 		engine = null;
+		questTicks = -1;
+		groupListener = null;
+		sharePolicy = p -> true;
 		memberId = null;
 		profile = null;
 		loginTicks = -1;
@@ -135,6 +182,7 @@ public class LocalCollector
 				memberId = null;
 				profile = null;
 				loginTicks = -1;
+				questTicks = -1;
 				pending.clear();
 				break;
 		}
@@ -149,7 +197,37 @@ public class LocalCollector
 		}
 		if (memberId != null)
 		{
+			if (questTicks >= 0 && --questTicks <= 0)
+			{
+				questTicks = -1;
+				ticksSinceQuests = 0;
+				capture(Section.QUESTS, readQuests());
+			}
+			else if (questTicks < 0 && ++ticksSinceQuests >= QUEST_REFRESH_TICKS)
+			{
+				questTicks = 1;
+			}
 			flush(false);
+		}
+	}
+
+	@Subscribe
+	public void onVarbitChanged(VarbitChanged event)
+	{
+		if (memberId != null && DiaryVarbits.ALL.contains(event.getVarbitId()))
+		{
+			capture(Section.DIARIES, readDiaries());
+		}
+	}
+
+	@Subscribe
+	public void onChatMessage(ChatMessage event)
+	{
+		// quest completions are announced in a game message, so check soon after one
+		if (memberId != null && event.getType() == ChatMessageType.GAMEMESSAGE
+			&& event.getMessage().toLowerCase(Locale.ROOT).contains("quest") && questTicks < 0)
+		{
+			questTicks = 2;
 		}
 	}
 
@@ -204,6 +282,8 @@ public class LocalCollector
 		capture(Section.SKILLS, readSkills());
 		capture(Section.INVENTORY, ItemsData.of(client.getItemContainer(InventoryID.INV)));
 		capture(Section.EQUIPMENT, ItemsData.of(client.getItemContainer(InventoryID.WORN)));
+		capture(Section.DIARIES, readDiaries());
+		questTicks = QUEST_DELAY_TICKS;
 		flush(true);
 	}
 
@@ -219,7 +299,8 @@ public class LocalCollector
 	{
 		SyncEngine engine = this.engine;
 		String memberId = this.memberId;
-		if (engine == null || memberId == null)
+		ProfileData profile = this.profile;
+		if (engine == null || memberId == null || profile == null || !sharePolicy.test(profile))
 		{
 			return;
 		}
@@ -248,6 +329,11 @@ public class LocalCollector
 			return null;
 		}
 		profile = new ProfileData(player.getName(), client.getWorld(), readGroupName());
+		Consumer<String> listener = groupListener;
+		if (listener != null && profile.getGroupName() != null)
+		{
+			listener.accept(profile.getGroupName());
+		}
 		return profile;
 	}
 
@@ -263,6 +349,46 @@ public class LocalCollector
 		}
 		ClanSettings settings = client.getClanSettings(ClanID.GROUP_IRONMAN);
 		return settings == null ? null : Strings.emptyToNull(settings.getName());
+	}
+
+	private QuestsData readQuests()
+	{
+		QuestsData data = new QuestsData();
+		for (Quest quest : Quest.values())
+		{
+			QuestState state = quest.getState(client);
+			if (state == QuestState.FINISHED)
+			{
+				data.getQuests().put(quest.getName(), QuestsData.FINISHED);
+			}
+			else if (state == QuestState.IN_PROGRESS)
+			{
+				data.getQuests().put(quest.getName(), QuestsData.STARTED);
+			}
+		}
+		return data;
+	}
+
+	private DiariesData readDiaries()
+	{
+		DiariesData data = new DiariesData();
+		for (Map.Entry<String, int[]> region : DiaryVarbits.BY_REGION.entrySet())
+		{
+			int bits = 0;
+			int[] varbits = region.getValue();
+			for (int tier = 0; tier < varbits.length; tier++)
+			{
+				if (client.getVarbitValue(varbits[tier]) > 0)
+				{
+					bits |= 1 << tier;
+				}
+			}
+			if (bits != 0)
+			{
+				data.getDone().put(region.getKey(), bits);
+			}
+		}
+		return data;
 	}
 
 	private SkillsData readSkills()

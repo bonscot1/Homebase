@@ -1,14 +1,18 @@
 package com.homebase.ui;
 
+import com.homebase.data.Clean;
+import com.homebase.data.DiariesData;
 import com.homebase.data.GroupView;
 import com.homebase.data.ItemsData;
 import com.homebase.data.ProfileData;
+import com.homebase.data.QuestsData;
 import com.homebase.data.Section;
 import com.homebase.data.SkillsData;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Cursor;
+import java.awt.Dimension;
 import java.awt.GridLayout;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -40,6 +44,8 @@ import net.runelite.client.util.QuantityFormatter;
 class MemberCard extends JPanel
 {
 	private static final Color ONLINE = new Color(0x4caf50);
+
+	private static final String[] TIER_LABELS = {"E", "M", "H", "El"};
 
 	/**
 	 * Skills in the order of the in-game skills tab, read across three columns.
@@ -180,6 +186,8 @@ class MemberCard extends JPanel
 			details.add(skillGrid(skills, context.skillIconManager));
 		}
 
+		addQuests(details, memberId, view, context);
+		addDiaries(details, memberId, view, context);
 		addItems(details, "Inventory", memberId, Section.INVENTORY, 4, true, view, context);
 		addItems(details, "Equipment", memberId, Section.EQUIPMENT, 5, false, view, context);
 		addCollapsible(details, "Bank", memberId, Section.BANK, view, context);
@@ -235,6 +243,92 @@ class MemberCard extends JPanel
 		{
 			parent.add(new ItemGrid(stacks, 5, false, context.itemManager, context.clientThread));
 		}
+	}
+
+	private static void addQuests(JPanel parent, String memberId, GroupView view, Context context)
+	{
+		QuestsData quests = view.get(memberId, Section.QUESTS, QuestsData.class);
+		if (quests == null || quests.getQuests() == null)
+		{
+			return;
+		}
+		String id = memberId + ":" + Section.QUESTS.getKey();
+		boolean open = context.openSections.contains(id);
+		JLabel label = heading((open ? "\u25BE " : "\u25B8 ") + "Quests  \u00B7  " + quests.count(QuestsData.FINISHED) + " done, "
+			+ quests.count(QuestsData.STARTED) + " started");
+		label.setForeground(Color.WHITE);
+		clickable(label, () -> context.toggleSection.accept(id));
+		parent.add(label);
+		if (!open)
+		{
+			return;
+		}
+		JPanel list = new JPanel(new GridLayout(0, 1));
+		list.setOpaque(false);
+		java.util.TreeMap<String, String> sorted = new java.util.TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+		for (java.util.Map.Entry<String, String> e : quests.getQuests().entrySet())
+		{
+			String name = Clean.text(e.getKey(), 60);
+			if (name != null)
+			{
+				sorted.put(name, e.getValue());
+			}
+		}
+		for (java.util.Map.Entry<String, String> e : sorted.entrySet())
+		{
+			boolean done = QuestsData.FINISHED.equals(e.getValue());
+			JLabel quest = new JLabel((done ? "\u2713 " : "\u2026 ") + e.getKey());
+			quest.setFont(FontManager.getRunescapeSmallFont());
+			quest.setForeground(done ? ColorScheme.PROGRESS_COMPLETE_COLOR : ColorScheme.PROGRESS_INPROGRESS_COLOR);
+			list.add(quest);
+		}
+		parent.add(list);
+	}
+
+	private static void addDiaries(JPanel parent, String memberId, GroupView view, Context context)
+	{
+		DiariesData diaries = view.get(memberId, Section.DIARIES, DiariesData.class);
+		if (diaries == null || diaries.getDone() == null)
+		{
+			return;
+		}
+		String id = memberId + ":" + Section.DIARIES.getKey();
+		boolean open = context.openSections.contains(id);
+		int total = DiariesData.REGIONS.size() * DiariesData.TIERS.size();
+		JLabel label = heading((open ? "\u25BE " : "\u25B8 ") + "Diaries  \u00B7  " + diaries.countDone() + "/" + total + " done");
+		label.setForeground(Color.WHITE);
+		clickable(label, () -> context.toggleSection.accept(id));
+		parent.add(label);
+		if (!open)
+		{
+			return;
+		}
+		JPanel grid = new JPanel(new GridLayout(0, 1, 0, 1));
+		grid.setOpaque(false);
+		for (String region : DiariesData.REGIONS)
+		{
+			JPanel row = new JPanel(new BorderLayout());
+			row.setOpaque(false);
+			JLabel name = new JLabel(region);
+			name.setFont(FontManager.getRunescapeSmallFont());
+			name.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
+			name.setPreferredSize(new Dimension(110, name.getPreferredSize().height));
+			row.add(name, BorderLayout.WEST);
+			JPanel tiers = new JPanel(new GridLayout(1, DiariesData.TIERS.size(), 2, 0));
+			tiers.setOpaque(false);
+			for (int tier = 0; tier < DiariesData.TIERS.size(); tier++)
+			{
+				boolean done = diaries.isDone(region, tier);
+				JLabel cell = new JLabel(TIER_LABELS[tier], javax.swing.SwingConstants.CENTER);
+				cell.setFont(FontManager.getRunescapeSmallFont());
+				cell.setForeground(done ? ColorScheme.PROGRESS_COMPLETE_COLOR : ColorScheme.MEDIUM_GRAY_COLOR);
+				cell.setToolTipText(region + " " + DiariesData.TIERS.get(tier) + (done ? ": done" : ": not done"));
+				tiers.add(cell);
+			}
+			row.add(tiers, BorderLayout.CENTER);
+			grid.add(row);
+		}
+		parent.add(grid);
 	}
 
 	private static JPanel skillGrid(SkillsData skills, SkillIconManager skillIconManager)

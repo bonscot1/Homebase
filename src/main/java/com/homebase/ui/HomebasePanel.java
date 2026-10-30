@@ -9,6 +9,7 @@ import com.homebase.data.ProfileData;
 import com.homebase.data.Section;
 import com.homebase.party.GroupSync;
 import com.homebase.requests.RequestService;
+import com.homebase.updates.UpdateTracker;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
@@ -56,10 +57,12 @@ public class HomebasePanel extends PluginPanel
 	private final JLabel statusLabel = new JLabel();
 	private final JButton actionButton = new JButton();
 	private final JToggleButton membersTab = new JToggleButton("Members");
+	private final JToggleButton updatesTab = new JToggleButton("Updates");
 	private final JToggleButton requestsTab = new JToggleButton("Requests");
-	private final JPanel tabs = new JPanel(new GridLayout(1, 2, 4, 0));
+	private final JPanel tabs = new JPanel(new GridLayout(1, 3, 2, 0));
 	private final JPanel list = new JPanel();
 	private final RequestsView requestsView;
+	private final UpdatesView updatesView;
 	private final MemberCard.Context cardContext;
 	private final Map<String, MemberCard> cards = new HashMap<>();
 	private final Set<String> expanded = new HashSet<>();
@@ -73,7 +76,8 @@ public class HomebasePanel extends PluginPanel
 
 	@Inject
 	private HomebasePanel(HomebasePlugin plugin, GroupSync groupSync, PartyService partyService, LocalCollector collector,
-		RequestService requestService, ItemManager itemManager, SkillIconManager skillIconManager, ClientThread clientThread)
+		RequestService requestService, UpdateTracker updateTracker, ItemManager itemManager, SkillIconManager skillIconManager,
+		ClientThread clientThread)
 	{
 		this.plugin = plugin;
 		this.groupSync = groupSync;
@@ -82,6 +86,7 @@ public class HomebasePanel extends PluginPanel
 		this.itemManager = itemManager;
 		this.clientThread = clientThread;
 		this.requestsView = new RequestsView(requestService);
+		this.updatesView = new UpdatesView(updateTracker);
 		this.cardContext = new MemberCard.Context(itemManager, skillIconManager, clientThread, openSections, id ->
 		{
 			if (!openSections.remove(id))
@@ -120,11 +125,11 @@ public class HomebasePanel extends PluginPanel
 		});
 
 		ButtonGroup tabGroup = new ButtonGroup();
-		for (JToggleButton tab : new JToggleButton[]{membersTab, requestsTab})
+		for (JToggleButton tab : new JToggleButton[]{membersTab, updatesTab, requestsTab})
 		{
 			tab.setFocusPainted(false);
 			tab.setFont(FontManager.getRunescapeSmallFont());
-			tab.setMargin(new Insets(2, 2, 2, 2));
+			tab.setMargin(new Insets(2, 0, 2, 0));
 			tab.addActionListener(e -> rebuild());
 			tabGroup.add(tab);
 			tabs.add(tab);
@@ -208,12 +213,20 @@ public class HomebasePanel extends PluginPanel
 		if (view != null)
 		{
 			int open = requestsView.openCount();
-			requestsTab.setText(open > 0 ? "Requests (" + open + ")" : "Requests");
+			// three tabs leave no room for a count, so open requests turn the tab orange instead
+			requestsTab.setForeground(open > 0 ? ColorScheme.BRAND_ORANGE : membersTab.getForeground());
+			requestsTab.setToolTipText(open == 1 ? "1 open request" : open + " open requests");
 			if (requestsTab.isSelected())
 			{
 				requestsView.refresh();
 				requestsView.setAlignmentX(Component.LEFT_ALIGNMENT);
 				list.add(requestsView);
+			}
+			else if (updatesTab.isSelected())
+			{
+				updatesView.refresh();
+				updatesView.setAlignmentX(Component.LEFT_ALIGNMENT);
+				list.add(updatesView);
 			}
 			else
 			{
@@ -234,6 +247,12 @@ public class HomebasePanel extends PluginPanel
 		List<MemberCard> members = new ArrayList<>();
 		for (String id : view.memberIds())
 		{
+			ProfileData profile = view.get(id, Section.PROFILE, ProfileData.class);
+			if (profile == null || !plugin.belongsToGroup(profile))
+			{
+				// an account that isn't in this Group Ironman group
+				continue;
+			}
 			MemberCard card = new MemberCard(id, view, expanded.contains(id), () -> toggle(id), cardContext);
 			cards.put(id, card);
 			members.add(card);
@@ -332,8 +351,8 @@ public class HomebasePanel extends PluginPanel
 	 */
 	private void updateGroupName()
 	{
-		String name = null;
-		if (view != null)
+		String name = plugin.getGimGroup();
+		if (name == null && view != null)
 		{
 			String localId = collector.getMemberId();
 			ProfileData local = localId == null ? null : view.get(localId, Section.PROFILE, ProfileData.class);
@@ -373,8 +392,8 @@ public class HomebasePanel extends PluginPanel
 		switch (groupSync.getStatus())
 		{
 			case NO_GROUP:
-				setStatus("No group set up yet. Create one, or paste your group's passphrase into this plugin's settings.",
-					"Create group", plugin::createGroup);
+				setStatus("Log in on your Group Ironman account and you'll join your group automatically. "
+					+ "For other groups, create a passphrase or paste one into this plugin's settings.", "Create group", plugin::createGroup);
 				break;
 			case DISCONNECTED:
 				setStatus("Not connected to your group.", "Join group", groupSync::joinGroupParty);
@@ -383,7 +402,9 @@ public class HomebasePanel extends PluginPanel
 				setStatus("You're in another party, so syncing is paused.", "Switch to group", groupSync::joinGroupParty);
 				break;
 			case CONNECTED:
-				setStatus("Connected · " + onlineCount() + " online", "Copy passphrase", plugin::copyPassphrase);
+				boolean gim = plugin.getGimGroup() != null;
+				// a Group Ironman group needs no passphrase, so there's nothing to copy
+				setStatus("Connected · " + onlineCount() + " online", gim ? null : "Copy passphrase", gim ? null : plugin::copyPassphrase);
 				break;
 		}
 	}
@@ -392,6 +413,7 @@ public class HomebasePanel extends PluginPanel
 	{
 		statusLabel.setText("<html><body style='width:180px'>" + text + "</body></html>");
 		actionButton.setText(buttonText);
+		actionButton.setVisible(buttonText != null);
 		action = buttonAction;
 	}
 
