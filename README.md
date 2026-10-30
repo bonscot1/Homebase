@@ -53,6 +53,8 @@ With a second group member running the plugin:
 - [ ] A request one of you makes appears for the other, with a chat message starting "[Homebase]".
 - [ ] **I'll get it**, **Done** and **Clear** update for both of you.
 - [ ] When one of you logs out, the other's panel shows "Seen … ago" for them.
+- [ ] While one of you is offline, the other gains a level, finishes a quest or completes a diary tier. On logging back in, the first gets one chat line such as "[Homebase] bonscott1: Magic 15 -> 32, completed The Restless Ghost, completed the Varrock Easy diary." The same summary appears on the **Updates** tab.
+- [ ] Expanding a member shows **Quests** and **Diaries** lines with their counts. Clicking them shows the quest list and the diary grid. Karamja's Easy, Medium and Hard tiers use older game flags than the other diaries, so check those against the in-game journal.
 
 ## To-do
 
@@ -81,7 +83,7 @@ Items are ticked when they're built. Each stage's last box is ticked once it has
 - [x] Bank, seed vault and looting bag start collapsed, with an item count, so a full bank doesn't take over the panel
 - [x] Group storage section showing when it was last seen and by whom
 - [x] Your Group Ironman group's name (for example HungryHorse) shown in the panel header
-- [x] Tested in a simulated RuneLite: three players, the real plugin code, 49 checks
+- [x] Tested in a simulated RuneLite: three players, the real plugin code, 56 checks
 - [ ] Tested in game with at least two group members
 
 ### Stage 2: On-screen features
@@ -97,13 +99,17 @@ Items are ticked when they're built. Each stage's last box is ticked once it has
 
 ### Stage 3: Quests, activities and goals
 
-- [ ] Quests
-- [ ] Achievement diaries
+- [x] Quests (finished and started), read after login, after quest messages and about once a minute
+- [x] Achievement diaries (every region and tier)
+- [x] Summaries of what each member did since your last update: levels gained, quests finished and diary tiers completed. Shown in chat (can be turned off) and on the **Updates** tab, and kept after restarting
+- [x] Updates gathered for a few seconds, so catching up on login gives one line per member
+- [x] Quests and Diaries sections on each member's card
+- [x] Tested in the simulated RuneLite, including your example summary
 - [ ] Combat achievements
 - [ ] Collection log (captured as members browse it, plus new-slot chat messages)
 - [ ] Boss kill counts
 - [ ] Player-owned house contents (rooms and furniture built, costume room storage)
-- [ ] Panel views to compare who has done what
+- [ ] Combat achievements, collection log and kill counts in the summaries too
 - [ ] Goals: set a target for every member (for example 50 Firemaking for Wintertodt)
 - [ ] Goals tick off automatically as each member reaches them
 - [ ] Tested in game

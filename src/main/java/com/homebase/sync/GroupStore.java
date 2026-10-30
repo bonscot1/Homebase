@@ -6,7 +6,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.function.Consumer;
 
 /**
  * Every client's local copy of the group's data. Thread safe.
@@ -14,14 +13,25 @@ import java.util.function.Consumer;
 public class GroupStore
 {
 	private final Map<String, SyncRecord> records = new HashMap<>();
-	private final List<Consumer<SyncRecord>> listeners = new CopyOnWriteArrayList<>();
+	private final List<Listener> listeners = new CopyOnWriteArrayList<>();
 
-	public void addListener(Consumer<SyncRecord> listener)
+	/**
+	 * Told about every record stored, along with the copy it replaced.
+	 */
+	public interface Listener
+	{
+		/**
+		 * @param previous the copy we had before, or null if this key is new to us
+		 */
+		void changed(SyncRecord previous, SyncRecord current);
+	}
+
+	public void addListener(Listener listener)
 	{
 		listeners.add(listener);
 	}
 
-	public void removeListener(Consumer<SyncRecord> listener)
+	public void removeListener(Listener listener)
 	{
 		listeners.remove(listener);
 	}
@@ -33,15 +43,17 @@ public class GroupStore
 	 */
 	public boolean offer(SyncRecord record)
 	{
+		SyncRecord previous;
 		synchronized (this)
 		{
-			if (!record.supersedes(records.get(record.getKey())))
+			previous = records.get(record.getKey());
+			if (!record.supersedes(previous))
 			{
 				return false;
 			}
 			records.put(record.getKey(), record);
 		}
-		notifyListeners(record);
+		notifyListeners(previous, record);
 		return true;
 	}
 
@@ -53,9 +65,10 @@ public class GroupStore
 	public SyncRecord write(String key, String author, JsonElement data, boolean deleted, long now)
 	{
 		SyncRecord record;
+		SyncRecord current;
 		synchronized (this)
 		{
-			SyncRecord current = records.get(key);
+			current = records.get(key);
 			if (current != null && current.isDeleted() == deleted && current.getAuthor().equals(author)
 				&& (deleted || current.getData().equals(data)))
 			{
@@ -65,7 +78,7 @@ public class GroupStore
 			record = new SyncRecord(key, version, author, deleted, deleted ? null : data);
 			records.put(key, record);
 		}
-		notifyListeners(record);
+		notifyListeners(current, record);
 		return record;
 	}
 
@@ -165,11 +178,11 @@ public class GroupStore
 		return records.size();
 	}
 
-	private void notifyListeners(SyncRecord record)
+	private void notifyListeners(SyncRecord previous, SyncRecord current)
 	{
-		for (Consumer<SyncRecord> listener : listeners)
+		for (Listener listener : listeners)
 		{
-			listener.accept(record);
+			listener.changed(previous, current);
 		}
 	}
 }

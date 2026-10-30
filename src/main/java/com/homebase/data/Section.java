@@ -19,6 +19,8 @@ public enum Section
 	BANK("bank", false, 3_000),
 	SEED_VAULT("seedvault", false, 3_000),
 	LOOTING_BAG("lootingbag", false, 3_000),
+	QUESTS("quests", false, 5_000),
+	DIARIES("diaries", false, 2_000),
 	GROUP_STORAGE("storage", true, 2_000);
 
 	private final String key;

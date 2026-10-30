@@ -60,6 +60,18 @@ public interface HomebaseConfig extends Config
 		return true;
 	}
 
+	@ConfigItem(
+		keyName = "updateMessages",
+		name = "Update chat messages",
+		description = "Show a chat message summarising what someone in your group did since your last update, "
+			+ "such as levels gained, quests finished and diaries completed",
+		position = 4
+	)
+	default boolean updateMessages()
+	{
+		return true;
+	}
+
 	/**
 	 * The Group Ironman group last seen on this computer, so the plugin can reconnect before login.
 	 */
