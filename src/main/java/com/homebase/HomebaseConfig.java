@@ -9,13 +9,29 @@ public interface HomebaseConfig extends Config
 {
 	String GROUP = "groupironmanhomebase";
 	String PASSPHRASE_KEY = "groupPassphrase";
+	String GIM_SECRET_KEY = "gimSecret";
+	String GIM_GROUP_KEY = "gimGroup";
+
+	@ConfigItem(
+		keyName = GIM_SECRET_KEY,
+		name = "Group Ironman secret",
+		description = "Optional. Group Ironman members are connected automatically using the group's name, which is public. "
+			+ "To keep out anyone else who knows the name, everyone in your group enters the same secret word here.",
+		secret = true,
+		position = 0
+	)
+	default String gimSecret()
+	{
+		return "";
+	}
 
 	@ConfigItem(
 		keyName = PASSPHRASE_KEY,
 		name = "Group passphrase",
-		description = "Everyone in your group enters the same passphrase. Anyone who has it can see your group's data, so only share it with your group.",
+		description = "Only for groups that aren't Group Ironman groups. Everyone in the group enters the same passphrase, "
+			+ "and anyone who has it can see the group's data. Setting this overrides the automatic Group Ironman group.",
 		secret = true,
-		position = 0
+		position = 1
 	)
 	default String groupPassphrase()
 	{
@@ -26,7 +42,7 @@ public interface HomebaseConfig extends Config
 		keyName = "autoJoin",
 		name = "Join group automatically",
 		description = "Join your group's party when RuneLite starts, and rejoin it after leaving another party",
-		position = 1
+		position = 2
 	)
 	default boolean autoJoin()
 	{
@@ -37,10 +53,24 @@ public interface HomebaseConfig extends Config
 		keyName = "requestMessages",
 		name = "Request chat messages",
 		description = "Show a chat message when someone in your group makes, takes on or finishes a request",
-		position = 2
+		position = 3
 	)
 	default boolean requestMessages()
 	{
 		return true;
+	}
+
+	/**
+	 * The Group Ironman group last seen on this computer, so the plugin can reconnect before login.
+	 */
+	@ConfigItem(
+		keyName = GIM_GROUP_KEY,
+		name = "",
+		description = "",
+		hidden = true
+	)
+	default String gimGroup()
+	{
+		return "";
 	}
 }

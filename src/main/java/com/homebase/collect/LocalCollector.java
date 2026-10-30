@@ -11,6 +11,8 @@ import com.homebase.sync.SyncEngine;
 import java.util.EnumMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.function.Consumer;
+import java.util.function.Predicate;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import lombok.Getter;
@@ -58,6 +60,17 @@ public class LocalCollector
 
 	private volatile ProfileData profile;
 	private int loginTicks = -1;
+
+	/**
+	 * Told the Group Ironman group name each time it is read, on the client thread.
+	 */
+	private volatile Consumer<String> groupListener;
+
+	/**
+	 * Decides whether the logged in account's data belongs in the current group. Data waits until it
+	 * does, so an alt that isn't in the group never shares anything.
+	 */
+	private volatile Predicate<ProfileData> sharePolicy = p -> true;
 	private final Map<Section, Object> pending = new EnumMap<>(Section.class);
 	private final Map<Section, Long> lastPublished = new EnumMap<>(Section.class);
 
@@ -75,6 +88,16 @@ public class LocalCollector
 	{
 		ProfileData p = profile;
 		return memberId == null || p == null ? null : p.getName();
+	}
+
+	public void setGroupListener(Consumer<String> groupListener)
+	{
+		this.groupListener = groupListener;
+	}
+
+	public void setSharePolicy(Predicate<ProfileData> sharePolicy)
+	{
+		this.sharePolicy = sharePolicy;
 	}
 
 	public void setEngine(SyncEngine engine)
@@ -99,6 +122,8 @@ public class LocalCollector
 	public void stop()
 	{
 		engine = null;
+		groupListener = null;
+		sharePolicy = p -> true;
 		memberId = null;
 		profile = null;
 		loginTicks = -1;
@@ -219,7 +244,8 @@ public class LocalCollector
 	{
 		SyncEngine engine = this.engine;
 		String memberId = this.memberId;
-		if (engine == null || memberId == null)
+		ProfileData profile = this.profile;
+		if (engine == null || memberId == null || profile == null || !sharePolicy.test(profile))
 		{
 			return;
 		}
@@ -248,6 +274,11 @@ public class LocalCollector
 			return null;
 		}
 		profile = new ProfileData(player.getName(), client.getWorld(), readGroupName());
+		Consumer<String> listener = groupListener;
+		if (listener != null && profile.getGroupName() != null)
+		{
+			listener.accept(profile.getGroupName());
+		}
 		return profile;
 	}
 

@@ -234,6 +234,12 @@ public class HomebasePanel extends PluginPanel
 		List<MemberCard> members = new ArrayList<>();
 		for (String id : view.memberIds())
 		{
+			ProfileData profile = view.get(id, Section.PROFILE, ProfileData.class);
+			if (profile == null || !plugin.belongsToGroup(profile))
+			{
+				// an account that isn't in this Group Ironman group
+				continue;
+			}
 			MemberCard card = new MemberCard(id, view, expanded.contains(id), () -> toggle(id), cardContext);
 			cards.put(id, card);
 			members.add(card);
@@ -332,8 +338,8 @@ public class HomebasePanel extends PluginPanel
 	 */
 	private void updateGroupName()
 	{
-		String name = null;
-		if (view != null)
+		String name = plugin.getGimGroup();
+		if (name == null && view != null)
 		{
 			String localId = collector.getMemberId();
 			ProfileData local = localId == null ? null : view.get(localId, Section.PROFILE, ProfileData.class);
@@ -373,8 +379,8 @@ public class HomebasePanel extends PluginPanel
 		switch (groupSync.getStatus())
 		{
 			case NO_GROUP:
-				setStatus("No group set up yet. Create one, or paste your group's passphrase into this plugin's settings.",
-					"Create group", plugin::createGroup);
+				setStatus("Log in on your Group Ironman account and you'll join your group automatically. "
+					+ "For other groups, create a passphrase or paste one into this plugin's settings.", "Create group", plugin::createGroup);
 				break;
 			case DISCONNECTED:
 				setStatus("Not connected to your group.", "Join group", groupSync::joinGroupParty);
@@ -383,7 +389,9 @@ public class HomebasePanel extends PluginPanel
 				setStatus("You're in another party, so syncing is paused.", "Switch to group", groupSync::joinGroupParty);
 				break;
 			case CONNECTED:
-				setStatus("Connected · " + onlineCount() + " online", "Copy passphrase", plugin::copyPassphrase);
+				boolean gim = plugin.getGimGroup() != null;
+				// a Group Ironman group needs no passphrase, so there's nothing to copy
+				setStatus("Connected · " + onlineCount() + " online", gim ? null : "Copy passphrase", gim ? null : plugin::copyPassphrase);
 				break;
 		}
 	}
@@ -392,6 +400,7 @@ public class HomebasePanel extends PluginPanel
 	{
 		statusLabel.setText("<html><body style='width:180px'>" + text + "</body></html>");
 		actionButton.setText(buttonText);
+		actionButton.setVisible(buttonText != null);
 		action = buttonAction;
 	}
 

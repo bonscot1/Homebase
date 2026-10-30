@@ -7,6 +7,7 @@ import com.google.inject.Provides;
 import com.homebase.collect.LocalCollector;
 import com.homebase.data.GroupView;
 import com.homebase.data.Ids;
+import com.homebase.data.ProfileData;
 import com.homebase.party.GroupSync;
 import com.homebase.requests.RequestService;
 import com.homebase.sync.GroupStore;
@@ -21,6 +22,7 @@ import java.io.Reader;
 import java.io.Writer;
 import java.nio.file.StandardCopyOption;
 import java.util.List;
+import java.util.Locale;
 import java.util.Random;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -28,6 +30,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import javax.inject.Inject;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
@@ -110,11 +113,18 @@ public class HomebasePlugin extends Plugin
 	@Inject
 	private Client client;
 
+	/**
+	 * The Group Ironman group being synced automatically, or null when using a passphrase or no group.
+	 */
+	@Getter
+	private volatile String gimGroup;
+
 	private HomebasePanel panel;
 	private NavigationButton navButton;
 	private ScheduledFuture<?> flushTask;
 	private ScheduledFuture<?> saveTask;
 	private OpenGroup group;
+	private String openPassphrase;
 
 	/**
 	 * The group currently loaded, and where it is saved.
@@ -139,6 +149,8 @@ public class HomebasePlugin extends Plugin
 		groupSync.start();
 		eventBus.register(groupSync);
 		eventBus.register(collector);
+		collector.setGroupListener(this::onGroupNameRead);
+		collector.setSharePolicy(this::belongsToGroup);
 		collector.start();
 
 		// RuneLite's party service shares live stats; our own sync handles everything that persists
@@ -155,7 +167,7 @@ public class HomebasePlugin extends Plugin
 			.build();
 		clientToolbar.addNavigation(navButton);
 
-		openGroup(config.groupPassphrase());
+		selectGroup();
 
 		flushTask = executor.scheduleWithFixedDelay(() -> clientThread.invokeLater(groupSync::flush), 1, 1, TimeUnit.SECONDS);
 		saveTask = executor.scheduleWithFixedDelay(this::saveCurrent, SAVE_INTERVAL_SECONDS, SAVE_INTERVAL_SECONDS, TimeUnit.SECONDS);
@@ -181,14 +193,24 @@ public class HomebasePlugin extends Plugin
 		clientToolbar.removeNavigation(navButton);
 		navButton = null;
 		panel = null;
+		openPassphrase = null;
+		gimGroup = null;
 	}
 
 	@Subscribe
 	public void onConfigChanged(ConfigChanged event)
 	{
-		if (HomebaseConfig.GROUP.equals(event.getGroup()) && HomebaseConfig.PASSPHRASE_KEY.equals(event.getKey()))
+		if (!HomebaseConfig.GROUP.equals(event.getGroup()))
 		{
-			openGroup(config.groupPassphrase());
+			return;
+		}
+		switch (event.getKey())
+		{
+			case HomebaseConfig.PASSPHRASE_KEY:
+			case HomebaseConfig.GIM_SECRET_KEY:
+			case HomebaseConfig.GIM_GROUP_KEY:
+				selectGroup();
+				break;
 		}
 	}
 
@@ -211,6 +233,16 @@ public class HomebasePlugin extends Plugin
 			configManager.setConfiguration(HomebaseConfig.GROUP, HomebaseConfig.PASSPHRASE_KEY, partyService.generatePassphrase()));
 	}
 
+	/**
+	 * @return true if the account's data belongs in the current group. With a passphrase every account
+	 * shares; for a Group Ironman group only that group's members do, so alts stay out.
+	 */
+	public boolean belongsToGroup(ProfileData profile)
+	{
+		String group = gimGroup;
+		return group == null || (profile.getGroupName() != null && normalize(profile.getGroupName()).equals(normalize(group)));
+	}
+
 	public void copyPassphrase()
 	{
 		String passphrase = config.groupPassphrase();
@@ -220,12 +252,62 @@ public class HomebasePlugin extends Plugin
 		}
 	}
 
-	private void openGroup(String passphrase)
+	/**
+	 * Pick the group to sync: the passphrase if one is set, otherwise the Group Ironman group this
+	 * computer last logged in to.
+	 */
+	private void selectGroup()
 	{
+		String passphrase = Strings.nullToEmpty(config.groupPassphrase()).trim();
+		if (!passphrase.isEmpty())
+		{
+			openGroup(passphrase, null);
+			return;
+		}
+		String gim = Strings.emptyToNull(Strings.nullToEmpty(config.gimGroup()).trim());
+		openGroup(gim == null ? "" : gimPassphrase(gim, config.gimSecret()), gim);
+	}
+
+	/**
+	 * The party passphrase for a Group Ironman group, so every member arrives at the same party
+	 * without sharing anything.
+	 */
+	static String gimPassphrase(String groupName, String secret)
+	{
+		String s = Strings.nullToEmpty(secret).trim();
+		return "homebase-gim:" + normalize(groupName) + (s.isEmpty() ? "" : ":" + s);
+	}
+
+	private static String normalize(String groupName)
+	{
+		return groupName.replace('\u00A0', ' ').trim().toLowerCase(Locale.ROOT);
+	}
+
+	/**
+	 * The collector read the logged in account's Group Ironman group. Runs on the client thread.
+	 */
+	private void onGroupNameRead(String name)
+	{
+		if (Strings.isNullOrEmpty(config.groupPassphrase()) && !name.equals(config.gimGroup()))
+		{
+			// remembering it changes the config, which switches to the group
+			configManager.setConfiguration(HomebaseConfig.GROUP, HomebaseConfig.GIM_GROUP_KEY, name);
+		}
+	}
+
+	private void openGroup(String passphrase, String gim)
+	{
+		passphrase = Strings.nullToEmpty(passphrase).trim();
+		gimGroup = gim;
+		if (group != null && passphrase.equals(openPassphrase))
+		{
+			return;
+		}
+		openPassphrase = passphrase;
+
 		boolean wasInGroupParty = groupSync.isGroupParty();
 		closeGroup();
 
-		passphrase = Strings.nullToEmpty(passphrase).trim();
 		if (passphrase.isEmpty())
 		{
 			groupSync.setGroup(null, null);
