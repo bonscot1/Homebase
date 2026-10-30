@@ -8,6 +8,7 @@ import com.homebase.collect.LocalCollector;
 import com.homebase.data.GroupView;
 import com.homebase.data.Ids;
 import com.homebase.party.GroupSync;
+import com.homebase.requests.RequestService;
 import com.homebase.sync.GroupStore;
 import com.homebase.sync.SyncEngine;
 import com.homebase.sync.SyncRecord;
@@ -28,6 +29,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import javax.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
+import net.runelite.api.ChatMessageType;
+import net.runelite.api.Client;
+import net.runelite.api.GameState;
 import net.runelite.api.Skill;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
@@ -62,6 +66,11 @@ public class HomebasePlugin extends Plugin
 	 */
 	private static final long TOMBSTONE_LIFETIME_MS = TimeUnit.DAYS.toMillis(60);
 
+	/**
+	 * Request changes older than this aren't announced in chat.
+	 */
+	private static final long ANNOUNCE_WINDOW_MS = TimeUnit.MINUTES.toMillis(2);
+
 	@Inject
 	private ClientThread clientThread;
 
@@ -94,6 +103,12 @@ public class HomebasePlugin extends Plugin
 
 	@Inject
 	private LocalCollector collector;
+
+	@Inject
+	private RequestService requestService;
+
+	@Inject
+	private Client client;
 
 	private HomebasePanel panel;
 	private NavigationButton navButton;
@@ -154,6 +169,7 @@ public class HomebasePlugin extends Plugin
 		closeGroup();
 		groupSync.leaveGroupParty();
 
+		requestService.setEngine(null);
 		collector.stop();
 		eventBus.unregister(collector);
 		eventBus.unregister(groupSync);
@@ -213,6 +229,7 @@ public class HomebasePlugin extends Plugin
 		if (passphrase.isEmpty())
 		{
 			groupSync.setGroup(null, null);
+			requestService.setEngine(null);
 			clientThread.invokeLater(() -> collector.setEngine(null));
 			panel.setView(null);
 			if (wasInGroupParty)
@@ -228,12 +245,14 @@ public class HomebasePlugin extends Plugin
 		{
 			g.dirty.set(true);
 			panel.scheduleRebuild();
+			announce(record);
 		};
 		g.store.addListener(g.listener);
 		group = g;
 		executor.execute(() -> load(g));
 
 		groupSync.setGroup(passphrase, g.engine);
+		requestService.setEngine(g.engine);
 		clientThread.invokeLater(() -> collector.setEngine(g.engine));
 		panel.setView(new GroupView(g.store, gson));
 
@@ -241,6 +260,32 @@ public class HomebasePlugin extends Plugin
 		{
 			groupSync.joinGroupParty();
 		}
+	}
+
+	/**
+	 * Tell the player in chat when someone else changes a request. Only recent changes count, so
+	 * catching up on old requests after logging in stays quiet.
+	 */
+	private void announce(SyncRecord record)
+	{
+		String me = collector.getMemberId();
+		if (!config.requestMessages() || me == null || me.equals(record.getAuthor())
+			|| record.getVersion() < System.currentTimeMillis() - ANNOUNCE_WINDOW_MS)
+		{
+			return;
+		}
+		String message = requestService.describeChange(record);
+		if (message == null)
+		{
+			return;
+		}
+		clientThread.invokeLater(() ->
+		{
+			if (client.getGameState() == GameState.LOGGED_IN)
+			{
+				client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "<col=ff9800>[Homebase]</col> " + message, null);
+			}
+		});
 	}
 
 	private void closeGroup()

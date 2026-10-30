@@ -2,17 +2,18 @@ package com.homebase.ui;
 
 import com.homebase.HomebasePlugin;
 import com.homebase.collect.LocalCollector;
+import com.homebase.data.Clean;
 import com.homebase.data.GroupView;
 import com.homebase.data.ItemsData;
 import com.homebase.data.ProfileData;
 import com.homebase.data.Section;
 import com.homebase.party.GroupSync;
+import com.homebase.requests.RequestService;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
-import java.awt.Cursor;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
+import java.awt.GridLayout;
+import java.awt.Insets;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -24,9 +25,11 @@ import javax.inject.Inject;
 import javax.inject.Singleton;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
+import javax.swing.ButtonGroup;
 import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JToggleButton;
 import javax.swing.SwingUtilities;
 import javax.swing.Timer;
 import javax.swing.border.EmptyBorder;
@@ -47,14 +50,20 @@ public class HomebasePanel extends PluginPanel
 	private final PartyService partyService;
 	private final LocalCollector collector;
 	private final ItemManager itemManager;
-	private final SkillIconManager skillIconManager;
 	private final ClientThread clientThread;
 
+	private final JLabel groupLabel = new JLabel();
 	private final JLabel statusLabel = new JLabel();
 	private final JButton actionButton = new JButton();
+	private final JToggleButton membersTab = new JToggleButton("Members");
+	private final JToggleButton requestsTab = new JToggleButton("Requests");
+	private final JPanel tabs = new JPanel(new GridLayout(1, 2, 4, 0));
 	private final JPanel list = new JPanel();
+	private final RequestsView requestsView;
+	private final MemberCard.Context cardContext;
 	private final Map<String, MemberCard> cards = new HashMap<>();
 	private final Set<String> expanded = new HashSet<>();
+	private final Set<String> openSections = new HashSet<>();
 	private final Timer rebuildTimer = new Timer(500, e -> rebuild());
 	private final Timer liveTimer = new Timer(600, e -> refreshLive());
 
@@ -64,15 +73,23 @@ public class HomebasePanel extends PluginPanel
 
 	@Inject
 	private HomebasePanel(HomebasePlugin plugin, GroupSync groupSync, PartyService partyService, LocalCollector collector,
-		ItemManager itemManager, SkillIconManager skillIconManager, ClientThread clientThread)
+		RequestService requestService, ItemManager itemManager, SkillIconManager skillIconManager, ClientThread clientThread)
 	{
 		this.plugin = plugin;
 		this.groupSync = groupSync;
 		this.partyService = partyService;
 		this.collector = collector;
 		this.itemManager = itemManager;
-		this.skillIconManager = skillIconManager;
 		this.clientThread = clientThread;
+		this.requestsView = new RequestsView(requestService);
+		this.cardContext = new MemberCard.Context(itemManager, skillIconManager, clientThread, openSections, id ->
+		{
+			if (!openSections.remove(id))
+			{
+				openSections.add(id);
+			}
+			rebuild();
+		});
 
 		rebuildTimer.setRepeats(false);
 		liveTimer.setRepeats(false);
@@ -84,6 +101,10 @@ public class HomebasePanel extends PluginPanel
 		JLabel title = new JLabel("Group Homebase");
 		title.setFont(FontManager.getRunescapeBoldFont());
 		title.setForeground(Color.WHITE);
+
+		groupLabel.setFont(FontManager.getRunescapeBoldFont());
+		groupLabel.setForeground(ColorScheme.BRAND_ORANGE);
+		groupLabel.setToolTipText("Your Group Ironman group");
 
 		statusLabel.setFont(FontManager.getRunescapeSmallFont());
 		statusLabel.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
@@ -98,11 +119,35 @@ public class HomebasePanel extends PluginPanel
 			}
 		});
 
+		ButtonGroup tabGroup = new ButtonGroup();
+		for (JToggleButton tab : new JToggleButton[]{membersTab, requestsTab})
+		{
+			tab.setFocusPainted(false);
+			tab.setFont(FontManager.getRunescapeSmallFont());
+			tab.setMargin(new Insets(2, 2, 2, 2));
+			tab.addActionListener(e -> rebuild());
+			tabGroup.add(tab);
+			tabs.add(tab);
+		}
+		membersTab.setSelected(true);
+		tabs.setOpaque(false);
+		tabs.setBorder(new EmptyBorder(8, 0, 0, 0));
+
+		JPanel titles = new JPanel(new GridLayout(0, 1));
+		titles.setOpaque(false);
+		titles.add(title);
+		titles.add(groupLabel);
+
+		JPanel controls = new JPanel(new BorderLayout());
+		controls.setOpaque(false);
+		controls.add(actionButton, BorderLayout.NORTH);
+		controls.add(tabs, BorderLayout.SOUTH);
+
 		JPanel header = new JPanel(new BorderLayout());
 		header.setOpaque(false);
-		header.add(title, BorderLayout.NORTH);
+		header.add(titles, BorderLayout.NORTH);
 		header.add(statusLabel, BorderLayout.CENTER);
-		header.add(actionButton, BorderLayout.SOUTH);
+		header.add(controls, BorderLayout.SOUTH);
 		header.setBorder(new EmptyBorder(0, 0, 10, 0));
 
 		list.setLayout(new BoxLayout(list, BoxLayout.Y_AXIS));
@@ -126,6 +171,7 @@ public class HomebasePanel extends PluginPanel
 		{
 			this.view = view;
 			expanded.clear();
+			openSections.clear();
 			storageExpanded = false;
 			rebuild();
 		});
@@ -157,41 +203,57 @@ public class HomebasePanel extends PluginPanel
 	{
 		list.removeAll();
 		cards.clear();
+		tabs.setVisible(view != null);
 
 		if (view != null)
 		{
-			addGroupStorage();
-
-			String localId = collector.getMemberId();
-			List<MemberCard> members = new ArrayList<>();
-			for (String id : view.memberIds())
+			int open = requestsView.openCount();
+			requestsTab.setText(open > 0 ? "Requests (" + open + ")" : "Requests");
+			if (requestsTab.isSelected())
 			{
-				MemberCard card = new MemberCard(id, view, expanded.contains(id), () -> toggle(id),
-					itemManager, skillIconManager, clientThread);
-				cards.put(id, card);
-				members.add(card);
+				requestsView.refresh();
+				requestsView.setAlignmentX(Component.LEFT_ALIGNMENT);
+				list.add(requestsView);
 			}
-			// you first, then everyone else by name
-			MemberCard localCard = localId == null ? null : cards.get(localId);
-			members.sort(Comparator
-				.comparingInt((MemberCard c) -> c == localCard ? 0 : 1)
-				.thenComparing(c -> c.getMemberName() == null ? "" : c.getMemberName(), String.CASE_INSENSITIVE_ORDER));
-
-			if (members.isEmpty())
+			else
 			{
-				list.add(hint("No group data yet. Log in and your details will be shared with your group."));
-			}
-			for (MemberCard card : members)
-			{
-				card.setAlignmentX(Component.LEFT_ALIGNMENT);
-				list.add(card);
-				list.add(Box.createVerticalStrut(6));
+				buildMembers();
 			}
 		}
 
 		refreshLive();
 		list.revalidate();
 		list.repaint();
+	}
+
+	private void buildMembers()
+	{
+		addGroupStorage();
+
+		String localId = collector.getMemberId();
+		List<MemberCard> members = new ArrayList<>();
+		for (String id : view.memberIds())
+		{
+			MemberCard card = new MemberCard(id, view, expanded.contains(id), () -> toggle(id), cardContext);
+			cards.put(id, card);
+			members.add(card);
+		}
+		// you first, then everyone else by name
+		MemberCard localCard = localId == null ? null : cards.get(localId);
+		members.sort(Comparator
+			.comparingInt((MemberCard c) -> c == localCard ? 0 : 1)
+			.thenComparing(c -> c.getMemberName() == null ? "" : c.getMemberName(), String.CASE_INSENSITIVE_ORDER));
+
+		if (members.isEmpty())
+		{
+			list.add(hint("No group data yet. Log in and your details will be shared with your group."));
+		}
+		for (MemberCard card : members)
+		{
+			card.setAlignmentX(Component.LEFT_ALIGNMENT);
+			list.add(card);
+			list.add(Box.createVerticalStrut(6));
+		}
 	}
 
 	private void addGroupStorage()
@@ -210,21 +272,16 @@ public class HomebasePanel extends PluginPanel
 		JLabel title = new JLabel((storageExpanded ? "▾ " : "▸ ") + "Group storage");
 		title.setFont(FontManager.getRunescapeBoldFont());
 		title.setForeground(Color.WHITE);
-		title.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-		title.addMouseListener(new MouseAdapter()
+		MemberCard.clickable(title, () ->
 		{
-			@Override
-			public void mouseClicked(MouseEvent e)
-			{
-				storageExpanded = !storageExpanded;
-				rebuild();
-			}
+			storageExpanded = !storageExpanded;
+			rebuild();
 		});
 
 		String author = view.authorOf(null, Section.GROUP_STORAGE);
 		ProfileData seenBy = author == null ? null : view.get(author, Section.PROFILE, ProfileData.class);
 		JLabel seen = new JLabel("Seen " + Ago.format(view.updatedAt(null, Section.GROUP_STORAGE))
-			+ (seenBy == null ? "" : " by " + seenBy.getName()));
+			+ (seenBy == null ? "" : " by " + Clean.text(seenBy.getName(), 20)));
 		seen.setFont(FontManager.getRunescapeSmallFont());
 		seen.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
 
@@ -257,6 +314,7 @@ public class HomebasePanel extends PluginPanel
 	private void refreshLive()
 	{
 		updateStatus();
+		updateGroupName();
 		String localId = collector.getMemberId();
 		boolean inGroupParty = groupSync.isGroupParty();
 		for (Map.Entry<String, MemberCard> entry : cards.entrySet())
@@ -266,6 +324,48 @@ public class HomebasePanel extends PluginPanel
 			PartyMember live = inGroupParty && name != null ? partyService.getMemberByDisplayName(name) : null;
 			card.updateLive(live, entry.getKey().equals(localId));
 		}
+	}
+
+	/**
+	 * Show the Group Ironman group's name: yours if you're logged in, otherwise whichever name the
+	 * group's members share.
+	 */
+	private void updateGroupName()
+	{
+		String name = null;
+		if (view != null)
+		{
+			String localId = collector.getMemberId();
+			ProfileData local = localId == null ? null : view.get(localId, Section.PROFILE, ProfileData.class);
+			if (local != null && local.getGroupName() != null)
+			{
+				name = local.getGroupName();
+			}
+			else
+			{
+				Map<String, Integer> counts = new HashMap<>();
+				for (String id : view.memberIds())
+				{
+					ProfileData profile = view.get(id, Section.PROFILE, ProfileData.class);
+					if (profile != null && profile.getGroupName() != null)
+					{
+						counts.merge(profile.getGroupName(), 1, Integer::sum);
+					}
+				}
+				int best = 0;
+				for (Map.Entry<String, Integer> e : counts.entrySet())
+				{
+					if (e.getValue() > best)
+					{
+						best = e.getValue();
+						name = e.getKey();
+					}
+				}
+			}
+		}
+		name = Clean.text(name, 20);
+		groupLabel.setText(name == null ? "" : name);
+		groupLabel.setVisible(name != null);
 	}
 
 	private void updateStatus()

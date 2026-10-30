@@ -32,4 +32,15 @@ public interface HomebaseConfig extends Config
 	{
 		return true;
 	}
+
+	@ConfigItem(
+		keyName = "requestMessages",
+		name = "Request chat messages",
+		description = "Show a chat message when someone in your group makes, takes on or finishes a request",
+		position = 2
+	)
+	default boolean requestMessages()
+	{
+		return true;
+	}
 }

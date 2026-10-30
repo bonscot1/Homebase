@@ -15,6 +15,8 @@ import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
+import java.util.function.Consumer;
 import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
 import javax.swing.ImageIcon;
@@ -22,6 +24,7 @@ import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.border.EmptyBorder;
+import net.runelite.api.Item;
 import net.runelite.api.Skill;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.game.ItemManager;
@@ -51,13 +54,34 @@ class MemberCard extends JPanel
 		Skill.RUNECRAFT, Skill.SLAYER, Skill.FARMING,
 		Skill.CONSTRUCTION, Skill.HUNTER, Skill.SAILING);
 
+	/**
+	 * Shared by every card so open sections survive the panel being rebuilt.
+	 */
+	static class Context
+	{
+		final ItemManager itemManager;
+		final SkillIconManager skillIconManager;
+		final ClientThread clientThread;
+		final Set<String> openSections;
+		final Consumer<String> toggleSection;
+
+		Context(ItemManager itemManager, SkillIconManager skillIconManager, ClientThread clientThread,
+			Set<String> openSections, Consumer<String> toggleSection)
+		{
+			this.itemManager = itemManager;
+			this.skillIconManager = skillIconManager;
+			this.clientThread = clientThread;
+			this.openSections = openSections;
+			this.toggleSection = toggleSection;
+		}
+	}
+
 	private final JLabel statusLabel = new JLabel();
 	private final JLabel liveLabel = new JLabel();
 	private final ProfileData profile;
 	private final long profileUpdatedAt;
 
-	MemberCard(String memberId, GroupView view, boolean expanded, Runnable onToggle,
-		ItemManager itemManager, SkillIconManager skillIconManager, ClientThread clientThread)
+	MemberCard(String memberId, GroupView view, boolean expanded, Runnable onToggle, Context context)
 	{
 		setLayout(new BorderLayout());
 		setBackground(ColorScheme.DARKER_GRAY_COLOR);
@@ -69,15 +93,7 @@ class MemberCard extends JPanel
 
 		JPanel header = new JPanel(new BorderLayout());
 		header.setOpaque(false);
-		header.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-		header.addMouseListener(new MouseAdapter()
-		{
-			@Override
-			public void mouseClicked(MouseEvent e)
-			{
-				onToggle.run();
-			}
-		});
+		clickable(header, onToggle);
 
 		JLabel name = new JLabel((expanded ? "▾ " : "▸ ") + (profile == null ? "Unknown" : profile.getName()));
 		name.setFont(FontManager.getRunescapeBoldFont());
@@ -105,7 +121,7 @@ class MemberCard extends JPanel
 
 		if (expanded)
 		{
-			add(buildDetails(memberId, view, skills, itemManager, skillIconManager, clientThread), BorderLayout.CENTER);
+			add(buildDetails(memberId, view, skills, context), BorderLayout.CENTER);
 		}
 
 		updateLive(null, false);
@@ -151,8 +167,7 @@ class MemberCard extends JPanel
 		}
 	}
 
-	private JPanel buildDetails(String memberId, GroupView view, SkillsData skills,
-		ItemManager itemManager, SkillIconManager skillIconManager, ClientThread clientThread)
+	private static JPanel buildDetails(String memberId, GroupView view, SkillsData skills, Context context)
 	{
 		JPanel details = new JPanel();
 		details.setLayout(new BoxLayout(details, BoxLayout.Y_AXIS));
@@ -161,15 +176,15 @@ class MemberCard extends JPanel
 
 		if (skills != null)
 		{
-			details.add(heading("Skills", view.updatedAt(memberId, Section.SKILLS)));
-			details.add(skillGrid(skills, skillIconManager));
+			details.add(heading("Skills  ·  " + Ago.format(view.updatedAt(memberId, Section.SKILLS))));
+			details.add(skillGrid(skills, context.skillIconManager));
 		}
 
-		addItems(details, "Inventory", memberId, Section.INVENTORY, 4, true, view, itemManager, clientThread);
-		addItems(details, "Equipment", memberId, Section.EQUIPMENT, 5, false, view, itemManager, clientThread);
-		addItems(details, "Bank", memberId, Section.BANK, 5, false, view, itemManager, clientThread);
-		addItems(details, "Seed vault", memberId, Section.SEED_VAULT, 5, false, view, itemManager, clientThread);
-		addItems(details, "Looting bag", memberId, Section.LOOTING_BAG, 5, false, view, itemManager, clientThread);
+		addItems(details, "Inventory", memberId, Section.INVENTORY, 4, true, view, context);
+		addItems(details, "Equipment", memberId, Section.EQUIPMENT, 5, false, view, context);
+		addCollapsible(details, "Bank", memberId, Section.BANK, view, context);
+		addCollapsible(details, "Seed vault", memberId, Section.SEED_VAULT, view, context);
+		addCollapsible(details, "Looting bag", memberId, Section.LOOTING_BAG, view, context);
 
 		for (Component c : details.getComponents())
 		{
@@ -179,15 +194,47 @@ class MemberCard extends JPanel
 	}
 
 	private static void addItems(JPanel parent, String title, String memberId, Section section, int columns,
-		boolean keepEmptySlots, GroupView view, ItemManager itemManager, ClientThread clientThread)
+		boolean keepEmptySlots, GroupView view, Context context)
 	{
 		ItemsData items = view.get(memberId, section, ItemsData.class);
 		if (items == null || (items.isEmpty() && !keepEmptySlots))
 		{
 			return;
 		}
-		parent.add(heading(title, view.updatedAt(memberId, section)));
-		parent.add(new ItemGrid(items.toItems(), columns, keepEmptySlots, itemManager, clientThread));
+		parent.add(heading(title + "  ·  " + Ago.format(view.updatedAt(memberId, section))));
+		parent.add(new ItemGrid(items.toItems(), columns, keepEmptySlots, context.itemManager, context.clientThread));
+	}
+
+	/**
+	 * Big containers start collapsed, so a full bank doesn't bury everything below it.
+	 */
+	private static void addCollapsible(JPanel parent, String title, String memberId, Section section,
+		GroupView view, Context context)
+	{
+		ItemsData items = view.get(memberId, section, ItemsData.class);
+		if (items == null || items.isEmpty())
+		{
+			return;
+		}
+		String id = memberId + ":" + section.getKey();
+		boolean open = context.openSections.contains(id);
+		List<Item> stacks = new ArrayList<>();
+		for (Item item : items.toItems())
+		{
+			if (item != null)
+			{
+				stacks.add(item);
+			}
+		}
+		JLabel label = heading((open ? "▾ " : "▸ ") + title + "  ·  " + stacks.size() + " items  ·  "
+			+ Ago.format(view.updatedAt(memberId, section)));
+		label.setForeground(Color.WHITE);
+		clickable(label, () -> context.toggleSection.accept(id));
+		parent.add(label);
+		if (open)
+		{
+			parent.add(new ItemGrid(stacks, 5, false, context.itemManager, context.clientThread));
+		}
 	}
 
 	private static JPanel skillGrid(SkillsData skills, SkillIconManager skillIconManager)
@@ -215,13 +262,26 @@ class MemberCard extends JPanel
 		return grid;
 	}
 
-	static JLabel heading(String title, long updatedAt)
+	static JLabel heading(String text)
 	{
-		JLabel label = new JLabel(title + "  ·  " + Ago.format(updatedAt));
+		JLabel label = new JLabel(text);
 		label.setFont(FontManager.getRunescapeSmallFont());
 		label.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
 		label.setBorder(BorderFactory.createEmptyBorder(6, 0, 2, 0));
 		return label;
+	}
+
+	static void clickable(JComponent component, Runnable onClick)
+	{
+		component.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+		component.addMouseListener(new MouseAdapter()
+		{
+			@Override
+			public void mouseClicked(MouseEvent e)
+			{
+				onClick.run();
+			}
+		});
 	}
 
 	private static JLabel smallLabel(String text)
