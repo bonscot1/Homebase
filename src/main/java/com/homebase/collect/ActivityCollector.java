@@ -6,8 +6,10 @@ import com.homebase.data.CombatAchievementsData;
 import com.homebase.data.HouseData;
 import com.homebase.data.KillCountsData;
 import com.homebase.data.Section;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -16,6 +18,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.inject.Inject;
@@ -39,7 +42,12 @@ import net.runelite.api.gameval.InterfaceID;
 import net.runelite.api.gameval.VarPlayerID;
 import net.runelite.api.gameval.VarbitID;
 import net.runelite.api.widgets.Widget;
+import net.runelite.client.callback.ClientThread;
 import net.runelite.client.eventbus.Subscribe;
+import net.runelite.client.hiscore.HiscoreEndpoint;
+import net.runelite.client.hiscore.HiscoreManager;
+import net.runelite.client.hiscore.HiscoreResult;
+import net.runelite.client.hiscore.HiscoreSkillType;
 import net.runelite.client.util.Text;
 
 /**
@@ -134,8 +142,11 @@ public class ActivityCollector
 	private static final int HOUSE_ARRIVAL_TICKS = 30;
 
 	private final Client client;
+	private final ClientThread clientThread;
 	private final LocalCollector collector;
 	private final CollectionLogSearch logSearch;
+	private final HiscoreManager hiscoreManager;
+	private final ScheduledExecutorService executor;
 
 	private int loginTicks = -1;
 	private boolean caWanted;
@@ -151,11 +162,15 @@ public class ActivityCollector
 	private int arrivalTicks;
 
 	@Inject
-	private ActivityCollector(Client client, LocalCollector collector, CollectionLogSearch logSearch)
+	private ActivityCollector(Client client, ClientThread clientThread, LocalCollector collector, CollectionLogSearch logSearch,
+		HiscoreManager hiscoreManager, ScheduledExecutorService executor)
 	{
 		this.client = client;
+		this.clientThread = clientThread;
 		this.collector = collector;
 		this.logSearch = logSearch;
+		this.hiscoreManager = hiscoreManager;
+		this.executor = executor;
 	}
 
 	public void start()
@@ -204,6 +219,10 @@ public class ActivityCollector
 		if (caWanted)
 		{
 			caWanted = false;
+			if (collector.getLocalName() != null)
+			{
+				fetchHiscoreKills(collector.getLocalName());
+			}
 			CombatAchievementsData ca = readCombatAchievements();
 			if (ca.getPoints() > 0 || ca.getTasks() > 0)
 			{
@@ -346,27 +365,87 @@ public class ActivityCollector
 
 	private void recordKills(String boss, int count)
 	{
-		if (count <= 0)
-		{
-			// collection log pages show "kills: 0" for bosses never fought
-			return;
-		}
+		recordKills(Collections.singletonMap(boss, count), false);
+	}
+
+	/**
+	 * Keep kill counts, under whatever name each boss already has.
+	 *
+	 * @param onlyRaise true when the counts may be behind ours, as the hiscores can be
+	 */
+	private void recordKills(Map<String, Integer> counts, boolean onlyRaise)
+	{
 		KillCountsData kills = collector.shared(Section.KILL_COUNTS, KillCountsData.class);
-		if (kills == null || kills.getCounts() == null)
+		if (kills == null)
 		{
 			kills = new KillCountsData();
 		}
-		Integer old = kills.getCounts().get(boss);
-		if (old != null && old == count)
+		boolean changed = false;
+		for (Map.Entry<String, Integer> e : counts.entrySet())
 		{
-			return;
+			int count = e.getValue();
+			if (count <= 0)
+			{
+				// collection log pages show "kills: 0" for bosses never fought, which says nothing
+				continue;
+			}
+			String existing = kills.existingName(e.getKey());
+			String name = existing == null ? e.getKey() : existing;
+			Integer old = kills.getCounts().get(name);
+			boolean tooMany = old == null && kills.getCounts().size() >= KillCountsData.MAX_BOSSES;
+			if (tooMany || (old != null && (old == count || (onlyRaise && old > count))))
+			{
+				continue;
+			}
+			kills.getCounts().put(name, count);
+			changed = true;
 		}
-		if (old == null && kills.getCounts().size() >= KillCountsData.MAX_BOSSES)
+		if (changed)
 		{
-			return;
+			collector.share(Section.KILL_COUNTS, kills);
 		}
-		kills.getCounts().put(boss, count);
-		collector.share(Section.KILL_COUNTS, kills);
+	}
+
+	/**
+	 * Fill in kill counts from the hiscores, which covers bosses killed before the plugin was installed.
+	 * Bosses only appear there once a player is ranked, so ones never killed stay hidden.
+	 */
+	private void fetchHiscoreKills(String player)
+	{
+		executor.execute(() ->
+		{
+			HiscoreResult result;
+			try
+			{
+				result = hiscoreManager.lookup(player, HiscoreEndpoint.NORMAL);
+			}
+			catch (IOException e)
+			{
+				log.debug("Couldn't read kill counts from the hiscores", e);
+				return;
+			}
+			if (result == null || result.getSkills() == null)
+			{
+				return;
+			}
+			Map<String, Integer> counts = new HashMap<>();
+			result.getSkills().forEach((boss, entry) ->
+			{
+				// unranked bosses come back as -1
+				if (boss.getType() == HiscoreSkillType.BOSS && entry != null && entry.getLevel() > 0)
+				{
+					counts.put(boss.getName(), entry.getLevel());
+				}
+			});
+			clientThread.invokeLater(() ->
+			{
+				// they may have logged out, or into another account, while the hiscores answered
+				if (player.equals(collector.getLocalName()))
+				{
+					recordKills(counts, true);
+				}
+			});
+		});
 	}
 
 	private CombatAchievementsData readCombatAchievements()

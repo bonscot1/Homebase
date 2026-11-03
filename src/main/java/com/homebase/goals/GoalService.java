@@ -283,7 +283,7 @@ public class GoalService
 				{
 					return new Progress(false, "?");
 				}
-				Integer count = lookup(kills.getCounts(), goal.getTarget());
+				Integer count = kills.countFor(goal.getTarget());
 				return amount(count == null ? 0 : count, goal.getAmount());
 			}
 			case COMBAT_POINTS:

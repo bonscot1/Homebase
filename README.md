@@ -8,7 +8,7 @@ It's made for Group Ironman groups, and works for any group of friends too.
 
 **See your whole group**
 - A card for each member, with a green dot and their world while they're online, and live hitpoints, prayer and run energy bars.
-- Their skills, laid out like the in-game skills tab, plus quests, achievement diaries, combat achievements, collection log pages and boss kill counts.
+- Their skills, laid out like the in-game skills tab, plus quests, achievement diaries, combat achievements, collection log pages and boss kill counts (read from the hiscores when you log in, and kept up to date as you play).
 - Their inventory, equipment, bank, seed vault and looting bag, as they were last time they opened them, and your group storage, with who saw it last.
 - Useful furniture built in their house, and what's in their costume room.
 - An **Updates** tab, plus a chat line when you log in, saying what everyone did while you were away: "Magic 15 → 32, completed The Restless Ghost".
