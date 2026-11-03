@@ -61,7 +61,7 @@ Under **Pings and highlights** in the settings you can switch pings to a key + l
 - RuneLite allows one party at a time. If you join someone else's party, syncing pauses until you click **Switch to group**.
 - Bank bounties and items kept for requests only stop withdrawals for members using RuneLite with this plugin turned on, and only count when someone in your group set them up. To see the padlocks without the plugin hiding any Withdraw options, turn off **Hold items in group storage**.
 - Only the amount asked for is held back. If 5 are kept for someone and there are 8 in group storage, anyone can take the other 3, with Withdraw-1, -5 or -10 when the amount fits. Withdraw-X is hidden while any of an item is held back, because the plugin can't see the number you type.
-- Banks, the seed vault, the looting bag and group storage update when someone opens them, and the collection log when someone browses it.
+- Banks, the seed vault, the looting bag and group storage update when someone opens them. To share your whole collection log, open it and click **Search** once; browsing a page also updates that page.
 
 ## Feedback
 

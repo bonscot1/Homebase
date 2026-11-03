@@ -52,6 +52,7 @@ With one account:
 - [ ] Shift + right-click a tile and choose **Group mark**. The tile is outlined in **Your colour** with your name on it. Changing the colour changes the tile. **Group unmark** removes it, and it's still there after restarting.
 - [ ] A combat achievement task, a "New item added to your collection log" message and a boss kill count message each update the matching line on your card (**Combat achievements**, **Collection log**, **Kill counts**).
 - [ ] Browsing a page of your collection log adds that page, with how many of its items you have, under **Collection log** on your card.
+- [ ] Clicking **Search** in the collection log adds every page you have items on at once.
 - [ ] Going home (house portal **Home**, Teleport to House or a house tab) lists your useful furniture under **House** on your card. Opening the costume room storage lists what's in it.
 - [ ] Middle-click the ground (a quick click; dragging still turns the camera). The tile flashes in **Your colour** with your name and a dot on the minimap for a few seconds (**Ping length**). Middle-clicking a monster outlines it instead. Setting **Ping with** to **Ping key + left-click** pings with Ctrl + left-click instead, and that click does nothing in game.
 - [ ] Shift + right-click a monster and choose **Group highlight**. It stays outlined in your colour with your name until it dies, you choose **Group unhighlight**, or you change worlds.
@@ -130,7 +131,7 @@ Items are ticked when they're built. Each stage's last box is ticked once it has
 - [x] Quests and Diaries sections on each member's card
 - [x] Tested in the simulated RuneLite, including your example summary
 - [x] Combat achievements: points, tasks done and highest tier reached, read from the game
-- [x] Collection log: pages captured as members browse them (how many of each page's items they have), new slots from the "New item added to your collection log" message, and the total when the game provides it
+- [x] Collection log: every page at once from the log's Search (script 4100 runs once per obtained item; pages and their items come from the cache, enum 2102 and params 683, 689 and 690, as WikiSync does), pages captured as members browse them, new slots from the "New item added to your collection log" message, and the total when the game provides it
 - [x] Boss kill counts, from kill count messages and the collection log's page headers
 - [x] Player-owned house: useful furniture built (pools, jewellery box, portal nexus, altars, mounted items and more), captured in your own house, and the costume room storage when it's opened
 - [ ] Rooms built in the house (the game doesn't name rooms, so this needs more work)

@@ -474,7 +474,7 @@ class MemberCard extends JPanel
 		}
 		if (listed == 0 && recent.isEmpty())
 		{
-			list.add(Ui.wrapped("Pages they have items on appear here as they browse their collection log.", ColorScheme.MEDIUM_GRAY_COLOR));
+			list.add(Ui.wrapped("Pages appear here once they open their collection log and click Search.", ColorScheme.MEDIUM_GRAY_COLOR));
 		}
 		addContent(parent, list);
 	}

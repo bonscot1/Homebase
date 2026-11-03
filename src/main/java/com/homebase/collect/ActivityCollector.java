@@ -13,6 +13,7 @@ import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.regex.Matcher;
@@ -134,6 +135,7 @@ public class ActivityCollector
 
 	private final Client client;
 	private final LocalCollector collector;
+	private final CollectionLogSearch logSearch;
 
 	private int loginTicks = -1;
 	private boolean caWanted;
@@ -149,10 +151,11 @@ public class ActivityCollector
 	private int arrivalTicks;
 
 	@Inject
-	private ActivityCollector(Client client, LocalCollector collector)
+	private ActivityCollector(Client client, LocalCollector collector, CollectionLogSearch logSearch)
 	{
 		this.client = client;
 		this.collector = collector;
+		this.logSearch = logSearch;
 	}
 
 	public void start()
@@ -208,8 +211,31 @@ public class ActivityCollector
 			}
 		}
 		capturePage();
+		Map<String, CollectionLogSearch.PageResult> searched = logSearch.takeFinished();
+		if (searched != null)
+		{
+			saveSearchedPages(searched);
+		}
 		captureCostumes();
 		trackHouse();
+	}
+
+	/**
+	 * The collection log's search listed everything obtained, so share every page at once.
+	 */
+	private void saveSearchedPages(Map<String, CollectionLogSearch.PageResult> searched)
+	{
+		CollectionLogData clog = collectionLog();
+		long now = System.currentTimeMillis();
+		searched.forEach((name, page) ->
+		{
+			if (clog.getPages().size() < CollectionLogData.MAX_PAGES || clog.getPages().containsKey(name))
+			{
+				clog.getPages().put(name, new CollectionLogData.Page(page.getSize(), page.getObtained(), now));
+			}
+		});
+		collector.share(Section.COLLECTION_LOG, clog);
+		updateLogCounts();
 	}
 
 	private void trackHouse()

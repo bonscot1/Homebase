@@ -9,6 +9,7 @@ import com.homebase.bounties.BountyGuard;
 import com.homebase.bounties.BountyOverlay;
 import com.homebase.bounties.BountyService;
 import com.homebase.collect.ActivityCollector;
+import com.homebase.collect.CollectionLogSearch;
 import com.homebase.collect.LocalCollector;
 import com.homebase.data.GroupIndex;
 import com.homebase.data.GroupView;
@@ -179,6 +180,9 @@ public class HomebasePlugin extends Plugin
 	private ActivityCollector activityCollector;
 
 	@Inject
+	private CollectionLogSearch collectionLogSearch;
+
+	@Inject
 	private GoalService goalService;
 
 	@Inject
@@ -270,6 +274,8 @@ public class HomebasePlugin extends Plugin
 		eventBus.register(collector);
 		eventBus.register(groupTiles);
 		eventBus.register(activityCollector);
+		eventBus.register(collectionLogSearch);
+		clientThread.invokeLater(collectionLogSearch::preload);
 		eventBus.register(bountyGuard);
 		eventBus.register(requestDelivery);
 		pingService.start();
@@ -335,6 +341,8 @@ public class HomebasePlugin extends Plugin
 		requestDelivery.reset();
 		bountyGuard.reset();
 		eventBus.unregister(activityCollector);
+		eventBus.unregister(collectionLogSearch);
+		collectionLogSearch.reset();
 		eventBus.unregister(groupTiles);
 		eventBus.unregister(collector);
 		eventBus.unregister(presence);
