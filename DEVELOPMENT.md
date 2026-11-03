@@ -62,7 +62,7 @@ With a second group member running the plugin:
 - [ ] Whoever took a request on puts the item in group storage. Both of you see "In group storage for …", and the requester gets "Waiting for you in group storage". For the other member the item has a red padlock ("kept for …'s request"), and the Withdraw options that would take any of the requested amount are gone. If there's more than was asked for, Withdraw-1 still takes the spare.
 - [ ] The requester takes the item out of group storage, and the request shows as done for both of you. **Clear** removes it.
 - [ ] Instead, whoever took a request on trades at least the requested amount to the requester. When the trade is accepted, the request shows as done.
-- [ ] When one of you logs out, the other's panel shows "Seen … ago" for them.
+- [ ] When one of you logs out, the other's panel shows "Seen … ago" for them straight away, and they drop out of the other's HUD and world map. If one of you closes RuneLite without logging out, the same happens within about a minute and a quarter.
 - [ ] While one of you is offline, the other gains a level, finishes a quest or completes a diary tier. On logging back in, the first gets one chat line such as "[Homebase] bonscott1: Magic 15 -> 32, completed The Restless Ghost, completed the Varrock Easy diary." The same summary appears on the **Updates** tab.
 - [ ] Each of you sees the other in the **Group HUD**, on the world map (a dot in their colour, with their name and area as the tooltip), and their marked tiles in their colour, including inside a raid you both enter.
 - [ ] A ping from one of you shows up for the other with the pinger's name and colour, and a ping sound (**Ping sound**). A monster pinged or highlighted by one of you is outlined for the other when you're on the same world.
@@ -92,6 +92,8 @@ Items are ticked when they're built. Each stage's last box is ticked once it has
 - [x] Share the bank, seed vault and looting bag whenever they're opened
 - [x] Share the group storage whenever anyone opens it
 - [x] Live HP, prayer and run energy for online members
+- [x] Members show as offline as soon as they log out (each client says so before leaving the party), or after 75 seconds without a "still here" if RuneLite closes without logging out
+- [x] Each player listed once even when the party briefly keeps their old connection after they log back in
 - [x] Sidebar panel: members with online status or last seen, live stats and total level
 - [x] Expand a member to see skills, inventory, equipment, bank, seed vault and looting bag
 - [x] Bank, seed vault and looting bag start collapsed, with an item count, so a full bank doesn't take over the panel
@@ -102,7 +104,7 @@ Items are ticked when they're built. Each stage's last box is ticked once it has
 
 ### Stage 2: On-screen features
 
-- [x] Group status HUD: each member's HP, prayer, run energy, combat level and position
+- [x] Group status HUD: each member's HP, prayer and run energy as bars, combat level and position
 - [x] HUD settings: choose what's shown, include yourself or not, compact mode, size
 - [x] Area names for members' positions (for example "Varrock", "near Catherby", "Wilderness (level 11)", "Varrock (underground)")
 - [x] Group members on the world map, updated live, with their area in the tooltip
@@ -150,6 +152,7 @@ Items are ticked when they're built. Each stage's last box is ticked once it has
 - [x] Padlock on the item in group storage, red while it's locked for you and green once it isn't, with the goal in its tooltip
 - [x] Bounty lifts automatically for each locked member as they reach the goal
 - [x] Bounties and requests hold back only the amount asked for; anything more in group storage is free for anyone
+- [x] Quick repeated withdrawals can't dip into what's held: withdrawals let through are counted until the game reports them
 - [ ] Tested in game
 
 ### Release
