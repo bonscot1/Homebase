@@ -9,11 +9,13 @@ import com.homebase.goals.GoalService;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
+import java.awt.Dimension;
 import java.awt.GridLayout;
 import java.awt.Insets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -22,11 +24,14 @@ import java.util.function.Supplier;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.DefaultComboBoxModel;
+import javax.swing.DefaultListCellRenderer;
+import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
+import javax.swing.JList;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
@@ -38,6 +43,8 @@ import net.runelite.client.callback.ClientThread;
 import net.runelite.client.game.ItemManager;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.FontManager;
+import net.runelite.client.util.AsyncBufferedImage;
+import net.runelite.client.util.QuantityFormatter;
 
 /**
  * Set goals for the group and watch them tick off, and put bounties on group storage items.
@@ -61,6 +68,7 @@ class GoalsView extends JPanel
 	}
 
 	private static final Map<Integer, String> ITEM_NAMES = Collections.synchronizedMap(new HashMap<>());
+	private static final Map<Integer, ImageIcon> ITEM_ICONS = new HashMap<>();
 
 	private final GoalService goals;
 	private final BountyService bounties;
@@ -80,8 +88,9 @@ class GoalsView extends JPanel
 	 * The goal whose bounty form is open, and the form's state, kept across rebuilds.
 	 */
 	private String bountyGoal;
-	private JComboBox<String> bountyItem;
+	private JComboBox<Integer> bountyItem;
 	private List<Integer> bountyItemIds = new ArrayList<>();
+	private Map<Integer, Integer> bountyQuantities = new HashMap<>();
 	private final Map<String, JCheckBox> bountyMembers = new LinkedHashMap<>();
 
 	private List<GoalService.Member> members = new ArrayList<>();
@@ -290,27 +299,32 @@ class GoalsView extends JPanel
 		form.setBorder(new EmptyBorder(6, 0, 0, 0));
 
 		ItemsData items = storage.get();
-		List<Integer> ids = new ArrayList<>();
+		Map<Integer, Integer> quantities = new LinkedHashMap<>();
 		if (items != null)
 		{
 			for (Item item : items.toItems())
 			{
-				if (item != null && item.getId() > 0 && !ids.contains(item.getId()))
+				if (item != null && item.getId() > 0)
 				{
-					ids.add(item.getId());
+					quantities.merge(item.getId(), item.getQuantity(), Integer::sum);
 				}
 			}
 		}
+		List<Integer> ids = new ArrayList<>(quantities.keySet());
 		if (ids.isEmpty())
 		{
 			form.add(hint("Open your group storage in game first, so the plugin knows what's in it."));
 			return form;
 		}
 
+		bountyQuantities = quantities;
 		if (bountyItem == null || !ids.equals(bountyItemIds))
 		{
 			bountyItemIds = ids;
-			bountyItem = new JComboBox<>(names(ids));
+			// pictures and counts tell apart items with similar names, such as the black and blue wizard hats
+			bountyItem = new JComboBox<>(sorted(ids));
+			bountyItem.setRenderer(new ItemRenderer());
+			bountyItem.setPreferredSize(new Dimension(50, 38));
 			resolveNames(ids);
 		}
 		form.add(field("Item in group storage", bountyItem));
@@ -334,7 +348,7 @@ class GoalsView extends JPanel
 		}
 		form.add(button("Create bounty", () ->
 		{
-			int index = bountyItem.getSelectedIndex();
+			Integer itemId = (Integer) bountyItem.getSelectedItem();
 			List<String> locked = new ArrayList<>();
 			for (Map.Entry<String, JCheckBox> e : bountyMembers.entrySet())
 			{
@@ -343,12 +357,11 @@ class GoalsView extends JPanel
 					locked.add(e.getKey());
 				}
 			}
-			if (index < 0 || index >= bountyItemIds.size() || locked.isEmpty())
+			if (itemId == null || locked.isEmpty())
 			{
 				return;
 			}
-			int itemId = bountyItemIds.get(index);
-			bounties.create(itemId, ITEM_NAMES.getOrDefault(itemId, "item " + itemId), goal.getId(), locked);
+			bounties.create(itemId, name(itemId), goal.getId(), locked);
 			bountyGoal = null;
 			bountyItem = null;
 			bountyMembers.clear();
@@ -361,14 +374,52 @@ class GoalsView extends JPanel
 		return form;
 	}
 
-	private String[] names(List<Integer> ids)
+	private static String name(int itemId)
 	{
-		String[] out = new String[ids.size()];
-		for (int i = 0; i < ids.size(); i++)
-		{
-			out[i] = ITEM_NAMES.getOrDefault(ids.get(i), "item " + ids.get(i));
-		}
+		return ITEM_NAMES.getOrDefault(itemId, "item " + itemId);
+	}
+
+	private static Integer[] sorted(List<Integer> ids)
+	{
+		Integer[] out = ids.toArray(new Integer[0]);
+		Arrays.sort(out, Comparator.comparing(GoalsView::name, String.CASE_INSENSITIVE_ORDER));
 		return out;
+	}
+
+	/**
+	 * Shows a group storage item in the bounty list with its picture, name and how many there are.
+	 */
+	private class ItemRenderer extends DefaultListCellRenderer
+	{
+		@Override
+		public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean selected, boolean focused)
+		{
+			super.getListCellRendererComponent(list, value, index, selected, focused);
+			if (value instanceof Integer)
+			{
+				int id = (Integer) value;
+				int quantity = bountyQuantities.getOrDefault(id, 0);
+				setText(name(id) + (quantity > 1 ? " ×" + QuantityFormatter.formatNumber(quantity) : ""));
+				setIcon(icon(id));
+			}
+			return this;
+		}
+	}
+
+	private ImageIcon icon(int itemId)
+	{
+		return ITEM_ICONS.computeIfAbsent(itemId, id ->
+		{
+			AsyncBufferedImage image = itemManager.getImage(id);
+			image.onLoaded(() ->
+			{
+				if (bountyItem != null)
+				{
+					bountyItem.repaint();
+				}
+			});
+			return new ImageIcon(image);
+		});
 	}
 
 	/**
@@ -398,9 +449,13 @@ class GoalsView extends JPanel
 			{
 				if (bountyItem != null && ids.equals(bountyItemIds))
 				{
-					int selected = bountyItem.getSelectedIndex();
-					bountyItem.setModel(new DefaultComboBoxModel<>(names(ids)));
-					bountyItem.setSelectedIndex(Math.max(0, selected));
+					// now the names are known, put the list in A to Z order, keeping any choice already made
+					Object chosen = bountyItem.getSelectedIndex() > 0 ? bountyItem.getSelectedItem() : null;
+					bountyItem.setModel(new DefaultComboBoxModel<>(sorted(ids)));
+					if (chosen != null)
+					{
+						bountyItem.setSelectedItem(chosen);
+					}
 				}
 			});
 		});
