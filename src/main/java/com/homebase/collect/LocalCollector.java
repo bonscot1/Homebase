@@ -12,10 +12,10 @@ import com.homebase.data.Section;
 import com.homebase.data.SkillsData;
 import com.homebase.sync.SyncEngine;
 import com.homebase.sync.SyncRecord;
-import java.util.EnumMap;
 import java.util.Iterator;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import javax.inject.Inject;
@@ -94,8 +94,10 @@ public class LocalCollector
 	 * does, so an alt that isn't in the group never shares anything.
 	 */
 	private volatile Predicate<ProfileData> sharePolicy = p -> true;
-	private final Map<Section, Object> pending = new EnumMap<>(Section.class);
-	private final Map<Section, Long> lastPublished = new EnumMap<>(Section.class);
+	// concurrent, since stopping the plugin clears them from the Swing thread while the client thread
+	// may be sending
+	private final Map<Section, Object> pending = new ConcurrentHashMap<>();
+	private final Map<Section, Long> lastPublished = new ConcurrentHashMap<>();
 
 	@Inject
 	private LocalCollector(Client client, Gson gson)

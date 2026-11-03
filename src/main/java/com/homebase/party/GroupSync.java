@@ -353,7 +353,11 @@ public class GroupSync
 		notifyStatus();
 	}
 
-	@Subscribe
+	/**
+	 * Runs after the rest of the plugin has seen the change, so a logout's last details are captured
+	 * before they're sent.
+	 */
+	@Subscribe(priority = -1)
 	public void onGameStateChanged(GameStateChanged event)
 	{
 		if (event.getGameState() == GameState.LOGIN_SCREEN)

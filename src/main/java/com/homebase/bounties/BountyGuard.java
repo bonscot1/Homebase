@@ -59,6 +59,15 @@ public class BountyGuard
 		this.config = config;
 	}
 
+	/**
+	 * Forget withdrawals still being counted, when the plugin stops.
+	 */
+	public void reset()
+	{
+		pending.clear();
+		reported = new HashMap<>();
+	}
+
 	@Subscribe
 	public void onMenuEntryAdded(MenuEntryAdded event)
 	{

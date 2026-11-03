@@ -43,7 +43,9 @@ import java.io.Reader;
 import java.io.Writer;
 import java.lang.reflect.Type;
 import java.nio.file.StandardCopyOption;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.List;
 import java.util.Locale;
 import java.util.Random;
@@ -99,6 +101,12 @@ public class HomebasePlugin extends Plugin
 	 * Request changes older than this aren't announced in chat.
 	 */
 	private static final long ANNOUNCE_WINDOW_MS = TimeUnit.MINUTES.toMillis(2);
+
+	/**
+	 * At most this many request messages in chat within this long.
+	 */
+	private static final int ANNOUNCE_BURST = 3;
+	private static final long ANNOUNCE_BURST_MS = 10_000;
 
 	private static final Type UPDATES_TYPE = new TypeToken<List<UpdateEntry>>()
 	{
@@ -218,6 +226,11 @@ public class HomebasePlugin extends Plugin
 	 * Whether position, run energy, hitpoints and prayer are being shared through the party service.
 	 */
 	private boolean liveShared;
+
+	/**
+	 * When the latest request messages went to chat.
+	 */
+	private final Deque<Long> recentAnnouncements = new ArrayDeque<>();
 	private int mapTicks;
 	private final AtomicBoolean goalCheckScheduled = new AtomicBoolean();
 	private final Consumer<UpdateEntry> updateListener = this::onUpdate;
@@ -231,6 +244,11 @@ public class HomebasePlugin extends Plugin
 		final SyncEngine engine = new SyncEngine(store, System::currentTimeMillis, new Random());
 		final AtomicBoolean dirty = new AtomicBoolean();
 		final AtomicBoolean updatesDirty = new AtomicBoolean();
+
+		/**
+		 * Set once the saved copy is loaded; until then, records coming in are old news.
+		 */
+		volatile boolean loaded;
 		final Filepath file;
 		final Filepath updatesFile;
 		GroupStore.Listener listener;
@@ -314,6 +332,8 @@ public class HomebasePlugin extends Plugin
 		pingService.stop();
 		eventBus.unregister(requestDelivery);
 		eventBus.unregister(bountyGuard);
+		requestDelivery.reset();
+		bountyGuard.reset();
 		eventBus.unregister(activityCollector);
 		eventBus.unregister(groupTiles);
 		eventBus.unregister(collector);
@@ -528,7 +548,10 @@ public class HomebasePlugin extends Plugin
 			requestService.invalidate();
 			scheduleGoalCheck();
 			panel.scheduleRebuild();
-			announce(record);
+			if (g.loaded)
+			{
+				announce(record);
+			}
 			updateTracker.onRecordChanged(previous, record);
 		};
 		g.store.addListener(g.listener);
@@ -546,6 +569,7 @@ public class HomebasePlugin extends Plugin
 		executor.execute(() ->
 		{
 			load(g);
+			g.loaded = true;
 			// the first look at goals after loading only notes who has already reached them
 			goalService.checkCompletions();
 		});
@@ -588,13 +612,14 @@ public class HomebasePlugin extends Plugin
 	private void announce(SyncRecord record)
 	{
 		String me = collector.getMemberId();
+		long now = System.currentTimeMillis();
 		if (!config.requestMessages() || me == null || me.equals(record.getAuthor())
-			|| record.getVersion() < System.currentTimeMillis() - ANNOUNCE_WINDOW_MS)
+			|| record.getVersion() < now - ANNOUNCE_WINDOW_MS)
 		{
 			return;
 		}
 		String message = requestService.describeChange(record);
-		if (message == null)
+		if (message == null || !takeAnnouncementSlot(now))
 		{
 			return;
 		}
@@ -605,6 +630,24 @@ public class HomebasePlugin extends Plugin
 				client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "<col=ff9800>[Homebase]</col> " + message, null);
 			}
 		});
+	}
+
+	/**
+	 * @return true if another request message may go to chat now: a few at a time at most, so a burst of
+	 * changes can't fill the chat box
+	 */
+	private synchronized boolean takeAnnouncementSlot(long now)
+	{
+		while (!recentAnnouncements.isEmpty() && now - recentAnnouncements.peekFirst() > ANNOUNCE_BURST_MS)
+		{
+			recentAnnouncements.pollFirst();
+		}
+		if (recentAnnouncements.size() >= ANNOUNCE_BURST)
+		{
+			return false;
+		}
+		recentAnnouncements.addLast(now);
+		return true;
 	}
 
 	/**

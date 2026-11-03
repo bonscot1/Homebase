@@ -66,6 +66,17 @@ public class RequestDelivery
 		this.requests = requests;
 	}
 
+	/**
+	 * Forget any storage or trade in progress, when the plugin stops.
+	 */
+	public void reset()
+	{
+		lastCounts = null;
+		tradePartner = null;
+		offered = new HashMap<>();
+		tradeOpen = false;
+	}
+
 	@Subscribe
 	public void onItemContainerChanged(ItemContainerChanged event)
 	{

@@ -45,6 +45,7 @@ public class PingService
 	 * Clicks closer together than this send one ping.
 	 */
 	private static final long SEND_GAP_MS = 400;
+	private static final long SOUND_GAP_MS = 1_000;
 
 	/**
 	 * A middle press that moves further than this, or is held longer, is turning the camera.
@@ -75,6 +76,7 @@ public class PingService
 	private java.awt.Point pressedAt;
 	private long pressedTime;
 	private long lastSent;
+	private volatile long lastSoundAt;
 
 	@Inject
 	private PingService(Client client, ClientThread clientThread, HomebaseConfig config, PartyService partyService,
@@ -275,8 +277,10 @@ public class PingService
 			}
 			pings.add(ping);
 		}
-		if (config.pingSound())
+		long now = System.currentTimeMillis();
+		if (config.pingSound() && now - lastSoundAt >= SOUND_GAP_MS)
 		{
+			lastSoundAt = now;
 			clientThread.invokeLater(() -> client.playSoundEffect(SoundEffectID.SMITH_ANVIL_TINK));
 		}
 	}

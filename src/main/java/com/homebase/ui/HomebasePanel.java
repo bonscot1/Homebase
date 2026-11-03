@@ -40,6 +40,7 @@ import javax.swing.SwingUtilities;
 import javax.swing.Timer;
 import javax.swing.border.CompoundBorder;
 import javax.swing.border.EmptyBorder;
+import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.game.ItemManager;
 import net.runelite.client.game.SkillIconManager;
@@ -50,6 +51,7 @@ import net.runelite.client.ui.FontManager;
 import net.runelite.client.ui.PluginPanel;
 import net.runelite.client.util.ImageUtil;
 
+@Slf4j
 @Singleton
 public class HomebasePanel extends PluginPanel
 {
@@ -97,6 +99,7 @@ public class HomebasePanel extends PluginPanel
 
 	private GroupView view;
 	private boolean storageExpanded;
+	private boolean rebuildWhenShown;
 	private Runnable action;
 	private Runnable secondAction;
 
@@ -238,8 +241,24 @@ public class HomebasePanel extends PluginPanel
 		});
 	}
 
+	@Override
+	public void onActivate()
+	{
+		if (rebuildWhenShown)
+		{
+			rebuild();
+		}
+	}
+
 	private void rebuild()
 	{
+		if (!isShowing())
+		{
+			// it's rebuilt when it's next opened
+			rebuildWhenShown = true;
+			return;
+		}
+		rebuildWhenShown = false;
 		list.removeAll();
 		cards.clear();
 		tabs.setVisible(view != null);
@@ -310,7 +329,16 @@ public class HomebasePanel extends PluginPanel
 				// an account that isn't in this Group Ironman group
 				continue;
 			}
-			MemberCard card = new MemberCard(id, view, expanded.contains(id), () -> toggle(id), cardContext);
+			MemberCard card;
+			try
+			{
+				card = new MemberCard(id, view, expanded.contains(id), () -> toggle(id), cardContext);
+			}
+			catch (RuntimeException e)
+			{
+				log.debug("Skipping a member whose data can't be shown", e);
+				continue;
+			}
 			cards.put(id, card);
 			members.add(card);
 		}

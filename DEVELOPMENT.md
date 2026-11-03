@@ -21,6 +21,9 @@ Example: I have bonscott1's data from 5pm and mundell's from 1pm. Fred has munde
 - Bank bounties are a soft lock. They only stop withdrawals for members running RuneLite with this plugin on.
 - Group Ironman group names are public on the hiscores, so anyone could join a group's party. Everyone in the party is checked against the group's member list (`ClanSettings` for `ClanID.GROUP_IRONMAN`). While anyone isn't on it, nothing is sent (sync, presence, pings, and the party service's position and stats), and nothing from them is used. Party display names are set by each client, so a modified client could pose as a member; the **Group Ironman secret** setting closes that gap.
 - On an account that isn't in your Group Ironman group, such as an alt, nothing is shared.
+- Within the group, members trust each other. A member with a modified client could write records that claim to be another member's, or change shared requests and bounties however they like. Signing records with a key per member would close this, if it's ever needed.
+- Withdraw-X is hidden while any of an item is held back, because the amount typed can't be checked before the game takes it.
+- Received messages are limited: no nesting past 32 levels, at most 2,000 records a message, and every record from another client is checked (missing lists become empty, numbers kept in range) before use. Request chat lines are limited to 3 every 10 seconds, and ping sounds to one a second.
 
 ## Testing it in RuneLite
 
@@ -165,5 +168,6 @@ Items are ticked when they're built. Each stage's last box is ticked once it has
 - [x] Plugin Hub icon (`icon.png`, 48×72)
 - [ ] Screenshots in the README
 - [ ] Make the repository public (the Plugin Hub requires it)
-- [ ] Ask in RuneLite's Discord `#development` about joining the group party at login and bounties hiding Withdraw options
+- [x] Code review: hardened message handling, checked data, request amounts, trade check, connect button
+- [ ] Ask in RuneLite's Discord `#development` about bounties hiding Withdraw options
 - [ ] Submit to the RuneLite Plugin Hub
