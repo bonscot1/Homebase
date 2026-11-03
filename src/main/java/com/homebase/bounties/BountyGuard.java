@@ -1,5 +1,6 @@
 package com.homebase.bounties;
 
+import com.homebase.HomebaseConfig;
 import java.util.HashMap;
 import java.util.Map;
 import javax.inject.Inject;
@@ -32,6 +33,7 @@ public class BountyGuard
 
 	private final Client client;
 	private final StorageHolds holds;
+	private final HomebaseConfig config;
 
 	/**
 	 * Per item: how many we've let through that the game hasn't taken out of storage yet.
@@ -50,16 +52,17 @@ public class BountyGuard
 	private int lastWithdrawTick;
 
 	@Inject
-	private BountyGuard(Client client, StorageHolds holds)
+	private BountyGuard(Client client, StorageHolds holds, HomebaseConfig config)
 	{
 		this.client = client;
 		this.holds = holds;
+		this.config = config;
 	}
 
 	@Subscribe
 	public void onMenuEntryAdded(MenuEntryAdded event)
 	{
-		if (!isWithdraw(event.getActionParam1(), event.getOption()))
+		if (!config.holdItems() || !isWithdraw(event.getActionParam1(), event.getOption()))
 		{
 			return;
 		}
@@ -80,7 +83,7 @@ public class BountyGuard
 	public void onMenuOptionClicked(MenuOptionClicked event)
 	{
 		MenuEntry entry = event.getMenuEntry();
-		if (!isWithdraw(entry.getParam1(), entry.getOption()))
+		if (!config.holdItems() || !isWithdraw(entry.getParam1(), entry.getOption()))
 		{
 			return;
 		}

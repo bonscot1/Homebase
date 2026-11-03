@@ -10,6 +10,7 @@ import com.homebase.collect.LocalCollector;
 import com.homebase.data.BountyData;
 import com.homebase.data.DiariesData;
 import com.homebase.data.GoalData;
+import com.homebase.data.GroupIndex;
 import com.homebase.data.GroupView;
 import com.homebase.data.KillCountsData;
 import com.homebase.data.ProfileData;
@@ -138,9 +139,10 @@ public class GoalServiceTest
 		member("alice", "Alice", 0);
 		member("bob", "Bob", 0);
 		goal("g1", GoalData.Type.SKILL, "Firemaking", 50);
-		Constructor<BountyService> c = BountyService.class.getDeclaredConstructor(LocalCollector.class, GoalService.class, Gson.class);
+		Constructor<BountyService> c = BountyService.class.getDeclaredConstructor(LocalCollector.class, GoalService.class, GroupIndex.class,
+			Gson.class);
 		c.setAccessible(true);
-		BountyService bounties = c.newInstance(null, goals, gson);
+		BountyService bounties = c.newInstance(null, goals, null, gson);
 
 		BountyData bounty = new BountyData();
 		bounty.setItemId(995);

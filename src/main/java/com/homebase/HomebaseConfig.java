@@ -84,6 +84,18 @@ public interface HomebaseConfig extends Config
 		LARGE
 	}
 
+	@ConfigItem(
+		keyName = "holdItems",
+		name = "Hold items in group storage",
+		description = "Hide Withdraw options that would take items held back for a bounty or for another member's request. "
+			+ "Turn this off to only show the padlocks.",
+		position = 6
+	)
+	default boolean holdItems()
+	{
+		return true;
+	}
+
 	@ConfigSection(
 		name = "Group HUD",
 		description = "An on-screen box showing each online group member's stats and where they are",

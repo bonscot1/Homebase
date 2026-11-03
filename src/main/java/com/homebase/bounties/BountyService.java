@@ -5,6 +5,7 @@ import com.google.gson.JsonParseException;
 import com.homebase.collect.LocalCollector;
 import com.homebase.data.BountyData;
 import com.homebase.data.Clean;
+import com.homebase.data.GroupIndex;
 import com.homebase.goals.GoalService;
 import com.homebase.sync.Keys;
 import com.homebase.sync.SyncEngine;
@@ -70,6 +71,7 @@ public class BountyService
 
 	private final LocalCollector collector;
 	private final GoalService goals;
+	private final GroupIndex groupIndex;
 	private final Gson gson;
 
 	private volatile SyncEngine engine;
@@ -77,10 +79,11 @@ public class BountyService
 	private volatile Map<Integer, Lock> locks = Collections.emptyMap();
 
 	@Inject
-	private BountyService(LocalCollector collector, GoalService goals, Gson gson)
+	private BountyService(LocalCollector collector, GoalService goals, GroupIndex groupIndex, Gson gson)
 	{
 		this.collector = collector;
 		this.goals = goals;
+		this.groupIndex = groupIndex;
 		this.gson = gson;
 	}
 
@@ -190,6 +193,11 @@ public class BountyService
 		Map<Integer, Lock> out = new HashMap<>();
 		for (Bounty bounty : list())
 		{
+			if (!groupIndex.isMember(bounty.getData().getCreatedBy()))
+			{
+				// only bounties set by someone in the group hold anything back
+				continue;
+			}
 			GoalService.Goal goal = goals.get(bounty.getData().getGoalId());
 			String title = goal == null ? "a deleted goal" : GoalService.title(goal.getData());
 			boolean locked = me != null && isLocked(bounty.getData(), me);

@@ -5,6 +5,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonParseException;
 import com.homebase.collect.LocalCollector;
 import com.homebase.data.Clean;
+import com.homebase.data.GroupIndex;
 import com.homebase.data.RequestData;
 import com.homebase.sync.Keys;
 import com.homebase.sync.SyncEngine;
@@ -66,6 +67,7 @@ public class RequestService
 	}
 
 	private final LocalCollector collector;
+	private final GroupIndex groupIndex;
 	private final Gson gson;
 
 	private volatile SyncEngine engine;
@@ -73,9 +75,10 @@ public class RequestService
 	private volatile Map<Integer, List<Reservation>> reservations = Collections.emptyMap();
 
 	@Inject
-	private RequestService(LocalCollector collector, Gson gson)
+	private RequestService(LocalCollector collector, GroupIndex groupIndex, Gson gson)
 	{
 		this.collector = collector;
+		this.groupIndex = groupIndex;
 		this.gson = gson;
 	}
 
@@ -106,7 +109,9 @@ public class RequestService
 			for (Request request : list())
 			{
 				RequestData data = request.getData();
-				if (data.isReserved() && data.getRequestedBy() != null)
+				// only kept for, and by, people in the group
+				if (data.isReserved() && groupIndex.isMember(data.getRequestedBy())
+					&& (data.getAssignedTo() == null || groupIndex.isMember(data.getAssignedTo())))
 				{
 					out.computeIfAbsent(data.getReservedItemId(), id -> new ArrayList<>()).add(new Reservation(request.getId(),
 						data.getItem(), data.getRequestedBy(), data.getRequestedByName(), Math.max(1, data.getQuantity())));

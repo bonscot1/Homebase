@@ -100,6 +100,14 @@ public class GroupIndex
 	}
 
 	/**
+	 * @return true if the member id belongs to someone in the group, so what they set up counts
+	 */
+	public boolean isMember(String memberId)
+	{
+		return memberId != null && current().idsByName.containsValue(memberId);
+	}
+
+	/**
 	 * @return every tile marked by anyone in the group
 	 */
 	public List<MarkedTile> tiles()
