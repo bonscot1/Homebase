@@ -70,6 +70,15 @@ public class RequestData implements Checkable
 	}
 
 	/**
+	 * The member who put the item in group storage took some of it back out, so that much is no longer
+	 * waiting there.
+	 */
+	public void takeBack(int amount)
+	{
+		reservedQuantity = Math.max(0, reservedQuantity - amount);
+	}
+
+	/**
 	 * The requester got some of the item, out of group storage or by trade. Once they have all they
 	 * asked for, the request is done.
 	 */

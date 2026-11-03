@@ -136,6 +136,14 @@ public class RequestService
 	}
 
 	/**
+	 * The member who put the item in group storage took some of it back out.
+	 */
+	public void takeBack(String id, int amount)
+	{
+		update(id, data -> data.takeBack(amount));
+	}
+
+	/**
 	 * The requester got some of what they asked for, out of group storage or by trade.
 	 */
 	public void receive(String id, int amount, boolean fromStorage)

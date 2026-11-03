@@ -54,8 +54,8 @@ public class GroupHighlightOverlay extends Overlay
 			{
 				continue;
 			}
-			NPC npc = view.npcs().byIndex(highlight.getIndex());
-			if (npc == null || npc.getId() != highlight.getId())
+			NPC npc = PingOverlay.npcAt(view, highlight.getIndex(), highlight.getId());
+			if (npc == null)
 			{
 				continue;
 			}

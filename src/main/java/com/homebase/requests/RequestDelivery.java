@@ -212,6 +212,16 @@ public class RequestDelivery
 				return;
 			}
 		}
+		// or we put it in for someone and took it back out, so it's no longer there to hold
+		for (RequestService.Request request : requests.list())
+		{
+			RequestData data = request.getData();
+			if (data.isReserved() && data.getReservedItemId() == itemId && takenByMe(data))
+			{
+				requests.takeBack(request.getId(), amount);
+				return;
+			}
+		}
 	}
 
 	/**

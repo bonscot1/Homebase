@@ -36,6 +36,11 @@ public class PingOverlay extends Overlay
 	 */
 	private static final float RIPPLE = 0.35f;
 
+	/**
+	 * The highest index the game gives a monster.
+	 */
+	private static final int MAX_NPC_INDEX = 65535;
+
 	private final Client client;
 	private final PingService pings;
 	private final ModelOutlineRenderer outlines;
@@ -129,13 +134,22 @@ public class PingOverlay extends Overlay
 
 	static NPC npcFor(WorldView view, Ping ping)
 	{
-		if (!ping.isNpc())
+		return ping.isNpc() ? npcAt(view, ping.getNpcIndex(), ping.getNpcId()) : null;
+	}
+
+	/**
+	 * @return the monster at an index another player sent, if it's still the same kind of monster
+	 */
+	static NPC npcAt(WorldView view, int index, int npcId)
+	{
+		// sent by another client, so it might not be a real index
+		if (index < 0 || index > MAX_NPC_INDEX)
 		{
 			return null;
 		}
-		NPC npc = view.npcs().byIndex(ping.getNpcIndex());
+		NPC npc = view.npcs().byIndex(index);
 		// the index is only the same monster while it's the same kind
-		return npc != null && npc.getId() == ping.getNpcId() ? npc : null;
+		return npc != null && npc.getId() == npcId ? npc : null;
 	}
 
 	/**

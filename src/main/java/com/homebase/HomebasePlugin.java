@@ -346,11 +346,15 @@ public class HomebasePlugin extends Plugin
 		pingService.stop();
 		eventBus.unregister(requestDelivery);
 		eventBus.unregister(bountyGuard);
-		requestDelivery.reset();
-		bountyGuard.reset();
 		eventBus.unregister(activityCollector);
 		eventBus.unregister(collectionLogSearch);
-		collectionLogSearch.reset();
+		// these clear state the client thread uses, so they're cleared there
+		clientThread.invokeLater(() ->
+		{
+			requestDelivery.reset();
+			bountyGuard.reset();
+			collectionLogSearch.reset();
+		});
 		eventBus.unregister(groupTiles);
 		eventBus.unregister(collector);
 		eventBus.unregister(presence);
