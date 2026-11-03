@@ -32,6 +32,7 @@ import javax.inject.Singleton;
 import lombok.AllArgsConstructor;
 import lombok.Value;
 import lombok.extern.slf4j.Slf4j;
+import net.runelite.api.Experience;
 import net.runelite.api.Skill;
 
 /**
@@ -47,13 +48,13 @@ public class GoalService
 
 	private static final int MAX_TARGET = 60;
 	private static final int MAX_NAME = 20;
+	private static final int ID_LENGTH = 16;
 
 	@Value
 	public static class Goal
 	{
 		String id;
 		GoalData data;
-		long updatedAt;
 	}
 
 	@Value
@@ -79,6 +80,8 @@ public class GoalService
 		}
 	}
 
+	private static final Progress UNKNOWN = new Progress(false, "?");
+
 	@Value
 	public static class Member
 	{
@@ -94,9 +97,13 @@ public class GoalService
 	private volatile Predicate<ProfileData> belongs = p -> true;
 
 	/**
-	 * "goalId|memberId" for every goal we've seen each member complete, or null before the first check.
+	 * "goalId|memberId" for every goal we've seen each member reach, or null before the first check.
 	 */
-	private Set<String> completed;
+	private Set<String> reached;
+
+	/**
+	 * Ids of the goals at the last check.
+	 */
 	private Set<String> knownGoals = new HashSet<>();
 
 	@Inject
@@ -111,7 +118,7 @@ public class GoalService
 		this.engine = engine;
 		this.view = view;
 		this.belongs = belongs == null ? p -> true : belongs;
-		completed = null;
+		reached = null;
 		knownGoals = new HashSet<>();
 	}
 
@@ -137,7 +144,7 @@ public class GoalService
 			GoalData data = decode(record);
 			if (data != null)
 			{
-				out.add(new Goal(record.getKey().substring(prefix.length()), data, record.getVersion()));
+				out.add(new Goal(record.getKey().substring(prefix.length()), data));
 			}
 		}
 		out.sort(Comparator.comparingLong((Goal g) -> g.getData().getCreatedAt()));
@@ -153,7 +160,7 @@ public class GoalService
 		}
 		SyncRecord record = engine.getStore().get(Keys.shared(TYPE, id));
 		GoalData data = decode(record);
-		return data == null ? null : new Goal(id, data, record.getVersion());
+		return data == null ? null : new Goal(id, data);
 	}
 
 	/**
@@ -180,7 +187,7 @@ public class GoalService
 		{
 			return null;
 		}
-		String id = UUID.randomUUID().toString().replace("-", "").substring(0, 16);
+		String id = UUID.randomUUID().toString().replace("-", "").substring(0, ID_LENGTH);
 		engine.publish(Keys.shared(TYPE, id), me, gson.toJsonTree(data));
 		return id;
 	}
@@ -196,7 +203,7 @@ public class GoalService
 	}
 
 	/**
-	 * @return the group's members, by name
+	 * @return the group's members, sorted by name
 	 */
 	public List<Member> members()
 	{
@@ -228,7 +235,7 @@ public class GoalService
 		GoalData.Type type = goal.typeOrNull();
 		if (view == null || type == null)
 		{
-			return new Progress(false, "?");
+			return UNKNOWN;
 		}
 		switch (type)
 		{
@@ -238,27 +245,27 @@ public class GoalService
 				SkillsData skills = view.get(memberId, Section.SKILLS, SkillsData.class);
 				if (skill == null || skills == null || skills.getXp() == null || skills.getXp().isEmpty())
 				{
-					return new Progress(false, "?");
+					return UNKNOWN;
 				}
-				return amount(skills.getLevel(skill), goal.getAmount());
+				return countProgress(skills.getLevel(skill), goal.getAmount());
 			}
 			case TOTAL_LEVEL:
 			{
 				SkillsData skills = view.get(memberId, Section.SKILLS, SkillsData.class);
 				if (skills == null || skills.getXp() == null || skills.getXp().isEmpty())
 				{
-					return new Progress(false, "?");
+					return UNKNOWN;
 				}
-				return amount(skills.getTotalLevel(), goal.getAmount());
+				return countProgress(skills.getTotalLevel(), goal.getAmount());
 			}
 			case QUEST:
 			{
 				QuestsData quests = view.get(memberId, Section.QUESTS, QuestsData.class);
 				if (quests == null || quests.getQuests() == null)
 				{
-					return new Progress(false, "?");
+					return UNKNOWN;
 				}
-				String state = lookup(quests.getQuests(), goal.getTarget());
+				String state = getIgnoringCase(quests.getQuests(), goal.getTarget());
 				if (QuestsData.FINISHED.equals(state))
 				{
 					return new Progress(true, "done");
@@ -271,7 +278,7 @@ public class GoalService
 				int[] diary = diary(goal.getTarget());
 				if (diaries == null || diaries.getDone() == null || diary == null)
 				{
-					return new Progress(false, "?");
+					return UNKNOWN;
 				}
 				boolean done = diaries.isDone(DiariesData.REGIONS.get(diary[0]), diary[1]);
 				return new Progress(done, done ? "done" : "not done");
@@ -281,27 +288,27 @@ public class GoalService
 				KillCountsData kills = view.get(memberId, Section.KILL_COUNTS, KillCountsData.class);
 				if (kills == null || kills.getCounts() == null)
 				{
-					return new Progress(false, "?");
+					return UNKNOWN;
 				}
 				Integer count = kills.countFor(goal.getTarget());
-				return amount(count == null ? 0 : count, goal.getAmount());
+				return countProgress(count == null ? 0 : count, goal.getAmount());
 			}
 			case COMBAT_POINTS:
 			{
 				CombatAchievementsData ca = view.get(memberId, Section.COMBAT_ACHIEVEMENTS, CombatAchievementsData.class);
-				return ca == null ? new Progress(false, "?") : amount(ca.getPoints(), goal.getAmount());
+				return ca == null ? UNKNOWN : countProgress(ca.getPoints(), goal.getAmount());
 			}
 			case COLLECTION_LOG:
 			{
 				CollectionLogData clog = view.get(memberId, Section.COLLECTION_LOG, CollectionLogData.class);
 				if (clog == null || clog.getObtained() <= 0)
 				{
-					return new Progress(false, "?");
+					return UNKNOWN;
 				}
-				return amount(clog.getObtained(), goal.getAmount());
+				return countProgress(clog.getObtained(), goal.getAmount());
 			}
 			default:
-				return new Progress(false, "?");
+				return UNKNOWN;
 		}
 	}
 
@@ -319,7 +326,7 @@ public class GoalService
 		}
 		List<Goal> goals = list();
 		List<Member> members = members();
-		Set<String> now = new HashSet<>();
+		Set<String> reachedNow = new HashSet<>();
 		Set<String> goalIds = new HashSet<>();
 		for (Goal goal : goals)
 		{
@@ -329,16 +336,16 @@ public class GoalService
 				if (goal.getData().appliesTo(member.getId()) && progress(goal.getData(), member.getId()).isDone())
 				{
 					String key = goal.getId() + "|" + member.getId();
-					now.add(key);
+					reachedNow.add(key);
 					// the first look, and goals we've only just heard about, count as already known
-					if (completed != null && knownGoals.contains(goal.getId()) && !completed.contains(key))
+					if (reached != null && knownGoals.contains(goal.getId()) && !reached.contains(key))
 					{
 						out.add(member.getName() + " reached the goal: " + title(goal.getData()) + ".");
 					}
 				}
 			}
 		}
-		completed = now;
+		reached = reachedNow;
 		knownGoals = goalIds;
 		return out;
 	}
@@ -385,7 +392,7 @@ public class GoalService
 		switch (type)
 		{
 			case SKILL:
-				return skill(goal.getTarget()) != null && goal.getAmount() >= 1 && goal.getAmount() <= 99;
+				return skill(goal.getTarget()) != null && goal.getAmount() >= 1 && goal.getAmount() <= Experience.MAX_REAL_LEVEL;
 			case QUEST:
 				return !Strings.isNullOrEmpty(goal.getTarget());
 			case DIARY:
@@ -440,12 +447,19 @@ public class GoalService
 		return null;
 	}
 
-	private static Progress amount(int have, int need)
+	/**
+	 * Progress for goals counted in numbers, such as "45/50". Going past the goal still shows as "50/50".
+	 */
+	private static Progress countProgress(int have, int need)
 	{
-		return new Progress(have >= need, Math.min(have, need) + "/" + need, Math.min(have, need), need);
+		int shown = Math.min(have, need);
+		return new Progress(have >= need, shown + "/" + need, shown, need);
 	}
 
-	private static <V> V lookup(Map<String, V> map, String key)
+	/**
+	 * @return the value for the key, or for a key that differs only in case
+	 */
+	private static <V> V getIgnoringCase(Map<String, V> map, String key)
 	{
 		if (key == null)
 		{

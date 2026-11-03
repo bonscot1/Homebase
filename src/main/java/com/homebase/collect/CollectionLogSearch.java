@@ -21,8 +21,9 @@ import net.runelite.client.eventbus.Subscribe;
 
 /**
  * Reads the whole collection log at once. When the player clicks Search in the collection log, the
- * game runs a script once for every item they've obtained, so watching that script gives every page
- * without opening each one. Which items belong on which page comes from the game's cache.
+ * game runs a script for every item in the log, saying how many of it they have, so watching that
+ * script gives every page without opening each one. Which items belong on which page comes from the
+ * game's cache.
  * <p>
  * The script and cache ids are the ones the WikiSync plugin uses for the same job. Runs on the client
  * thread.
@@ -32,10 +33,16 @@ import net.runelite.client.eventbus.Subscribe;
 public class CollectionLogSearch
 {
 	/**
-	 * The script run for each obtained item while the search loads, with the item id and how many as
-	 * its second and third arguments.
+	 * Longest page name kept. Pages read while browsing the log use the same limit, so both name a
+	 * page alike.
 	 */
-	static final int ITEM_SCRIPT = 4100;
+	static final int MAX_PAGE_NAME = 60;
+
+	/**
+	 * The script run for each item while the search loads, with the item id and how many the player
+	 * has as its second and third arguments.
+	 */
+	private static final int ITEM_SCRIPT = 4100;
 	private static final int ITEM_ID_ARG = 1;
 	private static final int QUANTITY_ARG = 2;
 
@@ -82,8 +89,12 @@ public class CollectionLogSearch
 
 	private List<PageLayout> layout;
 	private Map<Integer, Integer> replacements = Collections.emptyMap();
+
+	/**
+	 * Items the search has reported as obtained so far.
+	 */
 	private final Set<Integer> found = new HashSet<>();
-	private int lastFoundTick;
+	private int lastItemTick;
 
 	@Inject
 	private CollectionLogSearch(Client client)
@@ -109,7 +120,7 @@ public class CollectionLogSearch
 		{
 			found.add((Integer) args[ITEM_ID_ARG]);
 		}
-		lastFoundTick = client.getTickCount();
+		lastItemTick = client.getTickCount();
 	}
 
 	/**
@@ -118,7 +129,7 @@ public class CollectionLogSearch
 	 */
 	public Map<String, PageResult> takeFinished()
 	{
-		if (found.isEmpty() || client.getTickCount() - lastFoundTick < SETTLE_TICKS)
+		if (found.isEmpty() || client.getTickCount() - lastItemTick < SETTLE_TICKS)
 		{
 			return null;
 		}
@@ -158,7 +169,8 @@ public class CollectionLogSearch
 	}
 
 	/**
-	 * @return every page's name and items, read from the cache the first time it's needed
+	 * @return every page's name and items, read from the cache the first time it's needed, and again
+	 * while it comes back empty, as it does before the cache has loaded
 	 */
 	private List<PageLayout> layout()
 	{
@@ -192,7 +204,7 @@ public class CollectionLogSearch
 			{
 				StructComposition page = client.getStructComposition(pageStructId);
 				EnumComposition items = page == null ? null : client.getEnum(page.getIntValue(PAGE_ITEMS_PARAM));
-				String name = page == null ? null : Clean.text(page.getStringValue(PAGE_NAME_PARAM), 60);
+				String name = page == null ? null : Clean.text(page.getStringValue(PAGE_NAME_PARAM), MAX_PAGE_NAME);
 				if (items != null && name != null)
 				{
 					pages.add(new PageLayout(name, items.getIntVals()));

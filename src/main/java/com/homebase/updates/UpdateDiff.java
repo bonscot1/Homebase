@@ -1,5 +1,6 @@
 package com.homebase.updates;
 
+import com.homebase.data.QuestsData;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -13,12 +14,10 @@ import java.util.TreeMap;
 public final class UpdateDiff
 {
 	/**
-	 * More than this many quests or diaries in one go are summarised as a count, so a member who was
-	 * away for months doesn't fill the chat box.
+	 * More than this many quests, diaries, slots or bosses in one go are summarised as a count, so a
+	 * member who was away for months doesn't fill the chat box.
 	 */
-	static final int MAX_LISTED = 4;
-
-	static final String FINISHED = "F";
+	private static final int MAX_LISTED = 4;
 
 	private UpdateDiff()
 	{
@@ -55,7 +54,7 @@ public final class UpdateDiff
 		List<String> names = new ArrayList<>();
 		for (Map.Entry<String, String> entry : after.entrySet())
 		{
-			if (FINISHED.equals(entry.getValue()) && !FINISHED.equals(before.get(entry.getKey())))
+			if (QuestsData.FINISHED.equals(entry.getValue()) && !QuestsData.FINISHED.equals(before.get(entry.getKey())))
 			{
 				names.add(entry.getKey());
 			}
@@ -144,6 +143,7 @@ public final class UpdateDiff
 	 */
 	public static List<String> collectionLog(int obtainedBefore, int obtainedAfter, List<String> recentBefore, List<String> recentAfter)
 	{
+		// the slots newer than the newest one we already knew of
 		List<String> names = new ArrayList<>();
 		for (String name : recentAfter)
 		{
@@ -166,6 +166,7 @@ public final class UpdateDiff
 		{
 			return Collections.singletonList("filled " + names.size() + " collection log slots");
 		}
+		// in the order they were filled
 		Collections.reverse(names);
 		List<String> out = new ArrayList<>();
 		for (String name : names)
@@ -176,8 +177,8 @@ public final class UpdateDiff
 	}
 
 	/**
-	 * Bosses killed since before. Bosses we hadn't seen a count for get no line, since the count may
-	 * cover years of kills.
+	 * Bosses killed since before, by name. Bosses we hadn't seen a count for get no line, since the
+	 * count may cover years of kills.
 	 *
 	 * @param before boss name to kill count, as we had it
 	 * @param after boss name to kill count, as it is now
@@ -205,6 +206,7 @@ public final class UpdateDiff
 	 */
 	public static String chatLine(String name, List<String> changes)
 	{
+		// the chat box font has no arrow
 		return name + ": " + String.join(", ", changes).replace("→", "->") + ".";
 	}
 }

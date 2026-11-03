@@ -68,6 +68,11 @@ public class LocalCollector
 	 */
 	private static final int QUEST_REFRESH_TICKS = 100;
 
+	/**
+	 * Ticks after a game message about quests before re-reading them, so a completion has registered.
+	 */
+	private static final int QUEST_MESSAGE_DELAY_TICKS = 2;
+
 	private final Client client;
 	private final Gson gson;
 
@@ -80,7 +85,15 @@ public class LocalCollector
 	private volatile String memberId;
 
 	private volatile ProfileData profile;
+
+	/**
+	 * Ticks since login while waiting to read the account, or -1 when not waiting.
+	 */
 	private int loginTicks = -1;
+
+	/**
+	 * Ticks until quests are next read, or -1 when no read is due.
+	 */
 	private int questTicks = -1;
 	private int ticksSinceQuests;
 
@@ -94,8 +107,12 @@ public class LocalCollector
 	 * does, so an alt that isn't in the group never shares anything.
 	 */
 	private volatile Predicate<ProfileData> sharePolicy = p -> true;
-	// concurrent, since stopping the plugin clears them from the Swing thread while the client thread
-	// may be sending
+
+	/**
+	 * Data captured but not yet published, newest copy per section. Concurrent, as are the publish
+	 * times, since stopping the plugin clears them from the Swing thread while the client thread may
+	 * be sending.
+	 */
 	private final Map<Section, Object> pending = new ConcurrentHashMap<>();
 	private final Map<Section, Long> lastPublished = new ConcurrentHashMap<>();
 
@@ -231,7 +248,7 @@ public class LocalCollector
 		if (memberId != null && event.getType() == ChatMessageType.GAMEMESSAGE
 			&& event.getMessage().toLowerCase(Locale.ROOT).contains("quest") && questTicks < 0)
 		{
-			questTicks = 2;
+			questTicks = QUEST_MESSAGE_DELAY_TICKS;
 		}
 	}
 
@@ -292,7 +309,7 @@ public class LocalCollector
 	}
 
 	/**
-	 * Share something the player did, such as marking a tile. Sent on the next game tick, once the
+	 * Share something the player did, such as marking a tile. Sent on a later game tick, once the
 	 * account is known to belong to the group. Call on the client thread.
 	 */
 	public void share(Section section, Object data)

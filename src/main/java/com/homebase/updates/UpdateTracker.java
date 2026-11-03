@@ -43,8 +43,17 @@ import net.runelite.api.Skill;
 @Singleton
 public class UpdateTracker
 {
-	static final long GATHER_MS = 3_000;
-	static final int MAX_ENTRIES = 100;
+	private static final long GATHER_MS = 3_000;
+
+	/**
+	 * Most summaries kept.
+	 */
+	private static final int MAX_ENTRIES = 100;
+
+	private static final int MAX_PLAYER_NAME = 20;
+	private static final int MAX_QUEST_NAME = 60;
+	private static final int MAX_ITEM_NAME = 60;
+	private static final int MAX_BOSS_NAME = 40;
 
 	private final ScheduledExecutorService executor;
 	private final LocalCollector collector;
@@ -181,34 +190,68 @@ public class UpdateTracker
 			before = p.before;
 		}
 
+		List<String> changes = describeChanges(memberId, before, store);
+		if (changes.isEmpty())
+		{
+			return;
+		}
+		ProfileData profile = decodeCurrent(store, memberId, Section.PROFILE, ProfileData.class);
+		String name = profile == null ? null : Clean.text(profile.getName(), MAX_PLAYER_NAME);
+		UpdateEntry entry = new UpdateEntry(memberId, name == null ? "Someone" : name, System.currentTimeMillis(), changes, false);
+		synchronized (this)
+		{
+			if (store != this.store)
+			{
+				// switched group while this was being worked out
+				return;
+			}
+			entries.add(0, entry);
+			while (entries.size() > MAX_ENTRIES)
+			{
+				entries.remove(entries.size() - 1);
+			}
+		}
+		log.debug("Update for {}: {}", entry.getName(), changes);
+		for (Consumer<UpdateEntry> listener : listeners)
+		{
+			listener.accept(entry);
+		}
+	}
+
+	/**
+	 * @return what changed in each section, from the copy we had before the batch to the one in the
+	 * store now
+	 */
+	private List<String> describeChanges(String memberId, Map<String, SyncRecord> before, GroupStore store)
+	{
 		List<String> changes = new ArrayList<>();
 		SyncRecord skillsBefore = before.get(Section.SKILLS.getKey());
 		if (skillsBefore != null)
 		{
 			changes.addAll(UpdateDiff.skills(
 				levels(decode(skillsBefore, SkillsData.class)),
-				levels(decode(store.get(Section.SKILLS.keyFor(memberId)), SkillsData.class))));
+				levels(decodeCurrent(store, memberId, Section.SKILLS, SkillsData.class))));
 		}
 		SyncRecord questsBefore = before.get(Section.QUESTS.getKey());
 		if (questsBefore != null)
 		{
 			changes.addAll(UpdateDiff.quests(
 				quests(decode(questsBefore, QuestsData.class)),
-				quests(decode(store.get(Section.QUESTS.keyFor(memberId)), QuestsData.class))));
+				quests(decodeCurrent(store, memberId, Section.QUESTS, QuestsData.class))));
 		}
 		SyncRecord diariesBefore = before.get(Section.DIARIES.getKey());
 		if (diariesBefore != null)
 		{
 			changes.addAll(UpdateDiff.diaries(
 				diaries(decode(diariesBefore, DiariesData.class)),
-				diaries(decode(store.get(Section.DIARIES.keyFor(memberId)), DiariesData.class)),
+				diaries(decodeCurrent(store, memberId, Section.DIARIES, DiariesData.class)),
 				DiariesData.REGIONS, DiariesData.TIERS));
 		}
 		SyncRecord caBefore = before.get(Section.COMBAT_ACHIEVEMENTS.getKey());
 		if (caBefore != null)
 		{
 			CombatAchievementsData was = decode(caBefore, CombatAchievementsData.class);
-			CombatAchievementsData now = decode(store.get(Section.COMBAT_ACHIEVEMENTS.keyFor(memberId)), CombatAchievementsData.class);
+			CombatAchievementsData now = decodeCurrent(store, memberId, Section.COMBAT_ACHIEVEMENTS, CombatAchievementsData.class);
 			if (was != null && now != null)
 			{
 				changes.addAll(UpdateDiff.combatAchievements(was.getTasks(), now.getTasks(), was.getTier(), now.getTier(),
@@ -219,10 +262,11 @@ public class UpdateTracker
 		if (logBefore != null)
 		{
 			CollectionLogData was = decode(logBefore, CollectionLogData.class);
-			CollectionLogData now = decode(store.get(Section.COLLECTION_LOG.keyFor(memberId)), CollectionLogData.class);
+			CollectionLogData now = decodeCurrent(store, memberId, Section.COLLECTION_LOG, CollectionLogData.class);
 			if (was != null && now != null)
 			{
-				changes.addAll(UpdateDiff.collectionLog(was.getObtained(), now.getObtained(), names(was.getRecent()), names(now.getRecent())));
+				changes.addAll(UpdateDiff.collectionLog(was.getObtained(), now.getObtained(), itemNames(was.getRecent()),
+					itemNames(now.getRecent())));
 			}
 		}
 		SyncRecord killsBefore = before.get(Section.KILL_COUNTS.getKey());
@@ -230,26 +274,9 @@ public class UpdateTracker
 		{
 			changes.addAll(UpdateDiff.killCounts(
 				kills(decode(killsBefore, KillCountsData.class)),
-				kills(decode(store.get(Section.KILL_COUNTS.keyFor(memberId)), KillCountsData.class))));
+				kills(decodeCurrent(store, memberId, Section.KILL_COUNTS, KillCountsData.class))));
 		}
-		if (changes.isEmpty())
-		{
-			return;
-		}
-
-		ProfileData profile = decode(store.get(Section.PROFILE.keyFor(memberId)), ProfileData.class);
-		String name = profile == null ? null : Clean.text(profile.getName(), 20);
-		UpdateEntry entry = new UpdateEntry(memberId, name == null ? "Someone" : name, System.currentTimeMillis(), changes, false);
-		entries.add(0, entry);
-		while (entries.size() > MAX_ENTRIES)
-		{
-			entries.remove(entries.size() - 1);
-		}
-		log.debug("Update for {}: {}", entry.getName(), changes);
-		for (Consumer<UpdateEntry> listener : listeners)
-		{
-			listener.accept(entry);
-		}
+		return changes;
 	}
 
 	private static boolean isTracked(String section)
@@ -257,6 +284,11 @@ public class UpdateTracker
 		return Section.SKILLS.getKey().equals(section) || Section.QUESTS.getKey().equals(section)
 			|| Section.DIARIES.getKey().equals(section) || Section.COMBAT_ACHIEVEMENTS.getKey().equals(section)
 			|| Section.COLLECTION_LOG.getKey().equals(section) || Section.KILL_COUNTS.getKey().equals(section);
+	}
+
+	private <T> T decodeCurrent(GroupStore store, String memberId, Section section, Class<T> type)
+	{
+		return decode(store.get(section.keyFor(memberId)), type);
 	}
 
 	private <T> T decode(SyncRecord record, Class<T> type)
@@ -298,7 +330,7 @@ public class UpdateTracker
 		{
 			for (Map.Entry<String, String> e : quests.getQuests().entrySet())
 			{
-				String name = Clean.text(e.getKey(), 60);
+				String name = Clean.text(e.getKey(), MAX_QUEST_NAME);
 				if (name != null)
 				{
 					out.put(name, e.getValue());
@@ -309,16 +341,16 @@ public class UpdateTracker
 	}
 
 	/**
-	 * Names written by other players' clients, cleaned before they're shown.
+	 * Item names written by other players' clients, cleaned before they're shown.
 	 */
-	private static List<String> names(List<String> raw)
+	private static List<String> itemNames(List<String> raw)
 	{
 		List<String> out = new ArrayList<>();
 		if (raw != null)
 		{
 			for (String name : raw)
 			{
-				String clean = Clean.text(name, 60);
+				String clean = Clean.text(name, MAX_ITEM_NAME);
 				if (clean != null)
 				{
 					out.add(clean);
@@ -335,7 +367,7 @@ public class UpdateTracker
 		{
 			for (Map.Entry<String, Integer> e : kills.getCounts().entrySet())
 			{
-				String name = Clean.text(e.getKey(), 40);
+				String name = Clean.text(e.getKey(), MAX_BOSS_NAME);
 				if (name != null && e.getValue() != null)
 				{
 					out.put(name, e.getValue());

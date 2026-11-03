@@ -1,5 +1,6 @@
 package com.homebase.goals;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
@@ -21,7 +22,6 @@ import com.homebase.sync.GroupStore;
 import com.homebase.sync.Keys;
 import com.homebase.sync.SyncEngine;
 import java.lang.reflect.Constructor;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
@@ -121,7 +121,7 @@ public class GoalServiceTest
 	public void validatesGoals()
 	{
 		assertNull(GoalService.skill("Not a skill"));
-		assertEquals(Arrays.asList(9, 0), Arrays.asList(GoalService.diary("Varrock Easy")[0], GoalService.diary("Varrock Easy")[1]));
+		assertArrayEquals(new int[]{9, 0}, GoalService.diary("Varrock Easy"));
 		assertNull(GoalService.diary("Varrock Impossible"));
 		GoalData tooHigh = new GoalData();
 		tooHigh.setType(GoalData.Type.SKILL.name());

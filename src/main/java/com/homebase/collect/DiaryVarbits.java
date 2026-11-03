@@ -12,7 +12,14 @@ import net.runelite.api.gameval.VarbitID;
  */
 final class DiaryVarbits
 {
+	/**
+	 * Region name to the varbits of its tiers, easiest first.
+	 */
 	static final Map<String, int[]> BY_REGION = new LinkedHashMap<>();
+
+	/**
+	 * Every diary varbit, to spot when one changes.
+	 */
 	static final Set<Integer> ALL = new HashSet<>();
 
 	/**
