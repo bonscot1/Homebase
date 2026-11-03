@@ -2,6 +2,7 @@ package com.homebase.collect;
 
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
+import com.google.gson.JsonParseException;
 import com.homebase.data.DiariesData;
 import com.homebase.data.Ids;
 import com.homebase.data.ItemsData;
@@ -10,6 +11,7 @@ import com.homebase.data.QuestsData;
 import com.homebase.data.Section;
 import com.homebase.data.SkillsData;
 import com.homebase.sync.SyncEngine;
+import com.homebase.sync.SyncRecord;
 import java.util.EnumMap;
 import java.util.Iterator;
 import java.util.Locale;
@@ -285,6 +287,47 @@ public class LocalCollector
 		capture(Section.DIARIES, readDiaries());
 		questTicks = QUEST_DELAY_TICKS;
 		flush(true);
+	}
+
+	/**
+	 * Share something the player did, such as marking a tile. Sent on the next game tick, once the
+	 * account is known to belong to the group. Call on the client thread.
+	 */
+	public void share(Section section, Object data)
+	{
+		capture(section, data);
+	}
+
+	/**
+	 * @return our own copy of a section as last shared, or null if we haven't shared it
+	 */
+	public <T> T shared(Section section, Class<T> type)
+	{
+		SyncEngine engine = this.engine;
+		String memberId = this.memberId;
+		if (engine == null || memberId == null)
+		{
+			return null;
+		}
+		Object pendingData = pending.get(section);
+		if (type.isInstance(pendingData))
+		{
+			// not sent yet, so round trip it to hand out a copy
+			return gson.fromJson(gson.toJsonTree(pendingData), type);
+		}
+		SyncRecord record = engine.getStore().get(section.keyFor(memberId));
+		if (record == null || record.getData() == null)
+		{
+			return null;
+		}
+		try
+		{
+			return gson.fromJson(record.getData(), type);
+		}
+		catch (JsonParseException e)
+		{
+			return null;
+		}
 	}
 
 	private void capture(Section section, Object data)

@@ -88,13 +88,13 @@ Items are ticked when they're built. Each stage's last box is ticked once it has
 
 ### Stage 2: On-screen features
 
-- [ ] Group status HUD: each member's HP, prayer, run energy, level and position
-- [ ] HUD settings: choose what's shown, compact mode, size
-- [ ] Area names for members' positions (for example "Varrock")
-- [ ] Group members on the world map, updated live
-- [ ] Group tile markers: mark a tile and the whole group sees it
-- [ ] Per-member tile colours, set in the plugin settings
-- [ ] Tile markers work inside instances (raids and similar)
+- [x] Group status HUD: each member's HP, prayer, run energy, combat level and position
+- [x] HUD settings: choose what's shown, include yourself or not, compact mode, size
+- [x] Area names for members' positions (for example "Varrock", "near Catherby", "Wilderness (level 11)", "Varrock (underground)")
+- [x] Group members on the world map, updated live, with their area in the tooltip
+- [x] Group tile markers: Shift + right-click a tile and choose **Group mark**, and the whole group sees it
+- [x] Per-member tile colours, set in the plugin settings (**Your tile colour**), with optional names on tiles
+- [x] Tile markers work inside instances (raids and similar): they're stored at the instance's template location
 - [ ] Tested in game
 
 ### Stage 3: Quests, activities and goals

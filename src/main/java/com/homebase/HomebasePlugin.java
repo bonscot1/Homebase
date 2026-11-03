@@ -6,16 +6,21 @@ import com.google.gson.JsonParseException;
 import com.google.gson.reflect.TypeToken;
 import com.google.inject.Provides;
 import com.homebase.collect.LocalCollector;
+import com.homebase.data.GroupIndex;
 import com.homebase.data.GroupView;
 import com.homebase.data.Ids;
 import com.homebase.data.ProfileData;
 import com.homebase.data.UpdateEntry;
+import com.homebase.map.GroupWorldMap;
+import com.homebase.overlay.GroupHudOverlay;
+import com.homebase.overlay.GroupTileOverlay;
 import com.homebase.party.GroupSync;
 import com.homebase.requests.RequestService;
 import com.homebase.sync.GroupStore;
 import com.homebase.sync.SyncEngine;
 import com.homebase.sync.SyncRecord;
 import com.homebase.sync.WireCodec;
+import com.homebase.tiles.GroupTiles;
 import com.homebase.ui.HomebasePanel;
 import com.homebase.updates.UpdateDiff;
 import com.homebase.updates.UpdateTracker;
@@ -56,6 +61,7 @@ import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.ClientToolbar;
 import net.runelite.client.ui.NavigationButton;
+import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.util.Filepath;
 import net.runelite.client.util.ImageUtil;
 
@@ -127,6 +133,24 @@ public class HomebasePlugin extends Plugin
 	@Inject
 	private Client client;
 
+	@Inject
+	private OverlayManager overlayManager;
+
+	@Inject
+	private GroupIndex groupIndex;
+
+	@Inject
+	private GroupHudOverlay hudOverlay;
+
+	@Inject
+	private GroupTileOverlay tileOverlay;
+
+	@Inject
+	private GroupTiles groupTiles;
+
+	@Inject
+	private GroupWorldMap worldMap;
+
 	/**
 	 * The Group Ironman group being synced automatically, or null when using a passphrase or no group.
 	 */
@@ -140,6 +164,7 @@ public class HomebasePlugin extends Plugin
 	private OpenGroup group;
 	private String openPassphrase;
 	private volatile boolean updatesToAnnounce;
+	private int mapTicks;
 	private final Consumer<UpdateEntry> updateListener = this::onUpdate;
 
 	/**
@@ -168,6 +193,7 @@ public class HomebasePlugin extends Plugin
 		groupSync.start();
 		eventBus.register(groupSync);
 		eventBus.register(collector);
+		eventBus.register(groupTiles);
 		collector.setGroupListener(this::onGroupNameRead);
 		collector.setSharePolicy(this::belongsToGroup);
 		collector.start();
@@ -186,6 +212,8 @@ public class HomebasePlugin extends Plugin
 			.panel(panel)
 			.build();
 		clientToolbar.addNavigation(navButton);
+		overlayManager.add(hudOverlay);
+		overlayManager.add(tileOverlay);
 
 		selectGroup();
 
@@ -205,6 +233,7 @@ public class HomebasePlugin extends Plugin
 		updateTracker.removeListener(updateListener);
 		updateTracker.setGroup(null, null);
 		collector.stop();
+		eventBus.unregister(groupTiles);
 		eventBus.unregister(collector);
 		eventBus.unregister(groupSync);
 		groupSync.stop();
@@ -212,6 +241,10 @@ public class HomebasePlugin extends Plugin
 		partyDataService.unsubscribe(this, PartyDataType.values());
 		partyDataService.unsubscribe(this, Skill.values());
 
+		overlayManager.remove(hudOverlay);
+		overlayManager.remove(tileOverlay);
+		worldMap.clear();
+		groupIndex.setView(null, p -> true);
 		clientToolbar.removeNavigation(navButton);
 		navButton = null;
 		panel = null;
@@ -233,12 +266,20 @@ public class HomebasePlugin extends Plugin
 			case HomebaseConfig.GIM_GROUP_KEY:
 				selectGroup();
 				break;
+			case "tileColor":
+				clientThread.invokeLater(groupTiles::colorChanged);
+				break;
 		}
 	}
 
 	@Subscribe
 	public void onGameTick(GameTick event)
 	{
+		if (++mapTicks >= 2)
+		{
+			mapTicks = 0;
+			worldMap.update();
+		}
 		if (updatesToAnnounce && collector.getMemberId() != null)
 		{
 			updatesToAnnounce = false;
@@ -325,6 +366,8 @@ public class HomebasePlugin extends Plugin
 		}
 		String gim = Strings.emptyToNull(Strings.nullToEmpty(config.gimGroup()).trim());
 		openGroup(gim == null ? "" : gimPassphrase(gim, config.gimSecret()), gim);
+		// who belongs to the group may have changed with it
+		groupIndex.invalidate();
 	}
 
 	/**
@@ -373,6 +416,7 @@ public class HomebasePlugin extends Plugin
 			requestService.setEngine(null);
 			updateTracker.setGroup(null, null);
 			clientThread.invokeLater(() -> collector.setEngine(null));
+			groupIndex.setView(null, this::belongsToGroup);
 			panel.setView(null);
 			if (wasInGroupParty)
 			{
@@ -387,6 +431,7 @@ public class HomebasePlugin extends Plugin
 		g.listener = (previous, record) ->
 		{
 			g.dirty.set(true);
+			groupIndex.invalidate();
 			panel.scheduleRebuild();
 			announce(record);
 			updateTracker.onRecordChanged(previous, record);
@@ -397,7 +442,9 @@ public class HomebasePlugin extends Plugin
 		groupSync.setGroup(passphrase, g.engine);
 		requestService.setEngine(g.engine);
 		clientThread.invokeLater(() -> collector.setEngine(g.engine));
-		panel.setView(new GroupView(g.store, gson));
+		GroupView view = new GroupView(g.store, gson);
+		groupIndex.setView(view, this::belongsToGroup);
+		panel.setView(view);
 
 		// join only once the saved copy is loaded, so updates from others are compared with what we had
 		boolean join = wasInGroupParty || (config.autoJoin() && !partyService.isInParty());

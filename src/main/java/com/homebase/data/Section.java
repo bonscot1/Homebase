@@ -21,6 +21,11 @@ public enum Section
 	LOOTING_BAG("lootingbag", false, 3_000),
 	QUESTS("quests", false, 5_000),
 	DIARIES("diaries", false, 2_000),
+	TILES("tiles", false, 1_000),
+	COMBAT_ACHIEVEMENTS("ca", false, 5_000),
+	COLLECTION_LOG("clog", false, 3_000),
+	KILL_COUNTS("kc", false, 3_000),
+	HOUSE("poh", false, 5_000),
 	GROUP_STORAGE("storage", true, 2_000);
 
 	private final String key;
