@@ -411,43 +411,12 @@ public class HomebasePanel extends PluginPanel
 	}
 
 	/**
-	 * Show the Group Ironman group's name: yours if you're logged in, otherwise whichever name the
-	 * group's members share.
+	 * Show the Group Ironman group's name while that's the group being synced. A passphrase group has
+	 * no name, even when its members are Group Ironmen.
 	 */
 	private void updateGroupName()
 	{
-		String name = plugin.getGimGroup();
-		if (name == null && view != null)
-		{
-			String localId = collector.getMemberId();
-			ProfileData local = localId == null ? null : view.get(localId, Section.PROFILE, ProfileData.class);
-			if (local != null && local.getGroupName() != null)
-			{
-				name = local.getGroupName();
-			}
-			else
-			{
-				Map<String, Integer> counts = new HashMap<>();
-				for (String id : view.memberIds())
-				{
-					ProfileData profile = view.get(id, Section.PROFILE, ProfileData.class);
-					if (profile != null && profile.getGroupName() != null)
-					{
-						counts.merge(profile.getGroupName(), 1, Integer::sum);
-					}
-				}
-				int best = 0;
-				for (Map.Entry<String, Integer> e : counts.entrySet())
-				{
-					if (e.getValue() > best)
-					{
-						best = e.getValue();
-						name = e.getKey();
-					}
-				}
-			}
-		}
-		name = Clean.text(name, 20);
+		String name = Clean.text(plugin.getGimGroup(), 20);
 		groupLabel.setText(name == null ? "" : name);
 		groupLabel.setVisible(name != null);
 	}
