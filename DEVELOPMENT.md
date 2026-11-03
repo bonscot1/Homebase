@@ -176,7 +176,7 @@ Items are ticked when they're built. Each stage's last box is ticked once it has
 - [x] A player README, with these developer notes moved here
 - [x] Plugin Hub icon (`icon.png`, 48×72)
 - [ ] Screenshots in the README
-- [ ] Make the repository public (the Plugin Hub requires it)
+- [x] Make the repository public (the Plugin Hub requires it)
 - [x] Code review: hardened message handling, checked data, request amounts, trade check, connect button
 - [ ] Ask in RuneLite's Discord `#development` about bounties hiding Withdraw options
 - [ ] Submit to the RuneLite Plugin Hub
