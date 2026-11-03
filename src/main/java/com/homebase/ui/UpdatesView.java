@@ -17,6 +17,8 @@ import net.runelite.client.ui.ColorScheme;
  */
 class UpdatesView extends JPanel
 {
+	private static final String BULLET = "<span style='color:#FF9800'>•</span> ";
+
 	private final UpdateTracker tracker;
 
 	UpdatesView(UpdateTracker tracker)
@@ -63,17 +65,12 @@ class UpdatesView extends JPanel
 		for (String change : entry.getChanges())
 		{
 			// long lines, such as a new collection log item, wrap rather than run off the edge
-			JLabel line = Ui.wrapped("<span style='color:#ff9800'>•</span> " + escape(change), ColorScheme.LIGHT_GRAY_COLOR);
+			JLabel line = Ui.wrapped(BULLET + Ui.escapeHtml(change), ColorScheme.LIGHT_GRAY_COLOR);
 			line.setBorder(new EmptyBorder(1, 0, 1, 0));
 			line.setAlignmentX(Component.LEFT_ALIGNMENT);
 			lines.add(line);
 		}
 		card.add(lines, BorderLayout.CENTER);
 		return card;
-	}
-
-	private static String escape(String text)
-	{
-		return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
 	}
 }

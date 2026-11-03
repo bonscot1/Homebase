@@ -33,6 +33,7 @@ import javax.swing.BoxLayout;
 import javax.swing.BorderFactory;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
+import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.SwingConstants;
@@ -41,6 +42,7 @@ import javax.swing.Timer;
 import javax.swing.border.CompoundBorder;
 import javax.swing.border.EmptyBorder;
 import lombok.extern.slf4j.Slf4j;
+import net.runelite.api.Item;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.game.ItemManager;
 import net.runelite.client.game.SkillIconManager;
@@ -51,17 +53,29 @@ import net.runelite.client.ui.FontManager;
 import net.runelite.client.ui.PluginPanel;
 import net.runelite.client.util.ImageUtil;
 
+/**
+ * The sidebar panel: the group's name and connection status at the top, then a tab each for members,
+ * updates, requests and goals.
+ */
 @Slf4j
 @Singleton
 public class HomebasePanel extends PluginPanel
 {
-	private final HomebasePlugin plugin;
-	private final GroupSync groupSync;
-	private final PartyService partyService;
-	private final Presence presence;
-	private final LocalCollector collector;
-	private final ItemManager itemManager;
-	private final ClientThread clientThread;
+	/**
+	 * How long a rebuild waits, so a burst of changes is drawn once.
+	 */
+	private static final int REBUILD_DELAY_MS = 500;
+
+	/**
+	 * One game tick, which is as often as live stats can change.
+	 */
+	private static final int LIVE_REFRESH_MS = 600;
+
+	/**
+	 * Longest player or group name shown, and longest list of strangers in the party.
+	 */
+	private static final int MAX_NAME = 20;
+	private static final int MAX_STRANGERS = 60;
 
 	private enum Tab
 	{
@@ -78,29 +92,37 @@ public class HomebasePanel extends PluginPanel
 		}
 	}
 
+	private final HomebasePlugin plugin;
+	private final GroupSync groupSync;
+	private final PartyService partyService;
+	private final Presence presence;
+	private final LocalCollector collector;
+	private final ItemManager itemManager;
+	private final ClientThread clientThread;
+
 	private final JLabel groupLabel = new JLabel();
 	private final JLabel statusLabel = new JLabel();
-	private final JButton actionButton = new JButton();
+	private final JButton mainButton = Ui.primaryButton("", () -> runAction(true));
 	private final JButton secondButton = Ui.button("", () -> runAction(false));
-	private final JPanel actionRow = new JPanel(new GridLayout(1, 0, 6, 0));
+	private final JPanel buttonRow = new JPanel(new GridLayout(1, 0, 6, 0));
 	private final Map<Tab, JLabel> tabLabels = new EnumMap<>(Tab.class);
-	private final JPanel tabs = new JPanel(new GridLayout(1, 0, 0, 0));
-	private final JPanel list = new JPanel();
-	private Tab tab = Tab.MEMBERS;
+	private final JPanel tabBar = new JPanel(new GridLayout(1, 0, 0, 0));
+	private final JPanel tabContent = new JPanel();
 	private final RequestsView requestsView;
 	private final UpdatesView updatesView;
 	private final GoalsView goalsView;
 	private final MemberCard.Context cardContext;
 	private final Map<String, MemberCard> cards = new HashMap<>();
-	private final Set<String> expanded = new HashSet<>();
+	private final Set<String> expandedMembers = new HashSet<>();
 	private final Set<String> openSections = new HashSet<>();
-	private final Timer rebuildTimer = new Timer(500, e -> rebuild());
-	private final Timer liveTimer = new Timer(600, e -> refreshLive());
+	private final Timer rebuildTimer = new Timer(REBUILD_DELAY_MS, e -> rebuild());
+	private final Timer liveTimer = new Timer(LIVE_REFRESH_MS, e -> refreshLive());
 
+	private Tab selectedTab = Tab.MEMBERS;
 	private GroupView view;
 	private boolean storageExpanded;
 	private boolean rebuildWhenShown;
-	private Runnable action;
+	private Runnable mainAction;
 	private Runnable secondAction;
 
 	@Inject
@@ -144,6 +166,7 @@ public class HomebasePanel extends PluginPanel
 		groupLabel.setFont(FontManager.getRunescapeBoldFont());
 		groupLabel.setForeground(ColorScheme.BRAND_ORANGE);
 		groupLabel.setToolTipText("Your Group Ironman group");
+		// lines up with the title's text, past its icon
 		groupLabel.setBorder(new EmptyBorder(2, 22, 0, 0));
 
 		statusLabel.setFont(FontManager.getRunescapeSmallFont());
@@ -152,25 +175,22 @@ public class HomebasePanel extends PluginPanel
 		statusLabel.setVerticalTextPosition(SwingConstants.TOP);
 		statusLabel.setBorder(new EmptyBorder(8, 0, 0, 0));
 
-		Ui.primary(actionButton);
-		actionButton.addActionListener(e -> runAction(true));
-
-		for (Tab t : Tab.values())
+		for (Tab tab : Tab.values())
 		{
-			JLabel label = new JLabel(t.label, SwingConstants.CENTER);
+			JLabel label = new JLabel(tab.label, SwingConstants.CENTER);
 			label.setFont(FontManager.getRunescapeSmallFont());
 			label.setOpaque(true);
 			label.setHorizontalTextPosition(SwingConstants.LEFT);
 			label.setIconTextGap(3);
 			Ui.clickable(label, () ->
 			{
-				tab = t;
+				selectedTab = tab;
 				rebuild();
 			});
-			tabLabels.put(t, label);
-			tabs.add(label);
+			tabLabels.put(tab, label);
+			tabBar.add(label);
 		}
-		tabs.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+		tabBar.setBackground(ColorScheme.DARKER_GRAY_COLOR);
 
 		JPanel titles = new JPanel();
 		titles.setLayout(new BoxLayout(titles, BoxLayout.Y_AXIS));
@@ -179,26 +199,26 @@ public class HomebasePanel extends PluginPanel
 		titles.add(groupLabel);
 		titles.add(statusLabel);
 
-		actionRow.setOpaque(false);
-		actionRow.setBorder(new EmptyBorder(8, 0, 0, 0));
-		actionRow.add(actionButton);
-		actionRow.add(secondButton);
+		buttonRow.setOpaque(false);
+		buttonRow.setBorder(new EmptyBorder(8, 0, 0, 0));
+		buttonRow.add(mainButton);
+		buttonRow.add(secondButton);
+		buttonRow.setVisible(false);
 
 		JPanel header = new JPanel(new BorderLayout());
 		header.setOpaque(false);
 		header.add(titles, BorderLayout.NORTH);
-		header.add(actionRow, BorderLayout.CENTER);
-		header.add(tabs, BorderLayout.SOUTH);
+		header.add(buttonRow, BorderLayout.CENTER);
+		header.add(tabBar, BorderLayout.SOUTH);
 		header.setBorder(new EmptyBorder(0, 0, 8, 0));
-		actionRow.setVisible(false);
 
-		list.setLayout(new BoxLayout(list, BoxLayout.Y_AXIS));
-		list.setOpaque(false);
+		tabContent.setLayout(new BoxLayout(tabContent, BoxLayout.Y_AXIS));
+		tabContent.setOpaque(false);
 
 		JPanel north = new JPanel(new BorderLayout());
 		north.setOpaque(false);
 		north.add(header, BorderLayout.NORTH);
-		north.add(list, BorderLayout.CENTER);
+		north.add(tabContent, BorderLayout.CENTER);
 		add(north, BorderLayout.NORTH);
 
 		rebuild();
@@ -212,7 +232,7 @@ public class HomebasePanel extends PluginPanel
 		SwingUtilities.invokeLater(() ->
 		{
 			this.view = view;
-			expanded.clear();
+			expandedMembers.clear();
 			openSections.clear();
 			storageExpanded = false;
 			rebuild();
@@ -259,38 +279,54 @@ public class HomebasePanel extends PluginPanel
 			return;
 		}
 		rebuildWhenShown = false;
-		list.removeAll();
 		cards.clear();
-		tabs.setVisible(view != null);
+		tabBar.setVisible(view != null);
 
-		if (view != null)
+		if (view == null)
+		{
+			tabContent.removeAll();
+		}
+		else
 		{
 			styleTabs();
-			switch (tab)
+			switch (selectedTab)
 			{
 				case REQUESTS:
 					requestsView.refresh();
-					requestsView.setAlignmentX(Component.LEFT_ALIGNMENT);
-					list.add(requestsView);
+					showTabView(requestsView);
 					break;
 				case UPDATES:
 					updatesView.refresh();
-					updatesView.setAlignmentX(Component.LEFT_ALIGNMENT);
-					list.add(updatesView);
+					showTabView(updatesView);
 					break;
 				case GOALS:
 					goalsView.refresh();
-					goalsView.setAlignmentX(Component.LEFT_ALIGNMENT);
-					list.add(goalsView);
+					showTabView(goalsView);
 					break;
 				default:
+					tabContent.removeAll();
 					buildMembers();
 			}
 		}
 
 		refreshLive();
-		list.revalidate();
-		list.repaint();
+		tabContent.revalidate();
+		tabContent.repaint();
+	}
+
+	/**
+	 * Show a tab's view, leaving it where it is if it's already showing. Taking it out and putting it
+	 * back would take the keyboard focus from whatever's being typed into its form.
+	 */
+	private void showTabView(JComponent tabView)
+	{
+		if (tabContent.getComponentCount() == 1 && tabContent.getComponent(0) == tabView)
+		{
+			return;
+		}
+		tabContent.removeAll();
+		tabView.setAlignmentX(Component.LEFT_ALIGNMENT);
+		tabContent.add(tabView);
 	}
 
 	/**
@@ -302,7 +338,7 @@ public class HomebasePanel extends PluginPanel
 		int open = requestsView.openCount();
 		for (Map.Entry<Tab, JLabel> e : tabLabels.entrySet())
 		{
-			boolean selected = e.getKey() == tab;
+			boolean selected = e.getKey() == selectedTab;
 			JLabel label = e.getValue();
 			label.setForeground(selected ? Color.WHITE : ColorScheme.LIGHT_GRAY_COLOR);
 			label.setBackground(selected ? ColorScheme.DARKER_GRAY_HOVER_COLOR : ColorScheme.DARKER_GRAY_COLOR);
@@ -332,7 +368,7 @@ public class HomebasePanel extends PluginPanel
 			MemberCard card;
 			try
 			{
-				card = new MemberCard(id, view, expanded.contains(id), () -> toggle(id), cardContext);
+				card = new MemberCard(id, view, expandedMembers.contains(id), () -> toggleMember(id), cardContext);
 			}
 			catch (RuntimeException e)
 			{
@@ -350,13 +386,13 @@ public class HomebasePanel extends PluginPanel
 
 		if (members.isEmpty())
 		{
-			list.add(Ui.empty("No group data yet", "Log in and your details will be shared with your group."));
+			tabContent.add(Ui.empty("No group data yet", "Log in and your details will be shared with your group."));
 		}
 		for (MemberCard card : members)
 		{
 			card.setAlignmentX(Component.LEFT_ALIGNMENT);
-			list.add(card);
-			list.add(Box.createVerticalStrut(Ui.GAP));
+			tabContent.add(card);
+			tabContent.add(Box.createVerticalStrut(Ui.GAP));
 		}
 	}
 
@@ -367,24 +403,17 @@ public class HomebasePanel extends PluginPanel
 		{
 			return;
 		}
+		List<Item> slots = storage.toItems();
 
 		JPanel panel = new JPanel(new BorderLayout());
 		panel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
 		panel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-		int stacks = 0;
-		for (net.runelite.api.Item item : storage.toItems())
-		{
-			if (item != null)
-			{
-				stacks++;
-			}
-		}
-		JPanel top = new JPanel(new BorderLayout(6, 0));
-		top.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-		top.setBorder(new EmptyBorder(7, 8, 7, 8));
-		Ui.hover(top, ColorScheme.DARKER_GRAY_COLOR, ColorScheme.DARKER_GRAY_HOVER_COLOR);
-		Ui.clickable(top, () ->
+		JPanel header = new JPanel(new BorderLayout(6, 0));
+		header.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+		header.setBorder(new EmptyBorder(7, 8, 7, 8));
+		Ui.hover(header, ColorScheme.DARKER_GRAY_COLOR, ColorScheme.DARKER_GRAY_HOVER_COLOR);
+		Ui.clickable(header, () ->
 		{
 			storageExpanded = !storageExpanded;
 			rebuild();
@@ -393,41 +422,43 @@ public class HomebasePanel extends PluginPanel
 		JLabel title = Ui.title("Group storage");
 		title.setIcon(new Ui.Chevron(storageExpanded));
 		title.setIconTextGap(6);
-		top.add(title, BorderLayout.CENTER);
-		top.add(Ui.small(stacks + " items", ColorScheme.LIGHT_GRAY_COLOR), BorderLayout.EAST);
+		header.add(title, BorderLayout.CENTER);
+		header.add(Ui.small(ItemGrid.countFilled(slots) + " items", ColorScheme.LIGHT_GRAY_COLOR), BorderLayout.EAST);
 
 		String author = view.authorOf(null, Section.GROUP_STORAGE);
 		ProfileData seenBy = author == null ? null : view.get(author, Section.PROFILE, ProfileData.class);
 		JLabel seen = Ui.muted("Seen " + Ago.format(view.updatedAt(null, Section.GROUP_STORAGE))
-			+ (seenBy == null ? "" : " by " + Clean.text(seenBy.getName(), 20)));
+			+ (seenBy == null ? "" : " by " + Clean.text(seenBy.getName(), MAX_NAME)));
+		// lines up with the title's text, past the arrow
 		seen.setBorder(new EmptyBorder(2, 14, 0, 0));
-		top.add(seen, BorderLayout.SOUTH);
-		panel.add(top, BorderLayout.NORTH);
+		header.add(seen, BorderLayout.SOUTH);
+		panel.add(header, BorderLayout.NORTH);
 
 		if (storageExpanded)
 		{
-			ItemGrid grid = new ItemGrid(storage.toItems(), itemManager, clientThread);
+			ItemGrid grid = new ItemGrid(slots, itemManager, clientThread);
 			grid.setBorder(new EmptyBorder(0, 8, 8, 8));
 			panel.add(grid, BorderLayout.CENTER);
 		}
 
-		list.add(panel);
-		list.add(Box.createVerticalStrut(Ui.GAP));
+		tabContent.add(panel);
+		tabContent.add(Box.createVerticalStrut(Ui.GAP));
 	}
 
-	private void toggle(String memberId)
+	private void toggleMember(String memberId)
 	{
-		if (!expanded.remove(memberId))
+		if (!expandedMembers.remove(memberId))
 		{
-			expanded.add(memberId);
+			expandedMembers.add(memberId);
 		}
 		rebuild();
 	}
 
 	private void refreshLive()
 	{
-		updateStatus();
-		updateGroupName();
+		String gimGroup = Clean.text(plugin.getGimGroup(), MAX_NAME);
+		updateStatus(gimGroup);
+		updateGroupName(gimGroup);
 		String localId = collector.getMemberId();
 		boolean inGroupParty = groupSync.isGroupParty();
 		for (Map.Entry<String, MemberCard> entry : cards.entrySet())
@@ -448,17 +479,15 @@ public class HomebasePanel extends PluginPanel
 	 * Show the Group Ironman group's name while that's the group being synced. A passphrase group has
 	 * no name, even when its members are Group Ironmen.
 	 */
-	private void updateGroupName()
+	private void updateGroupName(String gimGroup)
 	{
-		String name = Clean.text(plugin.getGimGroup(), 20);
-		groupLabel.setText(name == null ? "" : name);
-		groupLabel.setVisible(name != null);
+		groupLabel.setText(gimGroup == null ? "" : gimGroup);
+		groupLabel.setVisible(gimGroup != null);
 	}
 
-	private void updateStatus()
+	private void updateStatus(String gimGroup)
 	{
-		String group = Clean.text(plugin.getGimGroup(), 20);
-		boolean gim = group != null;
+		boolean isGim = gimGroup != null;
 		switch (groupSync.getStatus())
 		{
 			case NO_GROUP:
@@ -466,15 +495,15 @@ public class HomebasePanel extends PluginPanel
 					+ "For other groups, create a passphrase or paste one into this plugin's settings.", "Create group", plugin::createGroup, null, null);
 				break;
 			case LOG_IN:
-				setStatus(ColorScheme.MEDIUM_GRAY_COLOR, "Log in on an account in " + group + " to connect", null, null, null, null);
+				setStatus(ColorScheme.MEDIUM_GRAY_COLOR, "Log in on an account in " + gimGroup + " to connect", null, null, null, null);
 				break;
 			case NOT_IN_GROUP:
-				setStatus(ColorScheme.MEDIUM_GRAY_COLOR, "This account isn't in " + group + ", so it can't connect", null, null, null, null);
+				setStatus(ColorScheme.MEDIUM_GRAY_COLOR, "This account isn't in " + gimGroup + ", so it can't connect", null, null, null, null);
 				break;
 			case DISCONNECTED:
 				// a passphrase group may have just been made, so its passphrase can be copied straight away
 				setStatus(ColorScheme.PROGRESS_ERROR_COLOR, "Not connected to your group", "Connect", groupSync::joinGroupParty,
-					gim ? null : "Copy passphrase", gim ? null : plugin::copyPassphrase);
+					isGim ? null : "Copy passphrase", isGim ? null : plugin::copyPassphrase);
 				break;
 			case OTHER_PARTY:
 				boolean canSwitch = groupSync.canConnect();
@@ -482,40 +511,41 @@ public class HomebasePanel extends PluginPanel
 					canSwitch ? groupSync::joinGroupParty : null, null, null);
 				break;
 			case PAUSED:
-				setStatus(Ui.WARNING, "Nothing is shared while " + Clean.text(String.join(", ", groupSync.strangers()), 60)
-					+ " is in the party and not in " + group, null, null, "Disconnect", groupSync::leaveGroupParty);
+				setStatus(Ui.WARNING, "Nothing is shared while " + Clean.text(String.join(", ", groupSync.strangers()), MAX_STRANGERS)
+					+ " is in the party and not in " + gimGroup, null, null, "Disconnect", groupSync::leaveGroupParty);
 				break;
 			case CONNECTED:
-				int online = onlineCount();
 				// a Group Ironman group needs no passphrase, so there's nothing to copy
-				setStatus(Ui.ONLINE, "Connected  ·  " + online + " online", gim ? null : "Copy passphrase", gim ? null : plugin::copyPassphrase,
-					"Disconnect", groupSync::leaveGroupParty);
+				setStatus(Ui.ONLINE, "Connected  ·  " + onlineCount() + " online", isGim ? null : "Copy passphrase",
+					isGim ? null : plugin::copyPassphrase, "Disconnect", groupSync::leaveGroupParty);
 				break;
 		}
 	}
 
 	/**
 	 * Show the status, with up to two buttons under it: the main one in orange and another beside it.
+	 * A button is hidden when its text is null.
 	 */
-	private void setStatus(Color dot, String text, String buttonText, Runnable buttonAction, String secondText, Runnable second)
+	private void setStatus(Color dotColor, String text, String mainText, Runnable mainAction, String secondText, Runnable secondAction)
 	{
-		statusLabel.setIcon(new Ui.Dot(dot));
+		statusLabel.setIcon(new Ui.Dot(dotColor));
+		// narrower than other wrapped text, to leave room for the dot
 		statusLabel.setText("<html><body style='width:" + (Ui.TEXT_WIDTH - 15) + "px'>" + text + "</body></html>");
-		actionButton.setText(buttonText);
-		actionButton.setVisible(buttonText != null);
-		action = buttonAction;
+		mainButton.setText(mainText);
+		mainButton.setVisible(mainText != null);
+		this.mainAction = mainAction;
 		secondButton.setText(secondText);
 		secondButton.setVisible(secondText != null);
-		secondAction = second;
-		actionRow.setVisible(buttonText != null || secondText != null);
+		this.secondAction = secondAction;
+		buttonRow.setVisible(mainText != null || secondText != null);
 	}
 
 	private void runAction(boolean main)
 	{
-		Runnable r = main ? action : secondAction;
-		if (r != null)
+		Runnable action = main ? mainAction : secondAction;
+		if (action != null)
 		{
-			r.run();
+			action.run();
 		}
 	}
 

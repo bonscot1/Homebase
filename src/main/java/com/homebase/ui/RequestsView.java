@@ -7,6 +7,7 @@ import com.homebase.requests.RequestService.Request;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
+import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.GridLayout;
 import java.util.List;
@@ -20,23 +21,24 @@ import javax.swing.JTextField;
 import javax.swing.border.CompoundBorder;
 import javax.swing.border.EmptyBorder;
 import net.runelite.client.ui.ColorScheme;
-import net.runelite.client.ui.FontManager;
 
 /**
  * Ask the group for items, and take on what others have asked for.
  */
 class RequestsView extends JPanel
 {
-	private static final Color UNCLAIMED = new Color(0xff9800);
+	private static final Color UNCLAIMED = new Color(0xFF9800);
 	private static final Color TAKEN = new Color(0x42A5F5);
 	private static final Color RESERVED = new Color(0x26C6DA);
+
+	private static final int MAX_QUANTITY = 1_000_000;
 
 	private final RequestService service;
 	private final JTextField itemField = new JTextField();
 	private final JTextField quantityField = new JTextField("1");
 	private final JTextField noteField = new JTextField();
-	private final JButton requestButton = new JButton("Request");
-	private final JLabel formHint = new JLabel();
+	private final JButton requestButton = Ui.primaryButton("Request", this::submit);
+	private final JLabel formHint = Ui.muted("");
 	private final JPanel list = new JPanel();
 
 	RequestsView(RequestService service)
@@ -52,31 +54,23 @@ class RequestsView extends JPanel
 
 		form.add(Ui.title("Ask the group"));
 		form.add(Box.createVerticalStrut(6));
+		quantityField.setColumns(4);
 		JPanel itemRow = new JPanel(new BorderLayout(4, 0));
 		itemRow.setOpaque(false);
-		itemRow.add(field("Item", itemField), BorderLayout.CENTER);
-		JPanel quantity = field("Qty", quantityField);
-		quantityField.setColumns(4);
-		itemRow.add(quantity, BorderLayout.EAST);
+		itemRow.add(Ui.field("Item", itemField), BorderLayout.CENTER);
+		itemRow.add(Ui.field("Qty", quantityField), BorderLayout.EAST);
 
 		form.add(itemRow);
 		form.add(Box.createVerticalStrut(4));
-		form.add(field("Note (optional)", noteField));
+		form.add(Ui.field("Note (optional)", noteField));
 		form.add(Box.createVerticalStrut(8));
-		Ui.primary(requestButton);
-		requestButton.addActionListener(e -> submit());
 		itemField.addActionListener(e -> submit());
 		JPanel buttonRow = new JPanel(new BorderLayout());
 		buttonRow.setOpaque(false);
 		buttonRow.add(requestButton, BorderLayout.CENTER);
 		form.add(buttonRow);
-		formHint.setFont(FontManager.getRunescapeSmallFont());
-		formHint.setForeground(ColorScheme.MEDIUM_GRAY_COLOR);
 		form.add(formHint);
-		for (Component c : form.getComponents())
-		{
-			((javax.swing.JComponent) c).setAlignmentX(Component.LEFT_ALIGNMENT);
-		}
+		Ui.alignChildrenLeft(form);
 
 		list.setLayout(new BoxLayout(list, BoxLayout.Y_AXIS));
 		list.setOpaque(false);
@@ -136,7 +130,7 @@ class RequestsView extends JPanel
 		int quantity;
 		try
 		{
-			quantity = Math.min(1_000_000, Math.max(1, Integer.parseInt(quantityField.getText().trim())));
+			quantity = Math.min(MAX_QUANTITY, Math.max(1, Integer.parseInt(quantityField.getText().trim())));
 		}
 		catch (NumberFormatException e)
 		{
@@ -151,24 +145,24 @@ class RequestsView extends JPanel
 	private JPanel card(Request request, boolean canEdit)
 	{
 		RequestData data = request.getData();
-		Color state = data.isDone() ? ColorScheme.PROGRESS_COMPLETE_COLOR
+		Color stateColor = data.isDone() ? ColorScheme.PROGRESS_COMPLETE_COLOR
 			: data.isReserved() ? RESERVED
 			: data.getAssignedTo() != null ? TAKEN : UNCLAIMED;
 		JPanel card = new JPanel();
 		card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
 		card.setBackground(ColorScheme.DARKER_GRAY_COLOR);
 		// a stripe down the left edge shows where the request stands at a glance
-		card.setBorder(new CompoundBorder(BorderFactory.createMatteBorder(0, 3, 0, 0, state), new EmptyBorder(7, 8, 7, 8)));
+		card.setBorder(new CompoundBorder(BorderFactory.createMatteBorder(0, 3, 0, 0, stateColor), new EmptyBorder(7, 8, 7, 8)));
 
 		JLabel title = Ui.title(data.getQuantity() > 1 ? data.getItem() + " ×" + data.getQuantity() : data.getItem());
 		title.setForeground(data.isDone() ? ColorScheme.MEDIUM_GRAY_COLOR : Color.WHITE);
 		card.add(title);
 
-		card.add(small("For " + name(data.getRequestedByName()) + "  ·  " + Ago.format(data.getCreatedAt()),
+		card.add(Ui.small("For " + nameOrSomeone(data.getRequestedByName()) + "  ·  " + Ago.format(data.getCreatedAt()),
 			ColorScheme.MEDIUM_GRAY_COLOR));
 		if (!Strings.isNullOrEmpty(data.getNote()))
 		{
-			JLabel note = Ui.wrapped("“" + escape(data.getNote()) + "”", ColorScheme.LIGHT_GRAY_COLOR);
+			JLabel note = Ui.wrapped("“" + Ui.escapeHtml(data.getNote()) + "”", ColorScheme.LIGHT_GRAY_COLOR);
 			note.setBorder(new EmptyBorder(3, 0, 0, 0));
 			card.add(note);
 		}
@@ -176,100 +170,88 @@ class RequestsView extends JPanel
 		JLabel status;
 		if (data.isDone())
 		{
-			status = small("Done by " + name(data.getAssignedToName()), state);
+			status = Ui.small("Done by " + nameOrSomeone(data.getAssignedToName()), stateColor);
 		}
 		else if (data.isReserved())
 		{
 			// the item waits in group storage, held back from everyone but the requester
 			int kept = data.getReservedQuantity();
-			status = small(service.isMe(data.getRequestedBy()) ? kept + " waiting for you in group storage"
-				: kept + " in group storage for " + name(data.getRequestedByName()), state);
+			status = Ui.small(service.isMe(data.getRequestedBy()) ? kept + " waiting for you in group storage"
+				: kept + " in group storage for " + nameOrSomeone(data.getRequestedByName()), stateColor);
 		}
 		else if (data.getAssignedTo() != null)
 		{
 			// it's only done when the item turns up, so say how to finish it
 			status = service.isMe(data.getAssignedTo())
-				? Ui.wrapped("You're on it. Put it in group storage or trade it to " + name(data.getRequestedByName())
-				+ " to finish.", state)
-				: small(name(data.getAssignedToName()) + " is on it", state);
+				? Ui.wrapped("You're on it. Put it in group storage or trade it to "
+				+ Ui.escapeHtml(nameOrSomeone(data.getRequestedByName())) + " to finish.", stateColor)
+				: Ui.small(nameOrSomeone(data.getAssignedToName()) + " is on it", stateColor);
 		}
 		else
 		{
-			status = small("Nobody has taken this yet", state);
+			status = Ui.small("Nobody has taken this yet", stateColor);
 		}
 		status.setBorder(new EmptyBorder(4, 0, 0, 0));
 		card.add(status);
 		if (!data.isDone() && data.getDelivered() > 0)
 		{
-			card.add(small(data.getDelivered() + " of " + data.asked() + " received", ColorScheme.MEDIUM_GRAY_COLOR));
+			card.add(Ui.small(data.getDelivered() + " of " + data.asked() + " received", ColorScheme.MEDIUM_GRAY_COLOR));
 		}
 
 		if (canEdit)
 		{
-			JPanel buttons = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
-			buttons.setOpaque(false);
-			buttons.setBorder(new EmptyBorder(6, 0, 0, 0));
-			JPanel grid = new JPanel(new GridLayout(1, 0, 4, 0));
-			grid.setOpaque(false);
-			String id = request.getId();
-			boolean mine = service.isMe(data.getRequestedBy());
-			boolean assignedToMe = service.isMe(data.getAssignedTo());
-			// nobody can mark a request done: that happens when the item is put in group storage and
-			// collected, or traded to whoever asked
-			if (!data.isDone() && data.getAssignedTo() == null && !mine)
+			JPanel buttons = buttons(request);
+			if (buttons != null)
 			{
-				grid.add(button("I'll get it", () -> service.claim(id)));
-			}
-			if (!data.isDone() && !data.isReserved() && assignedToMe)
-			{
-				grid.add(button("Give back", () -> service.unclaim(id)));
-			}
-			if (mine || data.isDone())
-			{
-				grid.add(button(data.isDone() ? "Clear" : "Cancel", () -> service.delete(id)));
-			}
-			if (grid.getComponentCount() > 0)
-			{
-				buttons.add(grid);
 				card.add(buttons);
 			}
 		}
 
-		for (Component c : card.getComponents())
-		{
-			((javax.swing.JComponent) c).setAlignmentX(Component.LEFT_ALIGNMENT);
-		}
+		Ui.alignChildrenLeft(card);
 		// a card of only labels would otherwise be only as wide as its longest line
-		card.setMaximumSize(new java.awt.Dimension(Integer.MAX_VALUE, card.getPreferredSize().height));
+		card.setMaximumSize(new Dimension(Integer.MAX_VALUE, card.getPreferredSize().height));
 		return card;
 	}
 
-	private static JPanel field(String label, JTextField field)
+	/**
+	 * @return what the logged in player can do with the request, or null if nothing
+	 */
+	private JPanel buttons(Request request)
 	{
-		JPanel panel = new JPanel(new BorderLayout(0, 2));
-		panel.setOpaque(false);
-		panel.add(small(label, ColorScheme.LIGHT_GRAY_COLOR), BorderLayout.NORTH);
-		panel.add(field, BorderLayout.CENTER);
-		return panel;
+		RequestData data = request.getData();
+		String id = request.getId();
+		boolean mine = service.isMe(data.getRequestedBy());
+		boolean assignedToMe = service.isMe(data.getAssignedTo());
+		JPanel grid = new JPanel(new GridLayout(1, 0, 4, 0));
+		grid.setOpaque(false);
+		// nobody can mark a request done: that happens when the item is put in group storage and
+		// collected, or traded to whoever asked
+		if (!data.isDone() && data.getAssignedTo() == null && !mine)
+		{
+			grid.add(Ui.button("I'll get it", () -> service.claim(id)));
+		}
+		if (!data.isDone() && !data.isReserved() && assignedToMe)
+		{
+			grid.add(Ui.button("Give back", () -> service.unclaim(id)));
+		}
+		if (mine || data.isDone())
+		{
+			grid.add(Ui.button(data.isDone() ? "Clear" : "Cancel", () -> service.delete(id)));
+		}
+		if (grid.getComponentCount() == 0)
+		{
+			return null;
+		}
+		// the grid gives the buttons equal widths, and the flow layout stops them stretching across the card
+		JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+		row.setOpaque(false);
+		row.setBorder(new EmptyBorder(6, 0, 0, 0));
+		row.add(grid);
+		return row;
 	}
 
-	private static JButton button(String text, Runnable action)
-	{
-		return Ui.button(text, action);
-	}
-
-	private static JLabel small(String text, Color color)
-	{
-		return Ui.small(text, color);
-	}
-
-	private static String name(String name)
+	private static String nameOrSomeone(String name)
 	{
 		return Strings.isNullOrEmpty(name) ? "someone" : name;
-	}
-
-	private static String escape(String text)
-	{
-		return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
 	}
 }

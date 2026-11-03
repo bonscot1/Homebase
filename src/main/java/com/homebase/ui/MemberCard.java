@@ -50,6 +50,9 @@ import net.runelite.client.util.QuantityFormatter;
  */
 class MemberCard extends JPanel
 {
+	/**
+	 * Gold, for a level 99 and for new collection log slots.
+	 */
 	private static final Color MAXED = new Color(0xFFD54F);
 
 	/**
@@ -57,7 +60,25 @@ class MemberCard extends JPanel
 	 */
 	private static final Color SKILL_TILE = new Color(62, 53, 41);
 
+	/**
+	 * Diary tiers shortened, so all four fit beside the region's name.
+	 */
 	private static final String[] TIER_LABELS = {"E", "M", "H", "El"};
+
+	private static final int DIARY_REGION_WIDTH = 100;
+
+	/**
+	 * Newest collection log slots listed above the pages.
+	 */
+	private static final int RECENT_SLOTS_SHOWN = 5;
+
+	/**
+	 * Longest text shown from other players' data: player names, then boss and furniture names, then
+	 * quest, collection log page and item names.
+	 */
+	private static final int MAX_NAME = 20;
+	private static final int MAX_SHORT_TEXT = 40;
+	private static final int MAX_LONG_TEXT = 60;
 
 	/**
 	 * Skills in the order of the in-game skills tab, read across three columns.
@@ -123,7 +144,7 @@ class MemberCard extends JPanel
 
 		JPanel header = new JPanel(new BorderLayout(6, 0));
 		header.setOpaque(false);
-		nameLabel = Ui.title(profile == null ? "Unknown" : Clean.text(profile.getName(), 20));
+		nameLabel = Ui.title(profile == null ? "Unknown" : Clean.text(profile.getName(), MAX_NAME));
 		nameLabel.setIconTextGap(6);
 		header.add(nameLabel, BorderLayout.CENTER);
 		header.add(statusLabel, BorderLayout.EAST);
@@ -136,6 +157,7 @@ class MemberCard extends JPanel
 				skills.getLevel(Skill.RANGED), skills.getLevel(Skill.PRAYER));
 			JLabel levels = Ui.small("Combat " + combat + "  ·  Total " + QuantityFormatter.formatNumber(skills.getTotalLevel()),
 				ColorScheme.LIGHT_GRAY_COLOR);
+			// lines up with the name, past the online dot
 			levels.setBorder(new EmptyBorder(2, 13, 0, 0));
 			top.add(align(levels));
 		}
@@ -192,9 +214,9 @@ class MemberCard extends JPanel
 			int maxHp = live.getStatBase(Skill.HITPOINTS);
 			int prayer = live.getStatBoost(Skill.PRAYER);
 			int maxPrayer = live.getStatBase(Skill.PRAYER);
-			Ui.setBar(hpBar, hp, maxHp, hp + "/" + maxHp);
-			Ui.setBar(prayerBar, prayer, maxPrayer, prayer + "/" + maxPrayer);
-			Ui.setBar(runBar, live.getRunEnergy(), 100, live.getRunEnergy() + "%");
+			hpBar.set(hp, maxHp, hp + "/" + maxHp);
+			prayerBar.set(prayer, maxPrayer, prayer + "/" + maxPrayer);
+			runBar.set(live.getRunEnergy(), 100, live.getRunEnergy() + "%");
 			bars.setVisible(true);
 		}
 		else
@@ -229,17 +251,14 @@ class MemberCard extends JPanel
 		addCollapsible(details, "Seed vault", memberId, Section.SEED_VAULT, view, context);
 		addCollapsible(details, "Looting bag", memberId, Section.LOOTING_BAG, view, context);
 
-		for (Component c : details.getComponents())
-		{
-			((JComponent) c).setAlignmentX(Component.LEFT_ALIGNMENT);
-		}
+		Ui.alignChildrenLeft(details);
 		return details;
 	}
 
 	/**
 	 * A row that opens a section, with a little space under it.
 	 */
-	private static void addRow(JPanel parent, String title, String summary, String id, Context context)
+	private static void addSectionRow(JPanel parent, String title, String summary, String id, Context context)
 	{
 		parent.add(Ui.sectionRow(title, summary, context.openSections.contains(id), () -> context.toggleSection.accept(id)));
 		parent.add(Box.createVerticalStrut(2));
@@ -273,7 +292,7 @@ class MemberCard extends JPanel
 	}
 
 	/**
-	 * The inventory or worn equipment: only what's there, so a few items take a single row.
+	 * The inventory or worn equipment, which are small enough to start open.
 	 */
 	private static void addItems(JPanel parent, String title, String noun, String memberId, Section section,
 		GroupView view, Context context)
@@ -283,18 +302,12 @@ class MemberCard extends JPanel
 		{
 			return;
 		}
-		int count = 0;
-		for (Item item : items.toItems())
-		{
-			if (item != null)
-			{
-				count++;
-			}
-		}
+		List<Item> slots = items.toItems();
+		int count = ItemGrid.countFilled(slots);
 		if (addFoldRow(parent, title, count + noun + "  ·  " + Ago.format(view.updatedAt(memberId, section)),
 			memberId + ":" + section.getKey(), context) && count > 0)
 		{
-			parent.add(new ItemGrid(items.toItems(), context.itemManager, context.clientThread));
+			parent.add(new ItemGrid(slots, context.itemManager, context.clientThread));
 			parent.add(Box.createVerticalStrut(4));
 		}
 	}
@@ -310,19 +323,12 @@ class MemberCard extends JPanel
 		{
 			return;
 		}
-		List<Item> stacks = new ArrayList<>();
-		for (Item item : items.toItems())
-		{
-			if (item != null)
-			{
-				stacks.add(item);
-			}
-		}
+		List<Item> slots = items.toItems();
 		String id = memberId + ":" + section.getKey();
-		addRow(parent, title, stacks.size() + " items · " + Ago.format(view.updatedAt(memberId, section)), id, context);
+		addSectionRow(parent, title, ItemGrid.countFilled(slots) + " items · " + Ago.format(view.updatedAt(memberId, section)), id, context);
 		if (context.openSections.contains(id))
 		{
-			parent.add(new ItemGrid(stacks, context.itemManager, context.clientThread));
+			parent.add(new ItemGrid(slots, context.itemManager, context.clientThread));
 			parent.add(Box.createVerticalStrut(4));
 		}
 	}
@@ -336,7 +342,7 @@ class MemberCard extends JPanel
 		}
 		int mini = quests.countMiniquests(QuestsData.FINISHED);
 		String id = memberId + ":" + Section.QUESTS.getKey();
-		addRow(parent, "Quests", quests.count(QuestsData.FINISHED) + " done" + (mini > 0 ? " + " + mini + " mini" : ""), id, context);
+		addSectionRow(parent, "Quests", quests.count(QuestsData.FINISHED) + " done" + (mini > 0 ? " + " + mini + " mini" : ""), id, context);
 		if (!context.openSections.contains(id))
 		{
 			return;
@@ -344,7 +350,7 @@ class MemberCard extends JPanel
 		TreeMap<String, String> sorted = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
 		for (Map.Entry<String, String> e : quests.getQuests().entrySet())
 		{
-			String name = Clean.text(e.getKey(), 60);
+			String name = Clean.text(e.getKey(), MAX_LONG_TEXT);
 			if (name != null)
 			{
 				sorted.put(name, e.getValue());
@@ -371,7 +377,7 @@ class MemberCard extends JPanel
 		}
 		String id = memberId + ":" + Section.DIARIES.getKey();
 		int total = DiariesData.REGIONS.size() * DiariesData.TIERS.size();
-		addRow(parent, "Achievement diaries", diaries.countDone() + "/" + total, id, context);
+		addSectionRow(parent, "Achievement diaries", diaries.countDone() + "/" + total, id, context);
 		if (!context.openSections.contains(id))
 		{
 			return;
@@ -383,7 +389,8 @@ class MemberCard extends JPanel
 			JPanel row = new JPanel(new BorderLayout());
 			row.setOpaque(false);
 			JLabel name = Ui.small(region, ColorScheme.LIGHT_GRAY_COLOR);
-			name.setPreferredSize(new Dimension(100, name.getPreferredSize().height));
+			// a fixed width, so every region's tiers line up in columns
+			name.setPreferredSize(new Dimension(DIARY_REGION_WIDTH, name.getPreferredSize().height));
 			name.setToolTipText(region);
 			row.add(name, BorderLayout.WEST);
 			JPanel tiers = new JPanel(new GridLayout(1, DiariesData.TIERS.size(), 2, 0));
@@ -431,7 +438,7 @@ class MemberCard extends JPanel
 		String counts = log.getObtained() > 0 && log.getTotal() > 0
 			? QuantityFormatter.formatNumber(log.getObtained()) + "/" + QuantityFormatter.formatNumber(log.getTotal())
 			: "";
-		addRow(parent, "Collection log", counts, id, context);
+		addSectionRow(parent, "Collection log", counts, id, context);
 		if (!context.openSections.contains(id))
 		{
 			return;
@@ -441,8 +448,8 @@ class MemberCard extends JPanel
 		int shown = 0;
 		for (String item : recent)
 		{
-			String name = Clean.text(item, 60);
-			if (name != null && shown++ < 5)
+			String name = Clean.text(item, MAX_LONG_TEXT);
+			if (name != null && shown++ < RECENT_SLOTS_SHOWN)
 			{
 				list.add(Ui.small("New: " + name, MAXED));
 			}
@@ -450,7 +457,7 @@ class MemberCard extends JPanel
 		TreeMap<String, CollectionLogData.Page> sorted = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
 		for (Map.Entry<String, CollectionLogData.Page> e : pages.entrySet())
 		{
-			String name = Clean.text(e.getKey(), 60);
+			String name = Clean.text(e.getKey(), MAX_LONG_TEXT);
 			if (name != null && e.getValue() != null)
 			{
 				sorted.put(name, e.getValue());
@@ -489,7 +496,7 @@ class MemberCard extends JPanel
 		List<Map.Entry<String, Integer>> rows = new ArrayList<>();
 		for (Map.Entry<String, Integer> e : kills.getCounts().entrySet())
 		{
-			String name = Clean.text(e.getKey(), 40);
+			String name = Clean.text(e.getKey(), MAX_SHORT_TEXT);
 			// a collection log page shows "kills: 0" for bosses never fought, which says nothing
 			if (name != null && e.getValue() != null && e.getValue() > 0)
 			{
@@ -500,9 +507,9 @@ class MemberCard extends JPanel
 		{
 			return;
 		}
-		rows.sort((a, b) -> b.getValue() - a.getValue());
+		rows.sort(Map.Entry.<String, Integer>comparingByValue().reversed());
 		String id = memberId + ":" + Section.KILL_COUNTS.getKey();
-		addRow(parent, "Kill counts", rows.size() + (rows.size() == 1 ? " boss" : " bosses"), id, context);
+		addSectionRow(parent, "Kill counts", rows.size() + (rows.size() == 1 ? " boss" : " bosses"), id, context);
 		if (!context.openSections.contains(id))
 		{
 			return;
@@ -526,7 +533,7 @@ class MemberCard extends JPanel
 		List<String> furniture = house.getFurniture() == null ? new ArrayList<>() : house.getFurniture();
 		List<Integer> costumes = house.getCostumes() == null ? new ArrayList<>() : house.getCostumes();
 		String id = memberId + ":" + Section.HOUSE.getKey();
-		addRow(parent, "House", furniture.size() + " built" + (costumes.isEmpty() ? "" : " · " + costumes.size() + " costumes"), id, context);
+		addSectionRow(parent, "House", furniture.size() + " built" + (costumes.isEmpty() ? "" : " · " + costumes.size() + " costumes"), id, context);
 		if (!context.openSections.contains(id))
 		{
 			return;
@@ -536,7 +543,7 @@ class MemberCard extends JPanel
 		content.setOpaque(false);
 		for (String item : furniture)
 		{
-			String name = Clean.text(item, 40);
+			String name = Clean.text(item, MAX_SHORT_TEXT);
 			if (name != null)
 			{
 				content.add(align(Ui.small(name, ColorScheme.LIGHT_GRAY_COLOR)));
@@ -552,7 +559,7 @@ class MemberCard extends JPanel
 					items.add(new Item(itemId, 1));
 				}
 			}
-			content.add(align(caption("Costume room", null)));
+			content.add(align(caption("Costume room")));
 			content.add(align(new ItemGrid(items, context.itemManager, context.clientThread)));
 		}
 		addContent(parent, content);
@@ -590,18 +597,14 @@ class MemberCard extends JPanel
 	}
 
 	/**
-	 * A small grey heading over a block, with when it was last seen on the right.
+	 * A small grey heading over a block.
 	 */
-	static JPanel caption(String title, String right)
+	private static JPanel caption(String title)
 	{
 		JPanel row = new JPanel(new BorderLayout());
 		row.setOpaque(false);
 		row.setBorder(new EmptyBorder(6, 0, 3, 0));
 		row.add(Ui.small(title, ColorScheme.LIGHT_GRAY_COLOR), BorderLayout.WEST);
-		if (right != null)
-		{
-			row.add(Ui.muted(right), BorderLayout.EAST);
-		}
 		row.setAlignmentX(Component.LEFT_ALIGNMENT);
 		row.setMaximumSize(new Dimension(Integer.MAX_VALUE, row.getPreferredSize().height));
 		return row;

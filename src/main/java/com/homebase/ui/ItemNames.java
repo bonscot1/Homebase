@@ -29,14 +29,9 @@ final class ItemNames
 		return NAMES.getOrDefault(itemId, "item " + itemId);
 	}
 
-	static boolean known(int itemId)
-	{
-		return NAMES.containsKey(itemId);
-	}
-
 	/**
-	 * Look up any names we don't have yet, then run {@code done} on the Swing thread. Runs it straight
-	 * away if every name is already known.
+	 * Look up any names we don't have yet, then run {@code done} on the Swing thread. Call it from the
+	 * Swing thread, since {@code done} runs straight away if every name is already known.
 	 */
 	static void resolve(Collection<Integer> itemIds, ItemManager itemManager, ClientThread clientThread, Runnable done)
 	{

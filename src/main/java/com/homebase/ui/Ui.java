@@ -3,20 +3,20 @@ package com.homebase.ui;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
+import java.awt.Container;
 import java.awt.Cursor;
 import java.awt.Dimension;
+import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import javax.swing.BorderFactory;
 import javax.swing.Icon;
 import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
-import javax.swing.border.Border;
 import javax.swing.border.EmptyBorder;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.FontManager;
@@ -57,7 +57,7 @@ final class Ui
 	}
 
 	/**
-	 * @return an empty card: the darker grey box every member, goal and request sits in
+	 * @return an empty card: a darker grey box for one entry in a list
 	 */
 	static JPanel card()
 	{
@@ -90,11 +90,41 @@ final class Ui
 	}
 
 	/**
-	 * @return a small label that wraps inside the sidebar
+	 * @return a small label that wraps inside the sidebar. The text is HTML, so anything other players
+	 * typed must go through {@link #escapeHtml} first.
 	 */
 	static JLabel wrapped(String text, Color color)
 	{
 		return small("<html><body style='width:" + TEXT_WIDTH + "px'>" + text + "</body></html>", color);
+	}
+
+	static String escapeHtml(String text)
+	{
+		return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
+	}
+
+	/**
+	 * @return a form input with its small grey label above it
+	 */
+	static JPanel field(String label, JComponent input)
+	{
+		JPanel panel = new JPanel(new BorderLayout(0, 2));
+		panel.setOpaque(false);
+		panel.add(small(label, ColorScheme.LIGHT_GRAY_COLOR), BorderLayout.NORTH);
+		panel.add(input, BorderLayout.CENTER);
+		return panel;
+	}
+
+	/**
+	 * Line up everything in a vertical box on the left. BoxLayout lines children up by their
+	 * alignment, and panels and labels don't agree on it by default.
+	 */
+	static void alignChildrenLeft(Container parent)
+	{
+		for (Component child : parent.getComponents())
+		{
+			((JComponent) child).setAlignmentX(Component.LEFT_ALIGNMENT);
+		}
 	}
 
 	/**
@@ -156,17 +186,14 @@ final class Ui
 		return new Meter(fg, bg);
 	}
 
-	static void setBar(Meter bar, int value, int max, String label)
-	{
-		bar.set(value, max, label);
-	}
-
 	/**
 	 * A filled bar with its numbers centred across the whole bar. RuneLite's own bar gives its middle
 	 * label only a third of the width, which cuts "46/50" short in narrow bars.
 	 */
 	static final class Meter extends JComponent
 	{
+		private static final int HEIGHT = 16;
+
 		private final Color fg;
 		private final Color bg;
 		private int value;
@@ -178,9 +205,9 @@ final class Ui
 			this.fg = fg;
 			this.bg = bg;
 			setFont(FontManager.getRunescapeSmallFont());
-			setPreferredSize(new Dimension(0, 16));
-			setMinimumSize(new Dimension(0, 16));
-			setMaximumSize(new Dimension(Integer.MAX_VALUE, 16));
+			setPreferredSize(new Dimension(0, HEIGHT));
+			setMinimumSize(new Dimension(0, HEIGHT));
+			setMaximumSize(new Dimension(Integer.MAX_VALUE, HEIGHT));
 		}
 
 		void set(int value, int max, String label)
@@ -201,7 +228,7 @@ final class Ui
 			g.setColor(fg);
 			g.fillRect(0, 0, (int) ((long) w * value / max), h);
 			g.setFont(getFont());
-			java.awt.FontMetrics fm = g.getFontMetrics();
+			FontMetrics fm = g.getFontMetrics();
 			int x = (w - fm.stringWidth(label)) / 2;
 			int y = (h - fm.getHeight()) / 2 + fm.getAscent();
 			// a one pixel shadow, like the game's own text
@@ -254,14 +281,6 @@ final class Ui
 		hover(button, ColorScheme.BRAND_ORANGE.darker(), ColorScheme.BRAND_ORANGE);
 	}
 
-	/**
-	 * @return an outline that separates a card's header from what's under it
-	 */
-	static Border divider()
-	{
-		return BorderFactory.createMatteBorder(0, 0, 1, 0, ColorScheme.DARK_GRAY_COLOR);
-	}
-
 	static void clickable(JComponent component, Runnable onClick)
 	{
 		component.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
@@ -298,6 +317,8 @@ final class Ui
 	 */
 	static final class Dot implements Icon
 	{
+		private static final int SIZE = 7;
+
 		private final Color color;
 
 		Dot(Color color)
@@ -311,14 +332,14 @@ final class Ui
 			Graphics2D g2 = (Graphics2D) g.create();
 			g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 			g2.setColor(color);
-			g2.fillOval(x, y + 1, 7, 7);
+			g2.fillOval(x, y + 1, SIZE, SIZE);
 			g2.dispose();
 		}
 
 		@Override
 		public int getIconWidth()
 		{
-			return 7;
+			return SIZE;
 		}
 
 		@Override

@@ -2,12 +2,18 @@ package com.homebase.ui;
 
 import java.util.concurrent.TimeUnit;
 
+/**
+ * Rough ages such as "5m ago", for when something was last seen or changed.
+ */
 final class Ago
 {
 	private Ago()
 	{
 	}
 
+	/**
+	 * @return how long ago the time was, or "never" for 0
+	 */
 	static String format(long timestamp)
 	{
 		if (timestamp <= 0)
