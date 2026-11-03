@@ -179,7 +179,7 @@ Items are ticked when they're built. Each stage's last box is ticked once it has
 - [x] Make the repository public (the Plugin Hub requires it)
 - [x] Code review: hardened message handling, checked data, request amounts, trade check, connect button
 - [ ] Ask in RuneLite's Discord `#development` about bounties hiding Withdraw options
-- [ ] Submit to the RuneLite Plugin Hub
+- [x] Submit to the RuneLite Plugin Hub ([runelite/plugin-hub#20070](https://github.com/runelite/plugin-hub/pull/20070), at commit 0d9b517)
 
 ### Submitting to the Plugin Hub
 
