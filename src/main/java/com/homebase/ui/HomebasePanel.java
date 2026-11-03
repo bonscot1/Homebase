@@ -461,8 +461,12 @@ public class HomebasePanel extends PluginPanel
 					+ "For other groups, create a passphrase or paste one into this plugin's settings.", "Create group", plugin::createGroup);
 				break;
 			case WAITING:
-				setStatus(ColorScheme.MEDIUM_GRAY_COLOR, "Joins your group when you log in", null, null);
+			{
+				// a passphrase group may have just been made, so its passphrase can be copied straight away
+				boolean gim = plugin.getGimGroup() != null;
+				setStatus(ColorScheme.MEDIUM_GRAY_COLOR, "Joins your group when you log in", gim ? null : "Copy passphrase", gim ? null : plugin::copyPassphrase);
 				break;
+			}
 			case DISCONNECTED:
 				setStatus(ColorScheme.PROGRESS_ERROR_COLOR, "Not connected to your group", "Join group", groupSync::joinGroupParty);
 				break;

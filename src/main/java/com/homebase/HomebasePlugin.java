@@ -78,8 +78,8 @@ import net.runelite.client.util.ImageUtil;
 @Slf4j
 @PluginDescriptor(
 	name = "The Group Ironman Homebase",
-	description = "One home for your group: synced inventories, banks, stats and more, with no server to host",
-	tags = {"group", "ironman", "gim", "party", "bank", "storage", "sync"},
+	description = "One home for your group: see each other's stats, gear and banks, ping and highlight together, and share requests, goals and bank bounties",
+	tags = {"group", "ironman", "gim", "party", "bank", "storage", "sync", "goals", "requests", "ping", "highlight", "hud"},
 	internalName = "group-ironman-homebase"
 )
 public class HomebasePlugin extends Plugin
