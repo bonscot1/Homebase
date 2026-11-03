@@ -34,7 +34,7 @@ class UpdatesView extends JPanel
 		List<UpdateEntry> entries = tracker.getEntries();
 		if (entries.isEmpty())
 		{
-			JLabel hint = new JLabel("<html><body style='width:180px'>Nothing new yet. When someone in your group levels up, "
+			JLabel hint = new JLabel("<html><body style='width:160px'>Nothing new yet. When someone in your group levels up, "
 				+ "finishes a quest or completes a diary, a summary appears here.</body></html>");
 			hint.setFont(FontManager.getRunescapeSmallFont());
 			hint.setForeground(ColorScheme.MEDIUM_GRAY_COLOR);

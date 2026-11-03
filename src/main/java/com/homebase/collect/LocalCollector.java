@@ -421,7 +421,7 @@ public class LocalCollector
 			int[] varbits = region.getValue();
 			for (int tier = 0; tier < varbits.length; tier++)
 			{
-				if (client.getVarbitValue(varbits[tier]) > 0)
+				if (DiaryVarbits.isDone(varbits[tier], client.getVarbitValue(varbits[tier])))
 				{
 					bits |= 1 << tier;
 				}

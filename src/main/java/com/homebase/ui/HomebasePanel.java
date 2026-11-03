@@ -423,7 +423,7 @@ public class HomebasePanel extends PluginPanel
 
 	private void setStatus(String text, String buttonText, Runnable buttonAction)
 	{
-		statusLabel.setText("<html><body style='width:180px'>" + text + "</body></html>");
+		statusLabel.setText("<html><body style='width:160px'>" + text + "</body></html>");
 		actionButton.setText(buttonText);
 		actionButton.setVisible(buttonText != null);
 		action = buttonAction;
@@ -444,7 +444,7 @@ public class HomebasePanel extends PluginPanel
 
 	private static JLabel hint(String text)
 	{
-		JLabel label = new JLabel("<html><body style='width:180px'>" + text + "</body></html>");
+		JLabel label = new JLabel("<html><body style='width:160px'>" + text + "</body></html>");
 		label.setFont(FontManager.getRunescapeSmallFont());
 		label.setForeground(ColorScheme.MEDIUM_GRAY_COLOR);
 		label.setAlignmentX(Component.LEFT_ALIGNMENT);

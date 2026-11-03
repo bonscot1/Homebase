@@ -265,7 +265,7 @@ class GoalsView extends JPanel
 		row.setOpaque(false);
 		row.setBorder(new EmptyBorder(4, 0, 0, 0));
 		String item = data.getItemName() == null ? "item " + data.getItemId() : data.getItemName();
-		String text = "<html><body style='width:150px'>Bounty: " + item
+		String text = "<html><body style='width:110px'>Bounty: " + item
 			+ (locked.isEmpty() ? "<br>Lifted for everyone" : "<br>Locked for " + String.join(", ", locked))
 			+ (lifted.isEmpty() || locked.isEmpty() ? "" : "<br>Lifted for " + String.join(", ", lifted))
 			+ "</body></html>";
@@ -517,7 +517,7 @@ class GoalsView extends JPanel
 
 	private static JLabel hint(String text)
 	{
-		JLabel label = new JLabel("<html><body style='width:170px'>" + text + "</body></html>");
+		JLabel label = new JLabel("<html><body style='width:160px'>" + text + "</body></html>");
 		label.setFont(FontManager.getRunescapeSmallFont());
 		label.setForeground(ColorScheme.MEDIUM_GRAY_COLOR);
 		label.setAlignmentX(Component.LEFT_ALIGNMENT);

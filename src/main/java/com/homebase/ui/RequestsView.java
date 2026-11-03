@@ -157,7 +157,7 @@ class RequestsView extends JPanel
 			ColorScheme.LIGHT_GRAY_COLOR));
 		if (!Strings.isNullOrEmpty(data.getNote()))
 		{
-			card.add(small("<html><body style='width:170px'>“" + escape(data.getNote()) + "”</body></html>",
+			card.add(small("<html><body style='width:160px'>“" + escape(data.getNote()) + "”</body></html>",
 				ColorScheme.LIGHT_GRAY_COLOR));
 		}
 
