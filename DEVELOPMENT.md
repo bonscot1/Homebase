@@ -172,3 +172,23 @@ Items are ticked when they're built. Each stage's last box is ticked once it has
 - [x] Code review: hardened message handling, checked data, request amounts, trade check, connect button
 - [ ] Ask in RuneLite's Discord `#development` about bounties hiding Withdraw options
 - [ ] Submit to the RuneLite Plugin Hub
+
+### Submitting to the Plugin Hub
+
+The Plugin Hub builds plugins from a public GitHub repository at a fixed commit. Once the repository is public and the last change is on `main`:
+
+1. Fork [runelite/plugin-hub](https://github.com/runelite/plugin-hub) on GitHub.
+2. In the fork, add a file named `plugins/group-ironman-homebase` (no extension) containing:
+
+   ```
+   repository=https://github.com/bonscot1/Homebase.git
+   commit=<the full hash of the commit on main to release>
+   ```
+
+3. Open a pull request to `runelite/plugin-hub` titled "Add Group Ironman Homebase". In the description, say what the plugin does and point reviewers at these:
+   - It joins a party only when the player clicks **Connect**.
+   - It hides Withdraw options in group storage for items held back by the group's own bounties and requests (can be turned off with **Hold items in group storage**).
+   - Party traffic: summaries every few seconds while something changed, records in batches of up to about 48 KB before compression, and a presence message every 30 seconds.
+4. The Plugin Hub's checks run on the pull request. Fix anything they flag and update `commit=` to the new hash.
+
+Updates later work the same way: push to `main`, then open a pull request that changes `commit=`.
