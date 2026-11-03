@@ -5,6 +5,7 @@ import com.homebase.data.Clean;
 import com.homebase.data.GroupIndex;
 import com.homebase.party.GroupSync;
 import com.homebase.party.HomebasePing;
+import com.homebase.party.Presence;
 import java.awt.Color;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
@@ -64,6 +65,7 @@ public class PingService
 	private final KeyManager keyManager;
 	private final GroupSync groupSync;
 	private final GroupIndex index;
+	private final Presence presence;
 
 	private final MouseManager mouseManager;
 	private final List<Ping> pings = new ArrayList<>();
@@ -76,7 +78,8 @@ public class PingService
 
 	@Inject
 	private PingService(Client client, ClientThread clientThread, HomebaseConfig config, PartyService partyService,
-		WSClient wsClient, KeyManager keyManager, MouseManager mouseManager, GroupSync groupSync, GroupIndex index)
+		WSClient wsClient, KeyManager keyManager, MouseManager mouseManager, GroupSync groupSync, GroupIndex index,
+		Presence presence)
 	{
 		this.client = client;
 		this.clientThread = clientThread;
@@ -87,6 +90,7 @@ public class PingService
 		this.mouseManager = mouseManager;
 		this.groupSync = groupSync;
 		this.index = index;
+		this.presence = presence;
 		middleClick = new MouseAdapter()
 		{
 			@Override
@@ -247,6 +251,7 @@ public class PingService
 		{
 			return;
 		}
+		presence.heard(message.getMemberId());
 		PartyMember member = partyService.getMemberById(message.getMemberId());
 		String name = member == null ? null : Clean.text(member.getDisplayName(), 20);
 		// only people whose account is in the group, not anyone who learns the party's name

@@ -6,6 +6,7 @@ import com.homebase.data.GroupIndex;
 import com.homebase.map.AreaNames;
 import com.homebase.party.GroupSync;
 import com.homebase.party.PartyMembers;
+import com.homebase.party.Presence;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Font;
@@ -57,15 +58,18 @@ public class GroupHudOverlay extends OverlayPanel
 	private final PartyService partyService;
 	private final GroupSync groupSync;
 	private final GroupIndex index;
+	private final Presence presence;
 
 	@Inject
-	private GroupHudOverlay(Client client, HomebaseConfig config, PartyService partyService, GroupSync groupSync, GroupIndex index)
+	private GroupHudOverlay(Client client, HomebaseConfig config, PartyService partyService, GroupSync groupSync, GroupIndex index,
+		Presence presence)
 	{
 		this.client = client;
 		this.config = config;
 		this.partyService = partyService;
 		this.groupSync = groupSync;
 		this.index = index;
+		this.presence = presence;
 		setPosition(OverlayPosition.TOP_LEFT);
 		setPriority(PRIORITY_LOW);
 	}
@@ -109,7 +113,7 @@ public class GroupHudOverlay extends OverlayPanel
 		List<PartyMember> out = new ArrayList<>();
 		for (PartyMember member : PartyMembers.current(partyService))
 		{
-			if (!member.isLoggedIn() || member.getDisplayName() == null)
+			if (!presence.isOnline(member) || member.getDisplayName() == null)
 			{
 				continue;
 			}

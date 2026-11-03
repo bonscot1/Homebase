@@ -20,6 +20,7 @@ import com.homebase.map.GroupWorldMap;
 import com.homebase.overlay.GroupHudOverlay;
 import com.homebase.overlay.GroupTileOverlay;
 import com.homebase.party.GroupSync;
+import com.homebase.party.Presence;
 import com.homebase.pings.GroupHighlightOverlay;
 import com.homebase.pings.GroupHighlights;
 import com.homebase.pings.PingMinimapOverlay;
@@ -133,6 +134,9 @@ public class HomebasePlugin extends Plugin
 	private GroupSync groupSync;
 
 	@Inject
+	private Presence presence;
+
+	@Inject
 	private LocalCollector collector;
 
 	@Inject
@@ -236,7 +240,9 @@ public class HomebasePlugin extends Plugin
 	protected void startUp() throws Exception
 	{
 		groupSync.start();
+		presence.start();
 		eventBus.register(groupSync);
+		eventBus.register(presence);
 		eventBus.register(collector);
 		eventBus.register(groupTiles);
 		eventBus.register(activityCollector);
@@ -257,6 +263,7 @@ public class HomebasePlugin extends Plugin
 		updateTracker.addListener(updateListener);
 		panel = injector.getInstance(HomebasePanel.class);
 		groupSync.addStatusListener(panel::scheduleLiveRefresh);
+		presence.addListener(panel::scheduleLiveRefresh);
 		navButton = NavigationButton.builder()
 			.tooltip("Group Homebase")
 			.icon(ImageUtil.loadImageResource(HomebasePlugin.class, "icon.png"))
@@ -300,8 +307,10 @@ public class HomebasePlugin extends Plugin
 		eventBus.unregister(activityCollector);
 		eventBus.unregister(groupTiles);
 		eventBus.unregister(collector);
+		eventBus.unregister(presence);
 		eventBus.unregister(groupSync);
 		groupSync.stop();
+		presence.stop();
 
 		partyDataService.unsubscribe(this, PartyDataType.values());
 		partyDataService.unsubscribe(this, Skill.values());

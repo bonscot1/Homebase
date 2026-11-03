@@ -71,6 +71,7 @@ public class GroupSync
 	private final ClientThread clientThread;
 	private final HomebaseConfig config;
 	private final Gson gson;
+	private final Presence presence;
 
 	private final List<Runnable> statusListeners = new CopyOnWriteArrayList<>();
 
@@ -81,7 +82,8 @@ public class GroupSync
 	private boolean inOtherParty;
 
 	@Inject
-	private GroupSync(Client client, PartyService partyService, WSClient wsClient, ClientThread clientThread, HomebaseConfig config, Gson gson)
+	private GroupSync(Client client, PartyService partyService, WSClient wsClient, ClientThread clientThread, HomebaseConfig config,
+		Gson gson, Presence presence)
 	{
 		this.client = client;
 		this.partyService = partyService;
@@ -89,6 +91,7 @@ public class GroupSync
 		this.clientThread = clientThread;
 		this.config = config;
 		this.gson = gson;
+		this.presence = presence;
 	}
 
 	public void start()
@@ -169,6 +172,8 @@ public class GroupSync
 	{
 		if (isGroupParty())
 		{
+			// the party server doesn't reliably tell the others we left, so say so ourselves
+			presence.sendOffline();
 			partyService.changeParty(null);
 		}
 	}
@@ -234,6 +239,7 @@ public class GroupSync
 			return;
 		}
 
+		presence.heard(message.getMemberId());
 		PartyMember local = partyService.getLocalMember();
 		if (local != null && local.getMemberId() == message.getMemberId())
 		{
@@ -278,6 +284,7 @@ public class GroupSync
 	 */
 	public void flush()
 	{
+		presence.tick(isGroupParty());
 		SyncEngine engine = this.engine;
 		if (engine == null || !isGroupParty())
 		{

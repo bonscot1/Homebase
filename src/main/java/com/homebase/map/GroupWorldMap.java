@@ -5,6 +5,7 @@ import com.homebase.data.Clean;
 import com.homebase.data.GroupIndex;
 import com.homebase.party.GroupSync;
 import com.homebase.party.PartyMembers;
+import com.homebase.party.Presence;
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Graphics2D;
@@ -36,6 +37,7 @@ public class GroupWorldMap
 	private final GroupSync groupSync;
 	private final GroupIndex index;
 	private final HomebaseConfig config;
+	private final Presence presence;
 
 	/**
 	 * Points we added, by party member id.
@@ -45,13 +47,14 @@ public class GroupWorldMap
 
 	@Inject
 	private GroupWorldMap(WorldMapPointManager worldMapPointManager, PartyService partyService, GroupSync groupSync,
-		GroupIndex index, HomebaseConfig config)
+		GroupIndex index, HomebaseConfig config, Presence presence)
 	{
 		this.worldMapPointManager = worldMapPointManager;
 		this.partyService = partyService;
 		this.groupSync = groupSync;
 		this.index = index;
 		this.config = config;
+		this.presence = presence;
 	}
 
 	/**
@@ -72,7 +75,7 @@ public class GroupWorldMap
 			WorldPoint coord = member.getCoord();
 			String name = Clean.text(member.getDisplayName(), 20);
 			// the game already shows you on the map
-			if (!member.isLoggedIn() || coord == null || name == null
+			if (!presence.isOnline(member) || coord == null || name == null
 				|| (local != null && local.getMemberId() == member.getMemberId()))
 			{
 				continue;

@@ -11,6 +11,7 @@ import com.homebase.data.Section;
 import com.homebase.goals.GoalService;
 import com.homebase.party.GroupSync;
 import com.homebase.party.PartyMembers;
+import com.homebase.party.Presence;
 import com.homebase.requests.RequestService;
 import com.homebase.updates.UpdateTracker;
 import java.awt.BorderLayout;
@@ -55,6 +56,7 @@ public class HomebasePanel extends PluginPanel
 	private final HomebasePlugin plugin;
 	private final GroupSync groupSync;
 	private final PartyService partyService;
+	private final Presence presence;
 	private final LocalCollector collector;
 	private final ItemManager itemManager;
 	private final ClientThread clientThread;
@@ -97,13 +99,14 @@ public class HomebasePanel extends PluginPanel
 	private Runnable action;
 
 	@Inject
-	private HomebasePanel(HomebasePlugin plugin, GroupSync groupSync, PartyService partyService, LocalCollector collector,
+	private HomebasePanel(HomebasePlugin plugin, GroupSync groupSync, PartyService partyService, Presence presence, LocalCollector collector,
 		RequestService requestService, UpdateTracker updateTracker, GoalService goalService, BountyService bountyService,
 		ItemManager itemManager, SkillIconManager skillIconManager, ClientThread clientThread)
 	{
 		this.plugin = plugin;
 		this.groupSync = groupSync;
 		this.partyService = partyService;
+		this.presence = presence;
 		this.collector = collector;
 		this.itemManager = itemManager;
 		this.clientThread = clientThread;
@@ -407,6 +410,11 @@ public class HomebasePanel extends PluginPanel
 			MemberCard card = entry.getValue();
 			String name = card.getMemberName();
 			PartyMember live = inGroupParty && name != null ? PartyMembers.byName(partyService, name) : null;
+			if (!presence.isOnline(live))
+			{
+				// gone quiet or said they were leaving, even if the party still lists them
+				live = null;
+			}
 			card.updateLive(live, entry.getKey().equals(localId));
 		}
 	}
@@ -466,7 +474,7 @@ public class HomebasePanel extends PluginPanel
 		int count = 0;
 		for (PartyMember member : PartyMembers.current(partyService))
 		{
-			if (member.isLoggedIn())
+			if (presence.isOnline(member))
 			{
 				count++;
 			}
