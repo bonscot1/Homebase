@@ -11,7 +11,7 @@ import lombok.NoArgsConstructor;
  * world, which is the same for everyone there, so highlights only count on the world they were made.
  */
 @Data
-public class HighlightsData
+public class HighlightsData implements Checkable
 {
 	/**
 	 * Most monsters one member can highlight at once.
@@ -74,5 +74,11 @@ public class HighlightsData
 	public boolean remove(int index, int id)
 	{
 		return npcs.removeIf(n -> n.index == index && n.id == id);
+	}
+
+	@Override
+	public void check()
+	{
+		npcs = Checkable.list(npcs, MAX_HIGHLIGHTS);
 	}
 }

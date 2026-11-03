@@ -9,8 +9,10 @@ import lombok.Data;
  * the plugin hides the Withdraw options for those members, so it only binds people running it.
  */
 @Data
-public class BountyData
+public class BountyData implements Checkable
 {
+	private static final int MAX_MEMBERS = 100;
+
 	private int itemId;
 	private String itemName;
 
@@ -33,4 +35,11 @@ public class BountyData
 	private String createdBy;
 	private String createdByName;
 	private long createdAt;
+
+	@Override
+	public void check()
+	{
+		locked = Checkable.list(locked, MAX_MEMBERS);
+		quantity = Math.max(0, quantity);
+	}
 }

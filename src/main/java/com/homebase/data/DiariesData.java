@@ -7,7 +7,7 @@ import java.util.Map;
 import lombok.Data;
 
 @Data
-public class DiariesData
+public class DiariesData implements Checkable
 {
 	public static final List<String> TIERS = Arrays.asList("Easy", "Medium", "Hard", "Elite");
 
@@ -34,5 +34,11 @@ public class DiariesData
 			n += bits == null ? 0 : Integer.bitCount(bits);
 		}
 		return n;
+	}
+
+	@Override
+	public void check()
+	{
+		done = Checkable.counts(done, Integer.MAX_VALUE);
 	}
 }

@@ -8,7 +8,7 @@ import lombok.Data;
 import net.runelite.api.Quest;
 
 @Data
-public class QuestsData
+public class QuestsData implements Checkable
 {
 	public static final String FINISHED = "F";
 	public static final String STARTED = "S";
@@ -70,5 +70,11 @@ public class QuestsData
 			}
 		}
 		return n;
+	}
+
+	@Override
+	public void check()
+	{
+		quests = Checkable.map(quests);
 	}
 }

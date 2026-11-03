@@ -2,7 +2,7 @@ package com.homebase.collect;
 
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
-import com.google.gson.JsonParseException;
+import com.homebase.data.Checkable;
 import com.homebase.data.DiariesData;
 import com.homebase.data.Ids;
 import com.homebase.data.ItemsData;
@@ -322,9 +322,9 @@ public class LocalCollector
 		}
 		try
 		{
-			return gson.fromJson(record.getData(), type);
+			return Checkable.checked(gson.fromJson(record.getData(), type));
 		}
-		catch (JsonParseException e)
+		catch (RuntimeException e)
 		{
 			return null;
 		}

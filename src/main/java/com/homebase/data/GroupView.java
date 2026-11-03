@@ -1,7 +1,6 @@
 package com.homebase.data;
 
 import com.google.gson.Gson;
-import com.google.gson.JsonParseException;
 import com.homebase.sync.GroupStore;
 import com.homebase.sync.Keys;
 import com.homebase.sync.SyncRecord;
@@ -71,9 +70,9 @@ public class GroupView
 		}
 		try
 		{
-			return gson.fromJson(record.getData(), type);
+			return Checkable.checked(gson.fromJson(record.getData(), type));
 		}
-		catch (JsonParseException e)
+		catch (RuntimeException e)
 		{
 			log.debug("Unreadable record {}", record.getKey(), e);
 			return null;

@@ -7,7 +7,7 @@ import net.runelite.api.Experience;
 import net.runelite.api.Skill;
 
 @Data
-public class SkillsData
+public class SkillsData implements Checkable
 {
 	/**
 	 * Experience by {@link Skill} name. Stored by name rather than position so a skill added in a game
@@ -21,9 +21,13 @@ public class SkillsData
 		return value == null ? 0 : value;
 	}
 
+	/**
+	 * @return the skill's real level, 1 to 99. RuneLite's own lookup goes on to virtual levels past 99,
+	 * which would throw off total and combat levels.
+	 */
 	public int getLevel(Skill skill)
 	{
-		return Experience.getLevelForXp(getXp(skill));
+		return Math.min(Experience.MAX_REAL_LEVEL, Experience.getLevelForXp(getXp(skill)));
 	}
 
 	public int getTotalLevel()
@@ -34,5 +38,11 @@ public class SkillsData
 			total += getLevel(skill);
 		}
 		return total;
+	}
+
+	@Override
+	public void check()
+	{
+		xp = Checkable.counts(xp, Experience.MAX_SKILL_XP);
 	}
 }

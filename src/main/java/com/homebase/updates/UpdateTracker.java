@@ -1,8 +1,8 @@
 package com.homebase.updates;
 
 import com.google.gson.Gson;
-import com.google.gson.JsonParseException;
 import com.homebase.collect.LocalCollector;
+import com.homebase.data.Checkable;
 import com.homebase.data.Clean;
 import com.homebase.data.CollectionLogData;
 import com.homebase.data.CombatAchievementsData;
@@ -267,9 +267,9 @@ public class UpdateTracker
 		}
 		try
 		{
-			return gson.fromJson(record.getData(), type);
+			return Checkable.checked(gson.fromJson(record.getData(), type));
 		}
-		catch (JsonParseException e)
+		catch (RuntimeException e)
 		{
 			return null;
 		}

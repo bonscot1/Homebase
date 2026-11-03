@@ -8,13 +8,38 @@ import java.io.StringWriter;
 import java.util.Arrays;
 import java.util.List;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import org.junit.Test;
 
 public class WireCodecTest
 {
 	private final Gson gson = new Gson();
+
+	@Test
+	public void deepNestingIsRefused()
+	{
+		StringBuilder deep = new StringBuilder();
+		for (int i = 0; i <= WireCodec.MAX_DEPTH; i++)
+		{
+			deep.append('[');
+		}
+		assertTrue(WireCodec.nestedTooDeep(deep.toString()));
+		assertFalse(WireCodec.nestedTooDeep("[{\"d\":{\"pages\":{\"Zulrah\":{\"items\":[1,2]}}}}]"));
+		// brackets inside text don't count
+		assertFalse(WireCodec.nestedTooDeep("{\"note\":\"" + deep + "\\\"" + deep + "\"}"));
+
+		try
+		{
+			WireCodec.unpack(WireCodec.pack(deep.toString()));
+			fail();
+		}
+		catch (IOException expected)
+		{
+		}
+	}
 
 	@Test
 	public void roundTrips() throws IOException

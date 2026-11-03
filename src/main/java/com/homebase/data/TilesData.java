@@ -10,7 +10,7 @@ import lombok.NoArgsConstructor;
  * The tiles one member has marked for the group, and the colour they chose for them.
  */
 @Data
-public class TilesData
+public class TilesData implements Checkable
 {
 	/**
 	 * Most tiles one member can mark, so a runaway client can't flood everyone else.
@@ -67,5 +67,11 @@ public class TilesData
 		}
 		tiles.add(new Tile(x, y, plane));
 		return true;
+	}
+
+	@Override
+	public void check()
+	{
+		tiles = Checkable.list(tiles, MAX_TILES);
 	}
 }

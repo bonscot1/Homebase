@@ -9,8 +9,10 @@ import lombok.Data;
  * as each member's shared data shows they've reached it.
  */
 @Data
-public class GoalData
+public class GoalData implements Checkable
 {
+	private static final int MAX_MEMBERS = 100;
+
 	public enum Type
 	{
 		SKILL,
@@ -65,5 +67,11 @@ public class GoalData
 	public boolean appliesTo(String memberId)
 	{
 		return members == null || members.isEmpty() || members.contains(memberId);
+	}
+
+	@Override
+	public void check()
+	{
+		members = Checkable.list(members, MAX_MEMBERS);
 	}
 }

@@ -13,8 +13,10 @@ import lombok.NoArgsConstructor;
  * pages are captured as the member browses them, and new slots are caught from the chat message.
  */
 @Data
-public class CollectionLogData
+public class CollectionLogData implements Checkable
 {
+	private static final int MAX_PAGE_ITEMS = 500;
+
 	/**
 	 * Most recent new slots kept, newest first.
 	 */
@@ -74,5 +76,17 @@ public class CollectionLogData
 		{
 			recent.remove(recent.size() - 1);
 		}
+	}
+
+	@Override
+	public void check()
+	{
+		pages = Checkable.map(pages);
+		pages.keySet().retainAll(new ArrayList<>(pages.keySet()).subList(0, Math.min(MAX_PAGES, pages.size())));
+		for (Page page : pages.values())
+		{
+			page.setItems(Checkable.list(page.getItems(), MAX_PAGE_ITEMS));
+		}
+		recent = Checkable.list(recent, MAX_RECENT);
 	}
 }

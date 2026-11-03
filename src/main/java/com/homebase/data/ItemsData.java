@@ -1,14 +1,20 @@
 package com.homebase.data;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import lombok.Data;
 import net.runelite.api.Item;
 import net.runelite.api.ItemContainer;
 
 @Data
-public class ItemsData
+public class ItemsData implements Checkable
 {
+	/**
+	 * Two values per slot, for more slots than any bank has.
+	 */
+	private static final int MAX_VALUES = 2 * 2_000;
+
 	/**
 	 * Item id and quantity pairs in slot order, with -1 for empty slots, the same layout RuneLite's own
 	 * party sync uses.
@@ -58,5 +64,18 @@ public class ItemsData
 			}
 		}
 		return true;
+	}
+
+	@Override
+	public void check()
+	{
+		if (items == null)
+		{
+			items = new int[0];
+		}
+		else if (items.length > MAX_VALUES)
+		{
+			items = Arrays.copyOf(items, MAX_VALUES);
+		}
 	}
 }

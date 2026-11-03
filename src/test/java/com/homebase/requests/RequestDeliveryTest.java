@@ -23,10 +23,49 @@ public class RequestDeliveryTest
 	{
 		RequestData data = new RequestData();
 		assertFalse(data.isReserved());
-		data.setReservedItemId(1205);
+		data.keep(1205, 1);
 		assertTrue(data.isReserved());
 		data.setDone(true);
 		assertFalse(data.isReserved());
+	}
+
+	@Test
+	public void amountsAddUpUntilEverythingAskedForArrives()
+	{
+		RequestData data = new RequestData();
+		data.setQuantity(500);
+
+		// 200 put in, then 1000 more: only what's still needed is kept back
+		data.keep(995, 200);
+		assertEquals(200, data.getReservedQuantity());
+		data.keep(995, 1000);
+		assertEquals(500, data.getReservedQuantity());
+
+		// taking out more than was kept only counts what was kept
+		data.receive(300, true);
+		assertEquals(200, data.getReservedQuantity());
+		assertEquals(300, data.getDelivered());
+		assertFalse(data.isDone());
+
+		// the rest by trade finishes it
+		data.receive(200, false);
+		assertTrue(data.isDone());
+		assertFalse(data.isReserved());
+	}
+
+	@Test
+	public void partOfARequestIsStillOpen()
+	{
+		RequestData data = new RequestData();
+		data.setQuantity(10);
+		data.keep(453, 4);
+		data.receive(4, true);
+		assertEquals(4, data.getDelivered());
+		assertFalse(data.isReserved());
+		assertFalse(data.isDone());
+		// what's left can be put in again
+		data.keep(453, 10);
+		assertEquals(6, data.getReservedQuantity());
 	}
 
 	@Test

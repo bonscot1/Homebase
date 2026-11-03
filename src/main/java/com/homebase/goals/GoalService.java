@@ -2,8 +2,8 @@ package com.homebase.goals;
 
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
-import com.google.gson.JsonParseException;
 import com.homebase.collect.LocalCollector;
+import com.homebase.data.Checkable;
 import com.homebase.data.Clean;
 import com.homebase.data.CollectionLogData;
 import com.homebase.data.CombatAchievementsData;
@@ -475,7 +475,7 @@ public class GoalService
 		}
 		try
 		{
-			GoalData data = gson.fromJson(record.getData(), GoalData.class);
+			GoalData data = Checkable.checked(gson.fromJson(record.getData(), GoalData.class));
 			if (data == null || data.typeOrNull() == null)
 			{
 				return null;
@@ -485,7 +485,7 @@ public class GoalService
 			data.setCreatedByName(Clean.text(data.getCreatedByName(), MAX_NAME));
 			return data;
 		}
-		catch (JsonParseException e)
+		catch (RuntimeException e)
 		{
 			log.debug("Unreadable goal {}", record.getKey(), e);
 			return null;

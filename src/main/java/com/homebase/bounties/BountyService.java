@@ -1,9 +1,9 @@
 package com.homebase.bounties;
 
 import com.google.gson.Gson;
-import com.google.gson.JsonParseException;
 import com.homebase.collect.LocalCollector;
 import com.homebase.data.BountyData;
+import com.homebase.data.Checkable;
 import com.homebase.data.Clean;
 import com.homebase.data.GroupIndex;
 import com.homebase.goals.GoalService;
@@ -226,7 +226,7 @@ public class BountyService
 		}
 		try
 		{
-			BountyData data = gson.fromJson(record.getData(), BountyData.class);
+			BountyData data = Checkable.checked(gson.fromJson(record.getData(), BountyData.class));
 			if (data == null || data.getItemId() <= 0)
 			{
 				return null;
@@ -235,7 +235,7 @@ public class BountyService
 			data.setCreatedByName(Clean.text(data.getCreatedByName(), MAX_NAME));
 			return data;
 		}
-		catch (JsonParseException e)
+		catch (RuntimeException e)
 		{
 			log.debug("Unreadable bounty {}", record.getKey(), e);
 			return null;

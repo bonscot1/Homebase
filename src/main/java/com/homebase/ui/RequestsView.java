@@ -181,8 +181,9 @@ class RequestsView extends JPanel
 		else if (data.isReserved())
 		{
 			// the item waits in group storage, held back from everyone but the requester
-			status = small(service.isMe(data.getRequestedBy()) ? "Waiting for you in group storage"
-				: "In group storage for " + name(data.getRequestedByName()), state);
+			int kept = data.getReservedQuantity();
+			status = small(service.isMe(data.getRequestedBy()) ? kept + " waiting for you in group storage"
+				: kept + " in group storage for " + name(data.getRequestedByName()), state);
 		}
 		else if (data.getAssignedTo() != null)
 		{
@@ -198,6 +199,10 @@ class RequestsView extends JPanel
 		}
 		status.setBorder(new EmptyBorder(4, 0, 0, 0));
 		card.add(status);
+		if (!data.isDone() && data.getDelivered() > 0)
+		{
+			card.add(small(data.getDelivered() + " of " + data.asked() + " received", ColorScheme.MEDIUM_GRAY_COLOR));
+		}
 
 		if (canEdit)
 		{

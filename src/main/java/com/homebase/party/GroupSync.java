@@ -2,7 +2,6 @@ package com.homebase.party;
 
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
-import com.google.gson.JsonParseException;
 import com.homebase.sync.SyncEngine;
 import com.homebase.sync.SyncRecord;
 import com.homebase.sync.WireCodec;
@@ -97,6 +96,11 @@ public class GroupSync
 	 */
 	private static final int RECORD_BUDGET = 48_000;
 	private static final long SUMMARY_INTERVAL_MS = 3_000;
+
+	/**
+	 * Most records one message may carry. Ours stay well under this, since each batch is kept small.
+	 */
+	private static final int MAX_RECORDS_PER_MESSAGE = 2_000;
 
 	private final Client client;
 	private final PartyService partyService;
@@ -430,15 +434,17 @@ public class GroupSync
 			else if (HomebaseSyncMessage.RECORDS.equals(message.getType()))
 			{
 				List<SyncRecord> records = gson.fromJson(json, WireCodec.RECORDS_TYPE);
-				if (records != null)
+				if (records != null && records.size() <= MAX_RECORDS_PER_MESSAGE)
 				{
 					int accepted = engine.onRecords(records);
 					log.debug("Received {} records, {} newer than ours", records.size(), accepted);
 				}
 			}
 		}
-		catch (IOException | JsonParseException e)
+		catch (IOException | RuntimeException | StackOverflowError e)
 		{
+			// anything thrown here would reach the party connection's thread, so a bad message is
+			// dropped rather than allowed to break the connection
 			log.debug("Dropping unreadable sync message", e);
 		}
 	}

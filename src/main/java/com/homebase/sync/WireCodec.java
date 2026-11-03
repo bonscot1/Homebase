@@ -36,6 +36,12 @@ public final class WireCodec
 	 */
 	static final int MAX_INFLATED_BYTES = 4 << 20;
 
+	/**
+	 * Deepest nesting allowed in a message. Ours never go past a handful of levels, and Gson reads
+	 * nesting by calling itself, so a message nested thousands deep could crash the thread reading it.
+	 */
+	static final int MAX_DEPTH = 32;
+
 	private static final int SAVE_FORMAT = 1;
 
 	private WireCodec()
@@ -99,7 +105,12 @@ public final class WireCodec
 					throw new IOException("payload too large");
 				}
 			}
-			return new String(out.toByteArray(), StandardCharsets.UTF_8);
+			String json = new String(out.toByteArray(), StandardCharsets.UTF_8);
+			if (nestedTooDeep(json))
+			{
+				throw new IOException("payload nested too deeply");
+			}
+			return json;
 		}
 		catch (DataFormatException e)
 		{
@@ -109,6 +120,48 @@ public final class WireCodec
 		{
 			inflater.end();
 		}
+	}
+
+	/**
+	 * @return true if the JSON's brackets nest deeper than {@link #MAX_DEPTH}, not counting any inside
+	 * strings
+	 */
+	static boolean nestedTooDeep(String json)
+	{
+		int depth = 0;
+		boolean inString = false;
+		for (int i = 0; i < json.length(); i++)
+		{
+			char c = json.charAt(i);
+			if (inString)
+			{
+				if (c == '\\')
+				{
+					// skip whatever is escaped, which may be a quote
+					i++;
+				}
+				else if (c == '"')
+				{
+					inString = false;
+				}
+			}
+			else if (c == '"')
+			{
+				inString = true;
+			}
+			else if (c == '[' || c == '{')
+			{
+				if (++depth > MAX_DEPTH)
+				{
+					return true;
+				}
+			}
+			else if (c == ']' || c == '}')
+			{
+				depth--;
+			}
+		}
+		return false;
 	}
 
 	private static final class SaveFile

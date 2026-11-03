@@ -2,8 +2,8 @@ package com.homebase.requests;
 
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
-import com.google.gson.JsonParseException;
 import com.homebase.collect.LocalCollector;
+import com.homebase.data.Checkable;
 import com.homebase.data.Clean;
 import com.homebase.data.GroupIndex;
 import com.homebase.data.RequestData;
@@ -114,7 +114,7 @@ public class RequestService
 					&& (data.getAssignedTo() == null || groupIndex.isMember(data.getAssignedTo())))
 				{
 					out.computeIfAbsent(data.getReservedItemId(), id -> new ArrayList<>()).add(new Reservation(request.getId(),
-						data.getItem(), data.getRequestedBy(), data.getRequestedByName(), Math.max(1, data.getQuantity())));
+						data.getItem(), data.getRequestedBy(), data.getRequestedByName(), data.getReservedQuantity()));
 				}
 			}
 			reservations = out;
@@ -125,9 +125,17 @@ public class RequestService
 	/**
 	 * The member who took the request on put the item in group storage: keep it for the requester.
 	 */
-	public void reserve(String id, int itemId)
+	public void keep(String id, int itemId, int amount)
 	{
-		update(id, data -> data.setReservedItemId(itemId));
+		update(id, data -> data.keep(itemId, amount));
+	}
+
+	/**
+	 * The requester got some of what they asked for, out of group storage or by trade.
+	 */
+	public void receive(String id, int amount, boolean fromStorage)
+	{
+		update(id, data -> data.receive(amount, fromStorage));
 	}
 
 	/**
@@ -218,19 +226,7 @@ public class RequestService
 			data.setAssignedTo(null);
 			data.setAssignedToName(null);
 			data.setReservedItemId(0);
-		});
-	}
-
-	public void complete(String id)
-	{
-		update(id, data ->
-		{
-			if (data.getAssignedTo() == null)
-			{
-				data.setAssignedTo(collector.getMemberId());
-				data.setAssignedToName(collector.getLocalName());
-			}
-			data.setDone(true);
+			data.setReservedQuantity(0);
 		});
 	}
 
@@ -261,7 +257,8 @@ public class RequestService
 		String what = data.getQuantity() > 1 ? data.getQuantity() + " x " + data.getItem() : data.getItem();
 		if (data.isReserved())
 		{
-			return name(data.getAssignedToName()) + " put " + what + " in group storage for " + name(data.getRequestedByName()) + ".";
+			String kept = data.getReservedQuantity() > 1 ? data.getReservedQuantity() + " x " + data.getItem() : data.getItem();
+			return name(data.getAssignedToName()) + " put " + kept + " in group storage for " + name(data.getRequestedByName()) + ".";
 		}
 		if (data.isDone())
 		{
@@ -300,7 +297,7 @@ public class RequestService
 		}
 		try
 		{
-			RequestData data = gson.fromJson(record.getData(), RequestData.class);
+			RequestData data = Checkable.checked(gson.fromJson(record.getData(), RequestData.class));
 			if (data != null)
 			{
 				// written by other players' clients, so never trust it for display
@@ -311,7 +308,7 @@ public class RequestService
 			}
 			return data;
 		}
-		catch (JsonParseException e)
+		catch (RuntimeException e)
 		{
 			log.debug("Unreadable request {}", record.getKey(), e);
 			return null;

@@ -6,6 +6,7 @@ import java.util.Locale;
 import java.util.Map;
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
 import net.runelite.api.Item;
 import net.runelite.api.ItemContainer;
@@ -26,13 +27,19 @@ import net.runelite.client.util.Text;
  * <li>putting the item in group storage, where it's kept for the member who asked, and the request is
  * done once they take it out. Only one member can have group storage open at a time, so the changes
  * seen there are our own.</li>
- * <li>trading it to the member who asked, which finishes the request when the trade is accepted.</li>
+ * <li>trading it to the member who asked, which counts when the trade is accepted.</li>
  * </ul>
+ * Amounts add up, so a request for 500 can be delivered as 200 and then 300.
  */
 @Singleton
 public class RequestDelivery
 {
 	private static final String TRADE_ACCEPTED = "Accepted trade.";
+
+	/**
+	 * Ticks after the trade screens close to wait for the game's "Accepted trade." message.
+	 */
+	private static final int TRADE_GRACE_TICKS = 2;
 
 	private final Client client;
 	private final ItemManager itemManager;
@@ -49,6 +56,7 @@ public class RequestDelivery
 	private String tradePartner;
 	private Map<Integer, Integer> offered = new HashMap<>();
 	private boolean tradeOpen;
+	private int tradeClosedTick;
 
 	@Inject
 	private RequestDelivery(Client client, ItemManager itemManager, RequestService requests)
@@ -63,7 +71,12 @@ public class RequestDelivery
 	{
 		if (event.getContainerId() == InventoryID.TRADEOFFER)
 		{
-			offered = counts(event.getItemContainer());
+			// the offer empties as the trade goes through, so only changes made on the first screen count
+			Map<Integer, Integer> offer = counts(event.getItemContainer());
+			if (!offer.isEmpty() || visible(InterfaceID.Trademain.TITLE))
+			{
+				offered = offer;
+			}
 			return;
 		}
 		if (event.getContainerId() != InventoryID.INV_GROUP_TEMP)
@@ -80,16 +93,18 @@ public class RequestDelivery
 		}
 		for (Map.Entry<Integer, Integer> e : counts.entrySet())
 		{
-			if (e.getValue() > before.getOrDefault(e.getKey(), 0))
+			int added = e.getValue() - before.getOrDefault(e.getKey(), 0);
+			if (added > 0)
 			{
-				deposited(e.getKey());
+				deposited(e.getKey(), added);
 			}
 		}
 		for (Map.Entry<Integer, Integer> e : before.entrySet())
 		{
-			if (counts.getOrDefault(e.getKey(), 0) < e.getValue())
+			int taken = e.getValue() - counts.getOrDefault(e.getKey(), 0);
+			if (taken > 0)
 			{
-				withdrawn(e.getKey());
+				withdrawn(e.getKey(), taken);
 			}
 		}
 	}
@@ -117,16 +132,25 @@ public class RequestDelivery
 			tradeOpen = true;
 			tradePartner = partner;
 		}
-		else
+		else if (tradeOpen)
 		{
 			tradeOpen = false;
+			tradeClosedTick = client.getTickCount();
+		}
+		else if (tradePartner != null && client.getTickCount() - tradeClosedTick > TRADE_GRACE_TICKS)
+		{
+			// declined, or closed without trading
+			tradePartner = null;
+			offered = new HashMap<>();
 		}
 	}
 
 	@Subscribe
 	public void onChatMessage(ChatMessage event)
 	{
-		if (tradePartner == null || !TRADE_ACCEPTED.equals(Text.removeTags(event.getMessage()).trim()))
+		// only the game's own message counts, not a player typing the same words
+		boolean fromGame = event.getType() == ChatMessageType.TRADE || event.getType() == ChatMessageType.GAMEMESSAGE;
+		if (tradePartner == null || !fromGame || !TRADE_ACCEPTED.equals(Text.removeTags(event.getMessage()).trim()))
 		{
 			return;
 		}
@@ -144,34 +168,43 @@ public class RequestDelivery
 		}
 	}
 
-	private void deposited(int itemId)
+	/**
+	 * We put some of an item in group storage: if it's for a request we took on, keep it for whoever
+	 * asked.
+	 */
+	private void deposited(int itemId, int amount)
 	{
 		String name = nameOf(itemId);
 		for (RequestService.Request request : requests.list())
 		{
 			RequestData data = request.getData();
-			if (!data.isDone() && data.getReservedItemId() == 0 && takenByMe(data) && sameItem(data.getItem(), name))
+			boolean sameReservation = data.getReservedItemId() == 0 || data.getReservedItemId() == itemId;
+			boolean stillNeeded = data.getDelivered() + data.getReservedQuantity() < data.asked();
+			if (!data.isDone() && takenByMe(data) && sameReservation && stillNeeded && sameItem(data.getItem(), name))
 			{
-				requests.reserve(request.getId(), itemId);
-				return;
-			}
-		}
-	}
-
-	private void withdrawn(int itemId)
-	{
-		for (RequestService.Reservation reservation : requests.reservationsFor(itemId))
-		{
-			if (requests.isMe(reservation.getRequestedBy()))
-			{
-				requests.complete(reservation.getRequestId());
+				requests.keep(request.getId(), itemId, amount);
 				return;
 			}
 		}
 	}
 
 	/**
-	 * We handed items to someone in a trade: if it's what they asked us for, in full, it's done.
+	 * We took some of an item out of group storage: if it was kept for us, we've received it.
+	 */
+	private void withdrawn(int itemId, int amount)
+	{
+		for (RequestService.Reservation reservation : requests.reservationsFor(itemId))
+		{
+			if (requests.isMe(reservation.getRequestedBy()))
+			{
+				requests.receive(reservation.getRequestId(), amount, true);
+				return;
+			}
+		}
+	}
+
+	/**
+	 * We handed items to someone in a trade: if it's what they asked us for, they've received it.
 	 */
 	private void traded(String partner, int itemId, int quantity)
 	{
@@ -179,10 +212,9 @@ public class RequestDelivery
 		for (RequestService.Request request : requests.list())
 		{
 			RequestData data = request.getData();
-			if (!data.isDone() && takenByMe(data) && sameName(partner, data.getRequestedByName())
-				&& sameItem(data.getItem(), name) && quantity >= Math.max(1, data.getQuantity()))
+			if (!data.isDone() && takenByMe(data) && sameName(partner, data.getRequestedByName()) && sameItem(data.getItem(), name))
 			{
-				requests.complete(request.getId());
+				requests.receive(request.getId(), quantity, false);
 				return;
 			}
 		}

@@ -6,7 +6,7 @@ import lombok.Data;
  * A request for an item from the group, such as asking the group's best smith for a rune scimitar.
  */
 @Data
-public class RequestData
+public class RequestData implements Checkable
 {
 	private String item;
 	private int quantity;
@@ -34,10 +34,64 @@ public class RequestData
 	private int reservedItemId;
 
 	/**
-	 * @return true while the item waits in group storage for the requester
+	 * How many of that item wait in group storage for the requester.
+	 */
+	private int reservedQuantity;
+
+	/**
+	 * How many the requester has received so far, out of group storage or by trade.
+	 */
+	private int delivered;
+
+	/**
+	 * @return how many were asked for, at least one
+	 */
+	public int asked()
+	{
+		return Math.max(1, quantity);
+	}
+
+	/**
+	 * @return true while some of the item waits in group storage for the requester
 	 */
 	public boolean isReserved()
 	{
-		return reservedItemId > 0 && !done;
+		return reservedItemId > 0 && reservedQuantity > 0 && !done;
+	}
+
+	/**
+	 * Some of the item went into group storage for the requester: keep it for them, up to what they
+	 * still need. Anything more is free for anyone.
+	 */
+	public void keep(int itemId, int amount)
+	{
+		reservedItemId = itemId;
+		reservedQuantity = Math.max(0, Math.min(asked() - delivered, reservedQuantity + amount));
+	}
+
+	/**
+	 * The requester got some of the item, out of group storage or by trade. Once they have all they
+	 * asked for, the request is done.
+	 */
+	public void receive(int amount, boolean fromStorage)
+	{
+		int got = fromStorage ? Math.min(amount, reservedQuantity) : amount;
+		if (fromStorage)
+		{
+			reservedQuantity -= got;
+		}
+		delivered += Math.max(0, got);
+		if (delivered >= asked())
+		{
+			done = true;
+			reservedQuantity = 0;
+		}
+	}
+
+	@Override
+	public void check()
+	{
+		reservedQuantity = Math.max(0, reservedQuantity);
+		delivered = Math.max(0, delivered);
 	}
 }
