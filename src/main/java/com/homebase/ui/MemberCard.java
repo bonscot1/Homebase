@@ -398,15 +398,14 @@ class MemberCard extends JPanel
 				sorted.put(name, e.getValue());
 			}
 		}
-		int empty = 0;
+		int listed = 0;
 		for (Map.Entry<String, CollectionLogData.Page> e : sorted.entrySet())
 		{
 			CollectionLogData.Page page = e.getValue();
 			int have = page.getItems() == null ? 0 : page.getItems().size();
 			if (have == 0)
 			{
-				// pages with nothing on them only make the list longer
-				empty++;
+				// only pages with something on them are worth showing
 				continue;
 			}
 			JLabel row = smallLabel(e.getKey() + "  " + have + "/" + page.getSize());
@@ -414,16 +413,11 @@ class MemberCard extends JPanel
 				? ColorScheme.PROGRESS_COMPLETE_COLOR : ColorScheme.LIGHT_GRAY_COLOR);
 			row.setToolTipText("Seen " + Ago.format(page.getSeen()));
 			list.add(row);
+			listed++;
 		}
-		if (empty > 0)
+		if (listed == 0 && recent.isEmpty())
 		{
-			JLabel row = smallLabel(empty + (empty == 1 ? " more page" : " more pages") + " with nothing yet");
-			row.setForeground(ColorScheme.MEDIUM_GRAY_COLOR);
-			list.add(row);
-		}
-		if (sorted.isEmpty() && recent.isEmpty())
-		{
-			list.add(smallLabel("Pages appear here as they browse their collection log."));
+			list.add(smallLabel("<html><body style='width:160px'>Pages they have items on appear here as they browse their collection log.</body></html>"));
 		}
 		parent.add(list);
 	}
