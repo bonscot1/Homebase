@@ -21,6 +21,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
+import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.DefaultComboBoxModel;
@@ -35,7 +36,9 @@ import javax.swing.JList;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
+import javax.swing.border.CompoundBorder;
 import javax.swing.border.EmptyBorder;
+import javax.swing.border.MatteBorder;
 import net.runelite.api.Item;
 import net.runelite.api.Quest;
 import net.runelite.api.Skill;
@@ -53,6 +56,12 @@ class GoalsView extends JPanel
 {
 	private static final Color DONE = new Color(0x4caf50);
 	private static final Color LOCKED = new Color(0xEF5350);
+
+	/**
+	 * Goal bars, in the colours of RuneLite's XP tracker.
+	 */
+	private static final Color GOAL_FG = new Color(0xDC8A00);
+	private static final Color GOAL_BG = new Color(61, 56, 49);
 
 	private static final Map<GoalData.Type, String> TYPE_LABELS = new LinkedHashMap<>();
 
@@ -108,12 +117,14 @@ class GoalsView extends JPanel
 		JPanel form = new JPanel();
 		form.setLayout(new BoxLayout(form, BoxLayout.Y_AXIS));
 		form.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-		form.setBorder(new EmptyBorder(6, 6, 6, 6));
+		form.setBorder(new EmptyBorder(8, 8, 8, 8));
 
 		typeBox.addActionListener(e -> typeChanged());
 		targetBox.setEditable(true);
 		amountField.setColumns(4);
 
+		form.add(Ui.title("Set a goal"));
+		form.add(Box.createVerticalStrut(6));
 		form.add(field("Goal", typeBox));
 		form.add(Box.createVerticalStrut(4));
 		JPanel targetRow = new JPanel(new BorderLayout(4, 0));
@@ -123,10 +134,13 @@ class GoalsView extends JPanel
 		form.add(targetRow);
 		form.add(Box.createVerticalStrut(4));
 		form.add(field("For", forBox));
-		form.add(Box.createVerticalStrut(6));
-		createButton.setFocusPainted(false);
+		form.add(Box.createVerticalStrut(8));
+		Ui.primary(createButton);
 		createButton.addActionListener(e -> submit());
-		form.add(createButton);
+		JPanel buttonRow = new JPanel(new BorderLayout());
+		buttonRow.setOpaque(false);
+		buttonRow.add(createButton, BorderLayout.CENTER);
+		form.add(buttonRow);
 		formHint.setFont(FontManager.getRunescapeSmallFont());
 		formHint.setForeground(ColorScheme.MEDIUM_GRAY_COLOR);
 		form.add(formHint);
@@ -168,7 +182,7 @@ class GoalsView extends JPanel
 		List<GoalService.Goal> all = goals.list();
 		if (all.isEmpty())
 		{
-			list.add(hint("No goals yet. Set one above, for example 50 Firemaking for everyone before Wintertodt."));
+			list.add(Ui.empty("No goals yet", "Set one above, for example 50 Firemaking for everyone before Wintertodt."));
 		}
 		List<BountyService.Bounty> allBounties = bounties.list();
 		for (GoalService.Goal goal : all)
@@ -176,7 +190,7 @@ class GoalsView extends JPanel
 			JPanel card = card(goal, allBounties, canEdit);
 			card.setAlignmentX(Component.LEFT_ALIGNMENT);
 			list.add(card);
-			list.add(Box.createVerticalStrut(6));
+			list.add(Box.createVerticalStrut(Ui.GAP));
 		}
 		revalidate();
 		repaint();
@@ -188,16 +202,12 @@ class GoalsView extends JPanel
 		JPanel card = new JPanel();
 		card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
 		card.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-		card.setBorder(new EmptyBorder(6, 6, 6, 6));
+		card.setBorder(new EmptyBorder(8, 8, 8, 8));
 
-		JLabel title = new JLabel(GoalService.title(data));
-		title.setFont(FontManager.getRunescapeBoldFont());
-		title.setForeground(Color.WHITE);
-		card.add(title);
-		card.add(small("Set by " + (data.getCreatedByName() == null ? "someone" : data.getCreatedByName())
-			+ (data.getMembers() == null || data.getMembers().isEmpty() ? " for everyone" : ""), ColorScheme.MEDIUM_GRAY_COLOR));
-
+		List<JPanel> rows = new ArrayList<>();
 		Map<String, String> names = new HashMap<>();
+		int applies = 0;
+		int done = 0;
 		for (GoalService.Member member : members)
 		{
 			names.put(member.getId(), member.getName());
@@ -205,16 +215,29 @@ class GoalsView extends JPanel
 			{
 				continue;
 			}
+			applies++;
 			GoalService.Progress progress = goals.progress(data, member.getId());
-			JPanel row = new JPanel(new BorderLayout());
-			row.setOpaque(false);
-			JLabel name = small((progress.isDone() ? "✓ " : "   ") + member.getName(),
-				progress.isDone() ? DONE : ColorScheme.LIGHT_GRAY_COLOR);
-			row.add(name, BorderLayout.WEST);
-			if (!progress.isDone())
+			if (progress.isDone())
 			{
-				row.add(small(progress.getText(), ColorScheme.LIGHT_GRAY_COLOR), BorderLayout.EAST);
+				done++;
 			}
+			rows.add(progressRow(member.getName(), progress));
+		}
+
+		JPanel header = new JPanel(new BorderLayout(6, 0));
+		header.setOpaque(false);
+		header.add(Ui.title(GoalService.title(data)), BorderLayout.CENTER);
+		if (applies > 0)
+		{
+			header.add(small(done + "/" + applies + " done", done == applies ? DONE : ColorScheme.LIGHT_GRAY_COLOR), BorderLayout.EAST);
+		}
+		card.add(header);
+		JLabel by = small("Set by " + (data.getCreatedByName() == null ? "someone" : data.getCreatedByName())
+			+ (data.getMembers() == null || data.getMembers().isEmpty() ? " for everyone" : ""), ColorScheme.MEDIUM_GRAY_COLOR);
+		by.setBorder(new EmptyBorder(1, 0, 4, 0));
+		card.add(by);
+		for (JPanel row : rows)
+		{
 			card.add(row);
 		}
 
@@ -230,7 +253,7 @@ class GoalsView extends JPanel
 		{
 			JPanel buttons = new JPanel(new GridLayout(1, 2, 4, 0));
 			buttons.setOpaque(false);
-			buttons.setBorder(new EmptyBorder(4, 0, 0, 0));
+			buttons.setBorder(new EmptyBorder(8, 0, 0, 0));
 			buttons.add(button(goal.getId().equals(bountyGoal) ? "Close bounty" : "Add bounty", () ->
 			{
 				bountyGoal = goal.getId().equals(bountyGoal) ? null : goal.getId();
@@ -270,23 +293,73 @@ class GoalsView extends JPanel
 				(bounties.isLocked(data, id) ? locked : lifted).add(name);
 			}
 		}
-		JPanel row = new JPanel(new BorderLayout(4, 0));
-		row.setOpaque(false);
-		row.setBorder(new EmptyBorder(4, 0, 0, 0));
+		JPanel row = new JPanel(new BorderLayout(6, 0));
+		row.setBackground(ColorScheme.DARK_GRAY_COLOR);
+		row.setBorder(new CompoundBorder(BorderFactory.createMatteBorder(0, 3, 0, 0, locked.isEmpty() ? DONE : LOCKED),
+			new EmptyBorder(3, 4, 3, 4)));
+		// the item's picture tells apart items with similar names
+		JLabel icon = new JLabel();
+		icon.setPreferredSize(new Dimension(36, 32));
+		itemManager.getImage(data.getItemId()).addTo(icon);
+		row.add(icon, BorderLayout.WEST);
+
 		String item = data.getItemName() == null ? "item " + data.getItemId() : data.getItemName();
-		String text = "<html><body style='width:110px'>Bounty: " + item
-			+ (locked.isEmpty() ? "<br>Lifted for everyone" : "<br>Locked for " + String.join(", ", locked))
-			+ (lifted.isEmpty() || locked.isEmpty() ? "" : "<br>Lifted for " + String.join(", ", lifted))
-			+ "</body></html>";
-		JLabel label = small(text, locked.isEmpty() ? DONE : LOCKED);
-		row.add(label, BorderLayout.CENTER);
+		JPanel text = new JPanel();
+		text.setLayout(new BoxLayout(text, BoxLayout.Y_AXIS));
+		text.setOpaque(false);
+		text.add(small(item, Color.WHITE));
+		// the text sits between the picture and the remove button, so names wrap rather than get cut off
+		text.add(small(narrow(locked.isEmpty() ? "Lifted for everyone" : "Locked for " + String.join(", ", locked)),
+			locked.isEmpty() ? DONE : LOCKED));
+		if (!lifted.isEmpty() && !locked.isEmpty())
+		{
+			text.add(small(narrow("Lifted for " + String.join(", ", lifted)), DONE));
+		}
+		row.add(text, BorderLayout.CENTER);
 		if (canEdit)
 		{
-			row.add(button("Remove", () ->
+			JButton remove = button("✕", () ->
 			{
 				bounties.delete(bounty.getId());
 				refresh();
-			}), BorderLayout.EAST);
+			});
+			remove.setToolTipText("Remove this bounty");
+			JPanel east = new JPanel(new BorderLayout());
+			east.setOpaque(false);
+			east.add(remove, BorderLayout.NORTH);
+			row.add(east, BorderLayout.EAST);
+		}
+		JPanel wrap = new JPanel(new BorderLayout());
+		wrap.setOpaque(false);
+		wrap.setBorder(new EmptyBorder(6, 0, 0, 0));
+		wrap.add(row, BorderLayout.CENTER);
+		return wrap;
+	}
+
+	/**
+	 * One member's progress on a goal: a tick once they're there, otherwise a bar for goals counted in
+	 * numbers, or a word for the rest.
+	 */
+	private static JPanel progressRow(String name, GoalService.Progress progress)
+	{
+		JPanel row = new JPanel(new BorderLayout(6, 0));
+		row.setOpaque(false);
+		row.setBorder(new EmptyBorder(2, 0, 2, 0));
+		row.add(small(name, progress.isDone() ? Color.WHITE : ColorScheme.LIGHT_GRAY_COLOR), BorderLayout.CENTER);
+		if (progress.isDone())
+		{
+			row.add(small("✓ Done", DONE), BorderLayout.EAST);
+		}
+		else if (progress.getNeed() > 0)
+		{
+			Ui.Meter bar = Ui.bar(GOAL_FG, GOAL_BG);
+			bar.setPreferredSize(new Dimension(84, 16));
+			Ui.setBar(bar, progress.getHave(), progress.getNeed(), progress.getText());
+			row.add(bar, BorderLayout.EAST);
+		}
+		else
+		{
+			row.add(small(progress.getText(), ColorScheme.MEDIUM_GRAY_COLOR), BorderLayout.EAST);
 		}
 		return row;
 	}
@@ -295,8 +368,10 @@ class GoalsView extends JPanel
 	{
 		JPanel form = new JPanel();
 		form.setLayout(new BoxLayout(form, BoxLayout.Y_AXIS));
-		form.setOpaque(false);
-		form.setBorder(new EmptyBorder(6, 0, 0, 0));
+		form.setBackground(ColorScheme.DARK_GRAY_COLOR);
+		form.setBorder(new CompoundBorder(new MatteBorder(6, 0, 0, 0, ColorScheme.DARKER_GRAY_COLOR), new EmptyBorder(6, 6, 6, 6)));
+		form.add(small("New bounty", Color.WHITE));
+		form.add(Box.createVerticalStrut(4));
 
 		ItemsData items = storage.get();
 		Map<Integer, Integer> quantities = new LinkedHashMap<>();
@@ -328,7 +403,9 @@ class GoalsView extends JPanel
 			resolveNames(ids);
 		}
 		form.add(field("Item in group storage", bountyItem));
-		form.add(small("Locked until they reach the goal:", ColorScheme.LIGHT_GRAY_COLOR));
+		JLabel lockedFor = small("Locked until they reach the goal:", ColorScheme.LIGHT_GRAY_COLOR);
+		lockedFor.setBorder(new EmptyBorder(6, 0, 2, 0));
+		form.add(lockedFor);
 		for (GoalService.Member member : members)
 		{
 			if (!goal.getData().appliesTo(member.getId()))
@@ -346,7 +423,7 @@ class GoalsView extends JPanel
 			});
 			form.add(box);
 		}
-		form.add(button("Create bounty", () ->
+		JButton create = Ui.primaryButton("Create bounty", () ->
 		{
 			Integer itemId = (Integer) bountyItem.getSelectedItem();
 			List<String> locked = new ArrayList<>();
@@ -366,7 +443,12 @@ class GoalsView extends JPanel
 			bountyItem = null;
 			bountyMembers.clear();
 			refresh();
-		}));
+		});
+		JPanel createRow = new JPanel(new BorderLayout());
+		createRow.setOpaque(false);
+		createRow.setBorder(new EmptyBorder(6, 0, 0, 0));
+		createRow.add(create, BorderLayout.CENTER);
+		form.add(createRow);
 		for (Component c : form.getComponents())
 		{
 			((JComponent) c).setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -554,34 +636,29 @@ class GoalsView extends JPanel
 
 	private static JButton button(String text, Runnable action)
 	{
-		JButton button = new JButton(text);
-		button.setFocusPainted(false);
-		button.setFont(FontManager.getRunescapeSmallFont());
-		button.setMargin(new Insets(1, 4, 1, 4));
-		button.addActionListener(e -> action.run());
-		return button;
+		return Ui.button(text, action);
 	}
 
 	private static JLabel small(String text, Color color)
 	{
-		JLabel label = new JLabel(text);
-		label.setFont(FontManager.getRunescapeSmallFont());
-		label.setForeground(color);
-		return label;
+		return Ui.small(text, color);
+	}
+
+	private static String narrow(String text)
+	{
+		return "<html><body style='width:95px'>" + text + "</body></html>";
 	}
 
 	private static JLabel hint(String text)
 	{
-		JLabel label = new JLabel("<html><body style='width:160px'>" + text + "</body></html>");
-		label.setFont(FontManager.getRunescapeSmallFont());
-		label.setForeground(ColorScheme.MEDIUM_GRAY_COLOR);
+		JLabel label = Ui.wrapped(text, ColorScheme.MEDIUM_GRAY_COLOR);
 		label.setAlignmentX(Component.LEFT_ALIGNMENT);
 		return label;
 	}
 
 	private static JPanel field(String label, JComponent input)
 	{
-		JPanel panel = new JPanel(new BorderLayout());
+		JPanel panel = new JPanel(new BorderLayout(0, 2));
 		panel.setOpaque(false);
 		JLabel l = new JLabel(label);
 		l.setFont(FontManager.getRunescapeSmallFont());

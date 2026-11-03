@@ -16,9 +16,9 @@ import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.GridLayout;
-import java.awt.Insets;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -28,13 +28,15 @@ import javax.inject.Inject;
 import javax.inject.Singleton;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
-import javax.swing.ButtonGroup;
+import javax.swing.BorderFactory;
+import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
-import javax.swing.JToggleButton;
+import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 import javax.swing.Timer;
+import javax.swing.border.CompoundBorder;
 import javax.swing.border.EmptyBorder;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.game.ItemManager;
@@ -44,6 +46,7 @@ import net.runelite.client.party.PartyService;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.FontManager;
 import net.runelite.client.ui.PluginPanel;
+import net.runelite.client.util.ImageUtil;
 
 @Singleton
 public class HomebasePanel extends PluginPanel
@@ -55,15 +58,29 @@ public class HomebasePanel extends PluginPanel
 	private final ItemManager itemManager;
 	private final ClientThread clientThread;
 
+	private enum Tab
+	{
+		MEMBERS("Members"),
+		UPDATES("Updates"),
+		REQUESTS("Requests"),
+		GOALS("Goals");
+
+		final String label;
+
+		Tab(String label)
+		{
+			this.label = label;
+		}
+	}
+
 	private final JLabel groupLabel = new JLabel();
 	private final JLabel statusLabel = new JLabel();
 	private final JButton actionButton = new JButton();
-	private final JToggleButton membersTab = new JToggleButton("Members");
-	private final JToggleButton updatesTab = new JToggleButton("Updates");
-	private final JToggleButton requestsTab = new JToggleButton("Requests");
-	private final JToggleButton goalsTab = new JToggleButton("Goals");
-	private final JPanel tabs = new JPanel(new GridLayout(2, 2, 2, 2));
+	private final JPanel actionRow = new JPanel(new BorderLayout());
+	private final Map<Tab, JLabel> tabLabels = new EnumMap<>(Tab.class);
+	private final JPanel tabs = new JPanel(new GridLayout(1, 0, 0, 0));
 	private final JPanel list = new JPanel();
+	private Tab tab = Tab.MEMBERS;
 	private final RequestsView requestsView;
 	private final UpdatesView updatesView;
 	private final GoalsView goalsView;
@@ -112,16 +129,21 @@ public class HomebasePanel extends PluginPanel
 		JLabel title = new JLabel("Group Homebase");
 		title.setFont(FontManager.getRunescapeBoldFont());
 		title.setForeground(Color.WHITE);
+		title.setIcon(new ImageIcon(ImageUtil.loadImageResource(HomebasePlugin.class, "icon.png")));
+		title.setIconTextGap(6);
 
 		groupLabel.setFont(FontManager.getRunescapeBoldFont());
 		groupLabel.setForeground(ColorScheme.BRAND_ORANGE);
 		groupLabel.setToolTipText("Your Group Ironman group");
+		groupLabel.setBorder(new EmptyBorder(2, 22, 0, 0));
 
 		statusLabel.setFont(FontManager.getRunescapeSmallFont());
 		statusLabel.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
-		statusLabel.setBorder(new EmptyBorder(4, 0, 4, 0));
+		statusLabel.setIconTextGap(6);
+		statusLabel.setVerticalTextPosition(SwingConstants.TOP);
+		statusLabel.setBorder(new EmptyBorder(8, 0, 0, 0));
 
-		actionButton.setFocusPainted(false);
+		Ui.primary(actionButton);
 		actionButton.addActionListener(e ->
 		{
 			if (action != null)
@@ -130,36 +152,41 @@ public class HomebasePanel extends PluginPanel
 			}
 		});
 
-		ButtonGroup tabGroup = new ButtonGroup();
-		for (JToggleButton tab : new JToggleButton[]{membersTab, updatesTab, requestsTab, goalsTab})
+		for (Tab t : Tab.values())
 		{
-			tab.setFocusPainted(false);
-			tab.setFont(FontManager.getRunescapeSmallFont());
-			tab.setMargin(new Insets(2, 0, 2, 0));
-			tab.addActionListener(e -> rebuild());
-			tabGroup.add(tab);
-			tabs.add(tab);
+			JLabel label = new JLabel(t.label, SwingConstants.CENTER);
+			label.setFont(FontManager.getRunescapeSmallFont());
+			label.setOpaque(true);
+			label.setHorizontalTextPosition(SwingConstants.LEFT);
+			label.setIconTextGap(3);
+			Ui.clickable(label, () ->
+			{
+				tab = t;
+				rebuild();
+			});
+			tabLabels.put(t, label);
+			tabs.add(label);
 		}
-		membersTab.setSelected(true);
-		tabs.setOpaque(false);
-		tabs.setBorder(new EmptyBorder(8, 0, 0, 0));
+		tabs.setBackground(ColorScheme.DARKER_GRAY_COLOR);
 
-		JPanel titles = new JPanel(new GridLayout(0, 1));
+		JPanel titles = new JPanel();
+		titles.setLayout(new BoxLayout(titles, BoxLayout.Y_AXIS));
 		titles.setOpaque(false);
 		titles.add(title);
 		titles.add(groupLabel);
+		titles.add(statusLabel);
 
-		JPanel controls = new JPanel(new BorderLayout());
-		controls.setOpaque(false);
-		controls.add(actionButton, BorderLayout.NORTH);
-		controls.add(tabs, BorderLayout.SOUTH);
+		actionRow.setOpaque(false);
+		actionRow.setBorder(new EmptyBorder(8, 0, 0, 0));
+		actionRow.add(actionButton, BorderLayout.CENTER);
 
 		JPanel header = new JPanel(new BorderLayout());
 		header.setOpaque(false);
 		header.add(titles, BorderLayout.NORTH);
-		header.add(statusLabel, BorderLayout.CENTER);
-		header.add(controls, BorderLayout.SOUTH);
-		header.setBorder(new EmptyBorder(0, 0, 10, 0));
+		header.add(actionRow, BorderLayout.CENTER);
+		header.add(tabs, BorderLayout.SOUTH);
+		header.setBorder(new EmptyBorder(0, 0, 8, 0));
+		actionRow.setVisible(false);
 
 		list.setLayout(new BoxLayout(list, BoxLayout.Y_AXIS));
 		list.setOpaque(false);
@@ -218,37 +245,54 @@ public class HomebasePanel extends PluginPanel
 
 		if (view != null)
 		{
-			int open = requestsView.openCount();
-			// the tabs leave no room for a count, so open requests turn the tab orange instead
-			requestsTab.setForeground(open > 0 ? ColorScheme.BRAND_ORANGE : membersTab.getForeground());
-			requestsTab.setToolTipText(open == 1 ? "1 open request" : open + " open requests");
-			if (requestsTab.isSelected())
+			styleTabs();
+			switch (tab)
 			{
-				requestsView.refresh();
-				requestsView.setAlignmentX(Component.LEFT_ALIGNMENT);
-				list.add(requestsView);
-			}
-			else if (updatesTab.isSelected())
-			{
-				updatesView.refresh();
-				updatesView.setAlignmentX(Component.LEFT_ALIGNMENT);
-				list.add(updatesView);
-			}
-			else if (goalsTab.isSelected())
-			{
-				goalsView.refresh();
-				goalsView.setAlignmentX(Component.LEFT_ALIGNMENT);
-				list.add(goalsView);
-			}
-			else
-			{
-				buildMembers();
+				case REQUESTS:
+					requestsView.refresh();
+					requestsView.setAlignmentX(Component.LEFT_ALIGNMENT);
+					list.add(requestsView);
+					break;
+				case UPDATES:
+					updatesView.refresh();
+					updatesView.setAlignmentX(Component.LEFT_ALIGNMENT);
+					list.add(updatesView);
+					break;
+				case GOALS:
+					goalsView.refresh();
+					goalsView.setAlignmentX(Component.LEFT_ALIGNMENT);
+					list.add(goalsView);
+					break;
+				default:
+					buildMembers();
 			}
 		}
 
 		refreshLive();
 		list.revalidate();
 		list.repaint();
+	}
+
+	/**
+	 * The chosen tab is white with an orange line under it, like RuneLite's own tabs. Open requests
+	 * put an orange dot on the Requests tab, since there's no room for a number.
+	 */
+	private void styleTabs()
+	{
+		int open = requestsView.openCount();
+		for (Map.Entry<Tab, JLabel> e : tabLabels.entrySet())
+		{
+			boolean selected = e.getKey() == tab;
+			JLabel label = e.getValue();
+			label.setForeground(selected ? Color.WHITE : ColorScheme.LIGHT_GRAY_COLOR);
+			label.setBackground(selected ? ColorScheme.DARKER_GRAY_HOVER_COLOR : ColorScheme.DARKER_GRAY_COLOR);
+			label.setBorder(new CompoundBorder(
+				BorderFactory.createMatteBorder(0, 0, 2, 0, selected ? ColorScheme.BRAND_ORANGE : ColorScheme.DARKER_GRAY_COLOR),
+				new EmptyBorder(6, 0, 4, 0)));
+		}
+		JLabel requests = tabLabels.get(Tab.REQUESTS);
+		requests.setIcon(open > 0 ? new Ui.Dot(ColorScheme.BRAND_ORANGE) : null);
+		requests.setToolTipText(open == 0 ? null : open == 1 ? "1 open request" : open + " open requests");
 	}
 
 	private void buildMembers()
@@ -277,13 +321,13 @@ public class HomebasePanel extends PluginPanel
 
 		if (members.isEmpty())
 		{
-			list.add(hint("No group data yet. Log in and your details will be shared with your group."));
+			list.add(Ui.empty("No group data yet", "Log in and your details will be shared with your group."));
 		}
 		for (MemberCard card : members)
 		{
 			card.setAlignmentX(Component.LEFT_ALIGNMENT);
 			list.add(card);
-			list.add(Box.createVerticalStrut(6));
+			list.add(Box.createVerticalStrut(Ui.GAP));
 		}
 	}
 
@@ -297,40 +341,49 @@ public class HomebasePanel extends PluginPanel
 
 		JPanel panel = new JPanel(new BorderLayout());
 		panel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-		panel.setBorder(new EmptyBorder(6, 6, 6, 6));
 		panel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-		JLabel title = new JLabel((storageExpanded ? "▾ " : "▸ ") + "Group storage");
-		title.setFont(FontManager.getRunescapeBoldFont());
-		title.setForeground(Color.WHITE);
-		MemberCard.clickable(title, () ->
+		int stacks = 0;
+		for (net.runelite.api.Item item : storage.toItems())
+		{
+			if (item != null)
+			{
+				stacks++;
+			}
+		}
+		JPanel top = new JPanel(new BorderLayout(6, 0));
+		top.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+		top.setBorder(new EmptyBorder(7, 8, 7, 8));
+		Ui.hover(top, ColorScheme.DARKER_GRAY_COLOR, ColorScheme.DARKER_GRAY_HOVER_COLOR);
+		Ui.clickable(top, () ->
 		{
 			storageExpanded = !storageExpanded;
 			rebuild();
 		});
 
+		JLabel title = Ui.title("Group storage");
+		title.setIcon(new Ui.Chevron(storageExpanded));
+		title.setIconTextGap(6);
+		top.add(title, BorderLayout.CENTER);
+		top.add(Ui.small(stacks + " items", ColorScheme.LIGHT_GRAY_COLOR), BorderLayout.EAST);
+
 		String author = view.authorOf(null, Section.GROUP_STORAGE);
 		ProfileData seenBy = author == null ? null : view.get(author, Section.PROFILE, ProfileData.class);
-		JLabel seen = new JLabel("Seen " + Ago.format(view.updatedAt(null, Section.GROUP_STORAGE))
+		JLabel seen = Ui.muted("Seen " + Ago.format(view.updatedAt(null, Section.GROUP_STORAGE))
 			+ (seenBy == null ? "" : " by " + Clean.text(seenBy.getName(), 20)));
-		seen.setFont(FontManager.getRunescapeSmallFont());
-		seen.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
-
-		JPanel top = new JPanel(new BorderLayout());
-		top.setOpaque(false);
-		top.add(title, BorderLayout.NORTH);
-		top.add(seen, BorderLayout.CENTER);
+		seen.setBorder(new EmptyBorder(2, 14, 0, 0));
+		top.add(seen, BorderLayout.SOUTH);
 		panel.add(top, BorderLayout.NORTH);
 
 		if (storageExpanded)
 		{
 			ItemGrid grid = new ItemGrid(storage.toItems(), 5, false, itemManager, clientThread);
-			grid.setBorder(new EmptyBorder(6, 0, 0, 0));
+			grid.setBorder(new EmptyBorder(0, 8, 8, 8));
 			panel.add(grid, BorderLayout.CENTER);
 		}
 
 		list.add(panel);
-		list.add(Box.createVerticalStrut(6));
+		list.add(Box.createVerticalStrut(Ui.GAP));
 	}
 
 	private void toggle(String memberId)
@@ -404,28 +457,30 @@ public class HomebasePanel extends PluginPanel
 		switch (groupSync.getStatus())
 		{
 			case NO_GROUP:
-				setStatus("Log in on your Group Ironman account and you'll join your group automatically. "
+				setStatus(ColorScheme.MEDIUM_GRAY_COLOR, "Log in on your Group Ironman account and you'll join your group automatically. "
 					+ "For other groups, create a passphrase or paste one into this plugin's settings.", "Create group", plugin::createGroup);
 				break;
 			case DISCONNECTED:
-				setStatus("Not connected to your group.", "Join group", groupSync::joinGroupParty);
+				setStatus(ColorScheme.PROGRESS_ERROR_COLOR, "Not connected to your group", "Join group", groupSync::joinGroupParty);
 				break;
 			case OTHER_PARTY:
-				setStatus("You're in another party, so syncing is paused.", "Switch to group", groupSync::joinGroupParty);
+				setStatus(Ui.WARNING, "You're in another party, so syncing is paused", "Switch to group", groupSync::joinGroupParty);
 				break;
 			case CONNECTED:
 				boolean gim = plugin.getGimGroup() != null;
+				int online = onlineCount();
 				// a Group Ironman group needs no passphrase, so there's nothing to copy
-				setStatus("Connected · " + onlineCount() + " online", gim ? null : "Copy passphrase", gim ? null : plugin::copyPassphrase);
+				setStatus(Ui.ONLINE, "Connected  ·  " + online + " online", gim ? null : "Copy passphrase", gim ? null : plugin::copyPassphrase);
 				break;
 		}
 	}
 
-	private void setStatus(String text, String buttonText, Runnable buttonAction)
+	private void setStatus(Color dot, String text, String buttonText, Runnable buttonAction)
 	{
-		statusLabel.setText("<html><body style='width:160px'>" + text + "</body></html>");
+		statusLabel.setIcon(new Ui.Dot(dot));
+		statusLabel.setText("<html><body style='width:" + (Ui.TEXT_WIDTH - 15) + "px'>" + text + "</body></html>");
 		actionButton.setText(buttonText);
-		actionButton.setVisible(buttonText != null);
+		actionRow.setVisible(buttonText != null);
 		action = buttonAction;
 	}
 
@@ -442,12 +497,4 @@ public class HomebasePanel extends PluginPanel
 		return count;
 	}
 
-	private static JLabel hint(String text)
-	{
-		JLabel label = new JLabel("<html><body style='width:160px'>" + text + "</body></html>");
-		label.setFont(FontManager.getRunescapeSmallFont());
-		label.setForeground(ColorScheme.MEDIUM_GRAY_COLOR);
-		label.setAlignmentX(Component.LEFT_ALIGNMENT);
-		return label;
-	}
 }

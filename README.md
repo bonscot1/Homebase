@@ -152,5 +152,7 @@ Items are ticked when they're built. Each stage's last box is ticked once it has
 
 ### Release
 
+- [x] Panel styled after RuneLite's own panels: one row of tabs, cards with live HP, prayer and run bars, skills laid out like the in-game tab, rows that open each section, progress bars on goals, and item pictures on bounties
+- [x] Quests and miniquests counted apart
 - [ ] Screenshots and a final README for the Plugin Hub
 - [ ] Submit to the RuneLite Plugin Hub

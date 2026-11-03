@@ -3,7 +3,6 @@ package com.homebase.ui;
 import com.homebase.data.UpdateEntry;
 import com.homebase.updates.UpdateTracker;
 import java.awt.BorderLayout;
-import java.awt.Color;
 import java.awt.Component;
 import java.util.List;
 import javax.swing.Box;
@@ -12,7 +11,6 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.border.EmptyBorder;
 import net.runelite.client.ui.ColorScheme;
-import net.runelite.client.ui.FontManager;
 
 /**
  * What each member has done since your last update: levels gained, quests finished, diaries completed.
@@ -34,19 +32,15 @@ class UpdatesView extends JPanel
 		List<UpdateEntry> entries = tracker.getEntries();
 		if (entries.isEmpty())
 		{
-			JLabel hint = new JLabel("<html><body style='width:160px'>Nothing new yet. When someone in your group levels up, "
-				+ "finishes a quest or completes a diary, a summary appears here.</body></html>");
-			hint.setFont(FontManager.getRunescapeSmallFont());
-			hint.setForeground(ColorScheme.MEDIUM_GRAY_COLOR);
-			hint.setAlignmentX(Component.LEFT_ALIGNMENT);
-			add(hint);
+			add(Ui.empty("Nothing new yet", "When someone in your group levels up, finishes a quest or completes a diary, "
+				+ "a summary appears here."));
 		}
 		for (UpdateEntry entry : entries)
 		{
 			JPanel card = card(entry);
 			card.setAlignmentX(Component.LEFT_ALIGNMENT);
 			add(card);
-			add(Box.createVerticalStrut(6));
+			add(Box.createVerticalStrut(Ui.GAP));
 		}
 		revalidate();
 		repaint();
@@ -54,20 +48,13 @@ class UpdatesView extends JPanel
 
 	private static JPanel card(UpdateEntry entry)
 	{
-		JPanel card = new JPanel(new BorderLayout());
-		card.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-		card.setBorder(new EmptyBorder(6, 6, 6, 6));
+		JPanel card = Ui.card();
 
-		JPanel header = new JPanel(new BorderLayout());
+		JPanel header = new JPanel(new BorderLayout(6, 0));
 		header.setOpaque(false);
-		JLabel name = new JLabel(entry.getName());
-		name.setFont(FontManager.getRunescapeBoldFont());
-		name.setForeground(Color.WHITE);
-		header.add(name, BorderLayout.WEST);
-		JLabel when = new JLabel(Ago.format(entry.getTime()));
-		when.setFont(FontManager.getRunescapeSmallFont());
-		when.setForeground(ColorScheme.MEDIUM_GRAY_COLOR);
-		header.add(when, BorderLayout.EAST);
+		header.setBorder(new EmptyBorder(0, 0, 4, 0));
+		header.add(Ui.title(entry.getName()), BorderLayout.CENTER);
+		header.add(Ui.muted(Ago.format(entry.getTime())), BorderLayout.EAST);
 		card.add(header, BorderLayout.NORTH);
 
 		JPanel lines = new JPanel();
@@ -75,12 +62,18 @@ class UpdatesView extends JPanel
 		lines.setOpaque(false);
 		for (String change : entry.getChanges())
 		{
-			JLabel line = new JLabel("• " + change);
-			line.setFont(FontManager.getRunescapeSmallFont());
-			line.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
+			// long lines, such as a new collection log item, wrap rather than run off the edge
+			JLabel line = Ui.wrapped("<span style='color:#ff9800'>•</span> " + escape(change), ColorScheme.LIGHT_GRAY_COLOR);
+			line.setBorder(new EmptyBorder(1, 0, 1, 0));
+			line.setAlignmentX(Component.LEFT_ALIGNMENT);
 			lines.add(line);
 		}
 		card.add(lines, BorderLayout.CENTER);
 		return card;
+	}
+
+	private static String escape(String text)
+	{
+		return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
 	}
 }

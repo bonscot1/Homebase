@@ -9,14 +9,15 @@ import java.awt.Color;
 import java.awt.Component;
 import java.awt.FlowLayout;
 import java.awt.GridLayout;
-import java.awt.Insets;
 import java.util.List;
+import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
+import javax.swing.border.CompoundBorder;
 import javax.swing.border.EmptyBorder;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.FontManager;
@@ -45,8 +46,10 @@ class RequestsView extends JPanel
 		JPanel form = new JPanel();
 		form.setLayout(new BoxLayout(form, BoxLayout.Y_AXIS));
 		form.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-		form.setBorder(new EmptyBorder(6, 6, 6, 6));
+		form.setBorder(new EmptyBorder(8, 8, 8, 8));
 
+		form.add(Ui.title("Ask the group"));
+		form.add(Box.createVerticalStrut(6));
 		JPanel itemRow = new JPanel(new BorderLayout(4, 0));
 		itemRow.setOpaque(false);
 		itemRow.add(field("Item", itemField), BorderLayout.CENTER);
@@ -57,11 +60,14 @@ class RequestsView extends JPanel
 		form.add(itemRow);
 		form.add(Box.createVerticalStrut(4));
 		form.add(field("Note (optional)", noteField));
-		form.add(Box.createVerticalStrut(6));
-		requestButton.setFocusPainted(false);
+		form.add(Box.createVerticalStrut(8));
+		Ui.primary(requestButton);
 		requestButton.addActionListener(e -> submit());
 		itemField.addActionListener(e -> submit());
-		form.add(requestButton);
+		JPanel buttonRow = new JPanel(new BorderLayout());
+		buttonRow.setOpaque(false);
+		buttonRow.add(requestButton, BorderLayout.CENTER);
+		form.add(buttonRow);
 		formHint.setFont(FontManager.getRunescapeSmallFont());
 		formHint.setForeground(ColorScheme.MEDIUM_GRAY_COLOR);
 		form.add(formHint);
@@ -72,7 +78,7 @@ class RequestsView extends JPanel
 
 		list.setLayout(new BoxLayout(list, BoxLayout.Y_AXIS));
 		list.setOpaque(false);
-		list.setBorder(new EmptyBorder(8, 0, 0, 0));
+		list.setBorder(new EmptyBorder(Ui.GAP, 0, 0, 0));
 
 		add(form, BorderLayout.NORTH);
 		add(list, BorderLayout.CENTER);
@@ -92,14 +98,14 @@ class RequestsView extends JPanel
 		List<Request> requests = service.list();
 		if (requests.isEmpty())
 		{
-			list.add(MemberCard.heading("No requests yet."));
+			list.add(Ui.empty("No requests yet", "Ask for an item above and your group will see it."));
 		}
 		for (Request request : requests)
 		{
 			JPanel card = card(request, canEdit);
 			card.setAlignmentX(Component.LEFT_ALIGNMENT);
 			list.add(card);
-			list.add(Box.createVerticalStrut(6));
+			list.add(Box.createVerticalStrut(Ui.GAP));
 		}
 		list.revalidate();
 		list.repaint();
@@ -143,42 +149,48 @@ class RequestsView extends JPanel
 	private JPanel card(Request request, boolean canEdit)
 	{
 		RequestData data = request.getData();
+		Color state = data.isDone() ? ColorScheme.PROGRESS_COMPLETE_COLOR
+			: data.getAssignedTo() != null ? ColorScheme.PROGRESS_INPROGRESS_COLOR : UNCLAIMED;
 		JPanel card = new JPanel();
 		card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
 		card.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-		card.setBorder(new EmptyBorder(6, 6, 6, 6));
+		// a stripe down the left edge shows where the request stands at a glance
+		card.setBorder(new CompoundBorder(BorderFactory.createMatteBorder(0, 3, 0, 0, state), new EmptyBorder(7, 8, 7, 8)));
 
-		JLabel title = new JLabel(data.getQuantity() > 1 ? data.getItem() + " x " + data.getQuantity() : data.getItem());
-		title.setFont(FontManager.getRunescapeBoldFont());
+		JLabel title = Ui.title(data.getQuantity() > 1 ? data.getItem() + " ×" + data.getQuantity() : data.getItem());
 		title.setForeground(data.isDone() ? ColorScheme.MEDIUM_GRAY_COLOR : Color.WHITE);
 		card.add(title);
 
 		card.add(small("For " + name(data.getRequestedByName()) + "  ·  " + Ago.format(data.getCreatedAt()),
-			ColorScheme.LIGHT_GRAY_COLOR));
+			ColorScheme.MEDIUM_GRAY_COLOR));
 		if (!Strings.isNullOrEmpty(data.getNote()))
 		{
-			card.add(small("<html><body style='width:160px'>“" + escape(data.getNote()) + "”</body></html>",
-				ColorScheme.LIGHT_GRAY_COLOR));
+			JLabel note = Ui.wrapped("“" + escape(data.getNote()) + "”", ColorScheme.LIGHT_GRAY_COLOR);
+			note.setBorder(new EmptyBorder(3, 0, 0, 0));
+			card.add(note);
 		}
 
+		JLabel status;
 		if (data.isDone())
 		{
-			card.add(small("Done by " + name(data.getAssignedToName()), ColorScheme.PROGRESS_COMPLETE_COLOR));
+			status = small("Done by " + name(data.getAssignedToName()), state);
 		}
 		else if (data.getAssignedTo() != null)
 		{
-			card.add(small(name(data.getAssignedToName()) + " is on it", ColorScheme.PROGRESS_INPROGRESS_COLOR));
+			status = small(name(data.getAssignedToName()) + " is on it", state);
 		}
 		else
 		{
-			card.add(small("Nobody has taken this yet", UNCLAIMED));
+			status = small("Nobody has taken this yet", state);
 		}
+		status.setBorder(new EmptyBorder(4, 0, 0, 0));
+		card.add(status);
 
 		if (canEdit)
 		{
 			JPanel buttons = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
 			buttons.setOpaque(false);
-			buttons.setBorder(new EmptyBorder(4, 0, 0, 0));
+			buttons.setBorder(new EmptyBorder(6, 0, 0, 0));
 			JPanel grid = new JPanel(new GridLayout(1, 0, 4, 0));
 			grid.setOpaque(false);
 			String id = request.getId();
@@ -222,20 +234,12 @@ class RequestsView extends JPanel
 
 	private static JButton button(String text, Runnable action)
 	{
-		JButton button = new JButton(text);
-		button.setFont(FontManager.getRunescapeSmallFont());
-		button.setMargin(new Insets(1, 6, 1, 6));
-		button.setFocusPainted(false);
-		button.addActionListener(e -> action.run());
-		return button;
+		return Ui.button(text, action);
 	}
 
 	private static JLabel small(String text, Color color)
 	{
-		JLabel label = new JLabel(text);
-		label.setFont(FontManager.getRunescapeSmallFont());
-		label.setForeground(color);
-		return label;
+		return Ui.small(text, color);
 	}
 
 	private static String name(String name)

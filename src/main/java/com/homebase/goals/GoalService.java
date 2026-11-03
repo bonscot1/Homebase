@@ -29,6 +29,7 @@ import java.util.UUID;
 import java.util.function.Predicate;
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import lombok.AllArgsConstructor;
 import lombok.Value;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Skill;
@@ -56,6 +57,7 @@ public class GoalService
 	}
 
 	@Value
+	@AllArgsConstructor
 	public static class Progress
 	{
 		boolean done;
@@ -64,6 +66,17 @@ public class GoalService
 		 * Such as "45/50", or "?" when the member hasn't shared the data yet.
 		 */
 		String text;
+
+		/**
+		 * How far along, for goals counted in numbers such as levels; 0 of 0 for the rest.
+		 */
+		int have;
+		int need;
+
+		Progress(boolean done, String text)
+		{
+			this(done, text, 0, 0);
+		}
 	}
 
 	@Value
@@ -429,7 +442,7 @@ public class GoalService
 
 	private static Progress amount(int have, int need)
 	{
-		return new Progress(have >= need, Math.min(have, need) + "/" + need);
+		return new Progress(have >= need, Math.min(have, need) + "/" + need, Math.min(have, need), need);
 	}
 
 	private static <V> V lookup(Map<String, V> map, String key)

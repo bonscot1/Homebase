@@ -15,11 +15,9 @@ import com.homebase.data.SkillsData;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
-import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.GridLayout;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
+import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -28,13 +26,15 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.function.Consumer;
-import javax.swing.BorderFactory;
+import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.ImageIcon;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.SwingConstants;
 import javax.swing.border.EmptyBorder;
+import net.runelite.api.Experience;
 import net.runelite.api.Item;
 import net.runelite.api.Skill;
 import net.runelite.client.callback.ClientThread;
@@ -42,15 +42,20 @@ import net.runelite.client.game.ItemManager;
 import net.runelite.client.game.SkillIconManager;
 import net.runelite.client.party.PartyMember;
 import net.runelite.client.ui.ColorScheme;
-import net.runelite.client.ui.FontManager;
 import net.runelite.client.util.QuantityFormatter;
 
 /**
- * One group member: who they are, whether they're online, and when expanded everything we know.
+ * One group member: who they are, whether they're online with live bars, and when expanded
+ * everything we know about them in rows that open one at a time.
  */
 class MemberCard extends JPanel
 {
-	private static final Color ONLINE = new Color(0x4caf50);
+	private static final Color MAXED = new Color(0xFFD54F);
+
+	/**
+	 * The brown of the in-game skills tab.
+	 */
+	private static final Color SKILL_TILE = new Color(62, 53, 41);
 
 	private static final String[] TIER_LABELS = {"E", "M", "H", "El"};
 
@@ -89,8 +94,12 @@ class MemberCard extends JPanel
 		}
 	}
 
-	private final JLabel statusLabel = new JLabel();
-	private final JLabel liveLabel = new JLabel();
+	private final JLabel nameLabel;
+	private final JLabel statusLabel = Ui.small("", ColorScheme.MEDIUM_GRAY_COLOR);
+	private final JPanel bars = new JPanel(new GridLayout(1, 3, 3, 0));
+	private final Ui.Meter hpBar = Ui.bar(Ui.HP_FG, Ui.HP_BG);
+	private final Ui.Meter prayerBar = Ui.bar(Ui.PRAY_FG, Ui.PRAY_BG);
+	private final Ui.Meter runBar = Ui.bar(Ui.RUN_FG, Ui.RUN_BG);
 	private final ProfileData profile;
 	private final long profileUpdatedAt;
 
@@ -98,38 +107,48 @@ class MemberCard extends JPanel
 	{
 		setLayout(new BorderLayout());
 		setBackground(ColorScheme.DARKER_GRAY_COLOR);
-		setBorder(new EmptyBorder(6, 6, 6, 6));
+		setAlignmentX(Component.LEFT_ALIGNMENT);
 
 		profile = view.get(memberId, Section.PROFILE, ProfileData.class);
 		profileUpdatedAt = view.updatedAt(memberId, Section.PROFILE);
 		SkillsData skills = view.get(memberId, Section.SKILLS, SkillsData.class);
 
-		JPanel header = new JPanel(new BorderLayout());
+		JPanel top = new JPanel();
+		top.setLayout(new BoxLayout(top, BoxLayout.Y_AXIS));
+		top.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+		top.setBorder(new EmptyBorder(7, 8, 7, 8));
+		Ui.hover(top, ColorScheme.DARKER_GRAY_COLOR, ColorScheme.DARKER_GRAY_HOVER_COLOR);
+		Ui.clickable(top, onToggle);
+		top.setToolTipText(expanded ? "Click to close" : "Click for everything we know about them");
+
+		JPanel header = new JPanel(new BorderLayout(6, 0));
 		header.setOpaque(false);
-		clickable(header, onToggle);
-
-		JLabel name = new JLabel((expanded ? "▾ " : "▸ ") + (profile == null ? "Unknown" : profile.getName()));
-		name.setFont(FontManager.getRunescapeBoldFont());
-		name.setForeground(Color.WHITE);
-		header.add(name, BorderLayout.WEST);
-
-		statusLabel.setFont(FontManager.getRunescapeSmallFont());
+		nameLabel = Ui.title(profile == null ? "Unknown" : Clean.text(profile.getName(), 20));
+		nameLabel.setIconTextGap(6);
+		header.add(nameLabel, BorderLayout.CENTER);
 		header.add(statusLabel, BorderLayout.EAST);
+		top.add(align(header));
 
-		JPanel summary = new JPanel(new GridLayout(0, 1));
-		summary.setOpaque(false);
-		liveLabel.setFont(FontManager.getRunescapeSmallFont());
-		liveLabel.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
-		summary.add(liveLabel);
 		if (skills != null)
 		{
-			summary.add(smallLabel("Total level " + QuantityFormatter.formatNumber(skills.getTotalLevel())));
+			int combat = Experience.getCombatLevel(skills.getLevel(Skill.ATTACK), skills.getLevel(Skill.STRENGTH),
+				skills.getLevel(Skill.DEFENCE), skills.getLevel(Skill.HITPOINTS), skills.getLevel(Skill.MAGIC),
+				skills.getLevel(Skill.RANGED), skills.getLevel(Skill.PRAYER));
+			JLabel levels = Ui.small("Combat " + combat + "  ·  Total " + QuantityFormatter.formatNumber(skills.getTotalLevel()),
+				ColorScheme.LIGHT_GRAY_COLOR);
+			levels.setBorder(new EmptyBorder(2, 13, 0, 0));
+			top.add(align(levels));
 		}
 
-		JPanel top = new JPanel(new BorderLayout());
-		top.setOpaque(false);
-		top.add(header, BorderLayout.NORTH);
-		top.add(summary, BorderLayout.CENTER);
+		bars.setOpaque(false);
+		bars.setBorder(new EmptyBorder(6, 0, 0, 0));
+		hpBar.setToolTipText("Hitpoints");
+		prayerBar.setToolTipText("Prayer");
+		runBar.setToolTipText("Run energy");
+		bars.add(hpBar);
+		bars.add(prayerBar);
+		bars.add(runBar);
+		top.add(align(bars));
 		add(top, BorderLayout.NORTH);
 
 		if (expanded)
@@ -154,11 +173,12 @@ class MemberCard extends JPanel
 	void updateLive(PartyMember live, boolean isLocal)
 	{
 		boolean online = isLocal || (live != null && live.isLoggedIn());
+		nameLabel.setIcon(new Ui.Dot(online ? Ui.ONLINE : Ui.AWAY));
 		if (online)
 		{
 			int world = profile == null ? 0 : profile.getWorld();
-			statusLabel.setText(world > 0 ? "● W" + world : "● Online");
-			statusLabel.setForeground(ONLINE);
+			statusLabel.setText(world > 0 ? "World " + world : "Online");
+			statusLabel.setForeground(Ui.ONLINE);
 		}
 		else
 		{
@@ -168,15 +188,18 @@ class MemberCard extends JPanel
 
 		if (live != null && live.isLoggedIn() && live.getStatBase(Skill.HITPOINTS) > 0)
 		{
-			liveLabel.setText(String.format("HP %d/%d  Pray %d/%d  Run %d%%",
-				live.getStatBoost(Skill.HITPOINTS), live.getStatBase(Skill.HITPOINTS),
-				live.getStatBoost(Skill.PRAYER), live.getStatBase(Skill.PRAYER),
-				live.getRunEnergy()));
-			liveLabel.setVisible(true);
+			int hp = live.getStatBoost(Skill.HITPOINTS);
+			int maxHp = live.getStatBase(Skill.HITPOINTS);
+			int prayer = live.getStatBoost(Skill.PRAYER);
+			int maxPrayer = live.getStatBase(Skill.PRAYER);
+			Ui.setBar(hpBar, hp, maxHp, hp + "/" + maxHp);
+			Ui.setBar(prayerBar, prayer, maxPrayer, prayer + "/" + maxPrayer);
+			Ui.setBar(runBar, live.getRunEnergy(), 100, live.getRunEnergy() + "%");
+			bars.setVisible(true);
 		}
 		else
 		{
-			liveLabel.setVisible(false);
+			bars.setVisible(false);
 		}
 	}
 
@@ -184,13 +207,14 @@ class MemberCard extends JPanel
 	{
 		JPanel details = new JPanel();
 		details.setLayout(new BoxLayout(details, BoxLayout.Y_AXIS));
-		details.setOpaque(false);
-		details.setBorder(new EmptyBorder(6, 0, 0, 0));
+		details.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+		details.setBorder(new EmptyBorder(0, 8, 8, 8));
 
 		if (skills != null)
 		{
-			details.add(heading("Skills  ·  " + Ago.format(view.updatedAt(memberId, Section.SKILLS))));
+			details.add(caption("Skills", Ago.format(view.updatedAt(memberId, Section.SKILLS))));
 			details.add(skillGrid(skills, context.skillIconManager));
+			details.add(Box.createVerticalStrut(6));
 		}
 
 		addQuests(details, memberId, view, context);
@@ -201,6 +225,7 @@ class MemberCard extends JPanel
 		addHouse(details, memberId, view, context);
 		addItems(details, "Inventory", memberId, Section.INVENTORY, 4, true, view, context);
 		addItems(details, "Equipment", memberId, Section.EQUIPMENT, 5, false, view, context);
+		details.add(Box.createVerticalStrut(8));
 		addCollapsible(details, "Bank", memberId, Section.BANK, view, context);
 		addCollapsible(details, "Seed vault", memberId, Section.SEED_VAULT, view, context);
 		addCollapsible(details, "Looting bag", memberId, Section.LOOTING_BAG, view, context);
@@ -212,6 +237,27 @@ class MemberCard extends JPanel
 		return details;
 	}
 
+	/**
+	 * A row that opens a section, with a little space under it.
+	 */
+	private static void addRow(JPanel parent, String title, String summary, String id, Context context)
+	{
+		parent.add(Ui.sectionRow(title, summary, context.openSections.contains(id), () -> context.toggleSection.accept(id)));
+		parent.add(Box.createVerticalStrut(2));
+	}
+
+	/**
+	 * What an open section shows, indented a little under its row.
+	 */
+	private static void addContent(JPanel parent, JComponent content)
+	{
+		JPanel wrap = new JPanel(new BorderLayout());
+		wrap.setOpaque(false);
+		wrap.setBorder(new EmptyBorder(2, 6, 6, 6));
+		wrap.add(content, BorderLayout.CENTER);
+		parent.add(wrap);
+	}
+
 	private static void addItems(JPanel parent, String title, String memberId, Section section, int columns,
 		boolean keepEmptySlots, GroupView view, Context context)
 	{
@@ -220,7 +266,8 @@ class MemberCard extends JPanel
 		{
 			return;
 		}
-		parent.add(heading(title + "  ·  " + Ago.format(view.updatedAt(memberId, section))));
+		parent.add(Box.createVerticalStrut(4));
+		parent.add(caption(title, Ago.format(view.updatedAt(memberId, section))));
 		parent.add(new ItemGrid(items.toItems(), columns, keepEmptySlots, context.itemManager, context.clientThread));
 	}
 
@@ -235,8 +282,6 @@ class MemberCard extends JPanel
 		{
 			return;
 		}
-		String id = memberId + ":" + section.getKey();
-		boolean open = context.openSections.contains(id);
 		List<Item> stacks = new ArrayList<>();
 		for (Item item : items.toItems())
 		{
@@ -245,14 +290,12 @@ class MemberCard extends JPanel
 				stacks.add(item);
 			}
 		}
-		JLabel label = heading((open ? "▾ " : "▸ ") + title + "  ·  " + stacks.size() + " items  ·  "
-			+ Ago.format(view.updatedAt(memberId, section)));
-		label.setForeground(Color.WHITE);
-		clickable(label, () -> context.toggleSection.accept(id));
-		parent.add(label);
-		if (open)
+		String id = memberId + ":" + section.getKey();
+		addRow(parent, title, stacks.size() + " items · " + Ago.format(view.updatedAt(memberId, section)), id, context);
+		if (context.openSections.contains(id))
 		{
 			parent.add(new ItemGrid(stacks, 5, false, context.itemManager, context.clientThread));
+			parent.add(Box.createVerticalStrut(4));
 		}
 	}
 
@@ -263,21 +306,15 @@ class MemberCard extends JPanel
 		{
 			return;
 		}
+		int mini = quests.countMiniquests(QuestsData.FINISHED);
 		String id = memberId + ":" + Section.QUESTS.getKey();
-		boolean open = context.openSections.contains(id);
-		JLabel label = heading((open ? "\u25BE " : "\u25B8 ") + "Quests  \u00B7  " + quests.count(QuestsData.FINISHED) + " done, "
-			+ quests.count(QuestsData.STARTED) + " started");
-		label.setForeground(Color.WHITE);
-		clickable(label, () -> context.toggleSection.accept(id));
-		parent.add(label);
-		if (!open)
+		addRow(parent, "Quests", quests.count(QuestsData.FINISHED) + " done" + (mini > 0 ? " + " + mini + " mini" : ""), id, context);
+		if (!context.openSections.contains(id))
 		{
 			return;
 		}
-		JPanel list = new JPanel(new GridLayout(0, 1));
-		list.setOpaque(false);
-		java.util.TreeMap<String, String> sorted = new java.util.TreeMap<>(String.CASE_INSENSITIVE_ORDER);
-		for (java.util.Map.Entry<String, String> e : quests.getQuests().entrySet())
+		TreeMap<String, String> sorted = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+		for (Map.Entry<String, String> e : quests.getQuests().entrySet())
 		{
 			String name = Clean.text(e.getKey(), 60);
 			if (name != null)
@@ -285,15 +322,16 @@ class MemberCard extends JPanel
 				sorted.put(name, e.getValue());
 			}
 		}
-		for (java.util.Map.Entry<String, String> e : sorted.entrySet())
+		JPanel list = new JPanel(new GridLayout(0, 1, 0, 1));
+		list.setOpaque(false);
+		for (Map.Entry<String, String> e : sorted.entrySet())
 		{
 			boolean done = QuestsData.FINISHED.equals(e.getValue());
-			JLabel quest = new JLabel((done ? "\u2713 " : "\u2026 ") + e.getKey());
-			quest.setFont(FontManager.getRunescapeSmallFont());
-			quest.setForeground(done ? ColorScheme.PROGRESS_COMPLETE_COLOR : ColorScheme.PROGRESS_INPROGRESS_COLOR);
+			JLabel quest = Ui.small((done ? "✓ " : "… ") + e.getKey() + (QuestsData.isMiniquest(e.getKey()) ? " (mini)" : ""),
+				done ? ColorScheme.PROGRESS_COMPLETE_COLOR : ColorScheme.PROGRESS_INPROGRESS_COLOR);
 			list.add(quest);
 		}
-		parent.add(list);
+		addContent(parent, list);
 	}
 
 	private static void addDiaries(JPanel parent, String memberId, GroupView view, Context context)
@@ -304,13 +342,9 @@ class MemberCard extends JPanel
 			return;
 		}
 		String id = memberId + ":" + Section.DIARIES.getKey();
-		boolean open = context.openSections.contains(id);
 		int total = DiariesData.REGIONS.size() * DiariesData.TIERS.size();
-		JLabel label = heading((open ? "\u25BE " : "\u25B8 ") + "Diaries  \u00B7  " + diaries.countDone() + "/" + total + " done");
-		label.setForeground(Color.WHITE);
-		clickable(label, () -> context.toggleSection.accept(id));
-		parent.add(label);
-		if (!open)
+		addRow(parent, "Achievement diaries", diaries.countDone() + "/" + total, id, context);
+		if (!context.openSections.contains(id))
 		{
 			return;
 		}
@@ -320,26 +354,26 @@ class MemberCard extends JPanel
 		{
 			JPanel row = new JPanel(new BorderLayout());
 			row.setOpaque(false);
-			JLabel name = new JLabel(region);
-			name.setFont(FontManager.getRunescapeSmallFont());
-			name.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
-			name.setPreferredSize(new Dimension(110, name.getPreferredSize().height));
+			JLabel name = Ui.small(region, ColorScheme.LIGHT_GRAY_COLOR);
+			name.setPreferredSize(new Dimension(100, name.getPreferredSize().height));
+			name.setToolTipText(region);
 			row.add(name, BorderLayout.WEST);
 			JPanel tiers = new JPanel(new GridLayout(1, DiariesData.TIERS.size(), 2, 0));
 			tiers.setOpaque(false);
 			for (int tier = 0; tier < DiariesData.TIERS.size(); tier++)
 			{
 				boolean done = diaries.isDone(region, tier);
-				JLabel cell = new JLabel(TIER_LABELS[tier], javax.swing.SwingConstants.CENTER);
-				cell.setFont(FontManager.getRunescapeSmallFont());
-				cell.setForeground(done ? ColorScheme.PROGRESS_COMPLETE_COLOR : ColorScheme.MEDIUM_GRAY_COLOR);
+				JLabel cell = Ui.small(TIER_LABELS[tier], done ? Color.WHITE : ColorScheme.MEDIUM_GRAY_COLOR);
+				cell.setHorizontalAlignment(SwingConstants.CENTER);
+				cell.setOpaque(true);
+				cell.setBackground(done ? ColorScheme.PROGRESS_COMPLETE_COLOR.darker() : ColorScheme.DARK_GRAY_COLOR);
 				cell.setToolTipText(region + " " + DiariesData.TIERS.get(tier) + (done ? ": done" : ": not done"));
 				tiers.add(cell);
 			}
 			row.add(tiers, BorderLayout.CENTER);
 			grid.add(row);
 		}
-		parent.add(grid);
+		addContent(parent, grid);
 	}
 
 	private static void addCombatAchievements(JPanel parent, String memberId, GroupView view)
@@ -350,10 +384,10 @@ class MemberCard extends JPanel
 			return;
 		}
 		String tier = ca.tierName();
-		JLabel label = heading("Combat achievements  ·  " + ca.getPoints() + " points, " + ca.getTasks() + " tasks"
-			+ (tier == null ? "" : ", " + tier));
-		label.setToolTipText(tier == null ? "No tier reached yet" : "Highest tier reached: " + tier);
-		parent.add(label);
+		JPanel row = Ui.infoRow("Combat achievements", ca.getPoints() + " pts" + (tier == null ? "" : " · " + tier));
+		row.setToolTipText(ca.getTasks() + " tasks done. " + (tier == null ? "No tier reached yet." : "Highest tier reached: " + tier + "."));
+		parent.add(row);
+		parent.add(Box.createVerticalStrut(2));
 	}
 
 	private static void addCollectionLog(JPanel parent, String memberId, GroupView view, Context context)
@@ -366,19 +400,15 @@ class MemberCard extends JPanel
 		Map<String, CollectionLogData.Page> pages = log.getPages() == null ? new HashMap<>() : log.getPages();
 		List<String> recent = log.getRecent() == null ? new ArrayList<>() : log.getRecent();
 		String id = memberId + ":" + Section.COLLECTION_LOG.getKey();
-		boolean open = context.openSections.contains(id);
 		String counts = log.getObtained() > 0 && log.getTotal() > 0
-			? log.getObtained() + "/" + log.getTotal() + " slots"
-			: pages.size() + (pages.size() == 1 ? " page seen" : " pages seen");
-		JLabel label = heading((open ? "▾ " : "▸ ") + "Collection log  ·  " + counts);
-		label.setForeground(Color.WHITE);
-		clickable(label, () -> context.toggleSection.accept(id));
-		parent.add(label);
-		if (!open)
+			? QuantityFormatter.formatNumber(log.getObtained()) + "/" + QuantityFormatter.formatNumber(log.getTotal())
+			: "";
+		addRow(parent, "Collection log", counts, id, context);
+		if (!context.openSections.contains(id))
 		{
 			return;
 		}
-		JPanel list = new JPanel(new GridLayout(0, 1));
+		JPanel list = new JPanel(new GridLayout(0, 1, 0, 1));
 		list.setOpaque(false);
 		int shown = 0;
 		for (String item : recent)
@@ -386,7 +416,7 @@ class MemberCard extends JPanel
 			String name = Clean.text(item, 60);
 			if (name != null && shown++ < 5)
 			{
-				list.add(smallLabel("New: " + name));
+				list.add(Ui.small("New: " + name, MAXED));
 			}
 		}
 		TreeMap<String, CollectionLogData.Page> sorted = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
@@ -408,18 +438,17 @@ class MemberCard extends JPanel
 				// only pages with something on them are worth showing
 				continue;
 			}
-			JLabel row = smallLabel(e.getKey() + "  " + have + "/" + page.getSize());
-			row.setForeground(have >= page.getSize() && page.getSize() > 0
-				? ColorScheme.PROGRESS_COMPLETE_COLOR : ColorScheme.LIGHT_GRAY_COLOR);
+			boolean complete = have >= page.getSize() && page.getSize() > 0;
+			JPanel row = valueRow(e.getKey(), have + "/" + page.getSize(), complete ? ColorScheme.PROGRESS_COMPLETE_COLOR : ColorScheme.LIGHT_GRAY_COLOR);
 			row.setToolTipText("Seen " + Ago.format(page.getSeen()));
 			list.add(row);
 			listed++;
 		}
 		if (listed == 0 && recent.isEmpty())
 		{
-			list.add(smallLabel("<html><body style='width:160px'>Pages they have items on appear here as they browse their collection log.</body></html>"));
+			list.add(Ui.wrapped("Pages they have items on appear here as they browse their collection log.", ColorScheme.MEDIUM_GRAY_COLOR));
 		}
-		parent.add(list);
+		addContent(parent, list);
 	}
 
 	private static void addKillCounts(JPanel parent, String memberId, GroupView view, Context context)
@@ -436,7 +465,7 @@ class MemberCard extends JPanel
 			// a collection log page shows "kills: 0" for bosses never fought, which says nothing
 			if (name != null && e.getValue() != null && e.getValue() > 0)
 			{
-				rows.add(new java.util.AbstractMap.SimpleEntry<>(name, e.getValue()));
+				rows.add(new AbstractMap.SimpleEntry<>(name, e.getValue()));
 			}
 		}
 		if (rows.isEmpty())
@@ -445,27 +474,18 @@ class MemberCard extends JPanel
 		}
 		rows.sort((a, b) -> b.getValue() - a.getValue());
 		String id = memberId + ":" + Section.KILL_COUNTS.getKey();
-		boolean open = context.openSections.contains(id);
-		int bosses = rows.size();
-		JLabel label = heading((open ? "▾ " : "▸ ") + "Kill counts  ·  " + bosses + (bosses == 1 ? " boss" : " bosses"));
-		label.setForeground(Color.WHITE);
-		clickable(label, () -> context.toggleSection.accept(id));
-		parent.add(label);
-		if (!open)
+		addRow(parent, "Kill counts", rows.size() + (rows.size() == 1 ? " boss" : " bosses"), id, context);
+		if (!context.openSections.contains(id))
 		{
 			return;
 		}
-		JPanel list = new JPanel(new GridLayout(0, 1));
+		JPanel list = new JPanel(new GridLayout(0, 1, 0, 1));
 		list.setOpaque(false);
 		for (Map.Entry<String, Integer> e : rows)
 		{
-			JPanel row = new JPanel(new BorderLayout());
-			row.setOpaque(false);
-			row.add(smallLabel(e.getKey()), BorderLayout.WEST);
-			row.add(smallLabel(QuantityFormatter.formatNumber(e.getValue())), BorderLayout.EAST);
-			list.add(row);
+			list.add(valueRow(e.getKey(), QuantityFormatter.formatNumber(e.getValue()), Color.WHITE));
 		}
-		parent.add(list);
+		addContent(parent, list);
 	}
 
 	private static void addHouse(JPanel parent, String memberId, GroupView view, Context context)
@@ -478,27 +498,22 @@ class MemberCard extends JPanel
 		List<String> furniture = house.getFurniture() == null ? new ArrayList<>() : house.getFurniture();
 		List<Integer> costumes = house.getCostumes() == null ? new ArrayList<>() : house.getCostumes();
 		String id = memberId + ":" + Section.HOUSE.getKey();
-		boolean open = context.openSections.contains(id);
-		JLabel label = heading((open ? "▾ " : "▸ ") + "House  ·  " + furniture.size() + " furniture"
-			+ (costumes.isEmpty() ? "" : ", " + costumes.size() + " costumes") + "  ·  " + Ago.format(view.updatedAt(memberId, Section.HOUSE)));
-		label.setForeground(Color.WHITE);
-		clickable(label, () -> context.toggleSection.accept(id));
-		parent.add(label);
-		if (!open)
+		addRow(parent, "House", furniture.size() + " built" + (costumes.isEmpty() ? "" : " · " + costumes.size() + " costumes"), id, context);
+		if (!context.openSections.contains(id))
 		{
 			return;
 		}
-		JPanel list = new JPanel(new GridLayout(0, 1));
-		list.setOpaque(false);
+		JPanel content = new JPanel();
+		content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
+		content.setOpaque(false);
 		for (String item : furniture)
 		{
 			String name = Clean.text(item, 40);
 			if (name != null)
 			{
-				list.add(smallLabel(name));
+				content.add(align(Ui.small(name, ColorScheme.LIGHT_GRAY_COLOR)));
 			}
 		}
-		parent.add(list);
 		if (!costumes.isEmpty())
 		{
 			List<Item> items = new ArrayList<>();
@@ -509,11 +524,15 @@ class MemberCard extends JPanel
 					items.add(new Item(itemId, 1));
 				}
 			}
-			parent.add(heading("Costume room"));
-			parent.add(new ItemGrid(items, 5, false, context.itemManager, context.clientThread));
+			content.add(align(caption("Costume room", null)));
+			content.add(align(new ItemGrid(items, 5, false, context.itemManager, context.clientThread)));
 		}
+		addContent(parent, content);
 	}
 
+	/**
+	 * Skills laid out like the in-game skills tab: icon and yellow level on a brown tile, gold at 99.
+	 */
 	private static JPanel skillGrid(SkillsData skills, SkillIconManager skillIconManager)
 	{
 		List<Skill> order = new ArrayList<>(SKILL_ORDER);
@@ -529,43 +548,49 @@ class MemberCard extends JPanel
 		grid.setOpaque(false);
 		for (Skill skill : order)
 		{
-			JLabel label = new JLabel(String.valueOf(skills.getLevel(skill)));
+			int level = skills.getLevel(skill);
+			JLabel label = Ui.small(String.valueOf(level), level >= Experience.MAX_REAL_LEVEL ? MAXED : Color.YELLOW);
 			label.setIcon(new ImageIcon(skillIconManager.getSkillImage(skill, true)));
-			label.setFont(FontManager.getRunescapeSmallFont());
-			label.setForeground(Color.WHITE);
+			label.setIconTextGap(6);
+			label.setOpaque(true);
+			label.setBackground(SKILL_TILE);
+			label.setBorder(new EmptyBorder(3, 6, 3, 4));
 			label.setToolTipText(skill.getName() + ": " + QuantityFormatter.formatNumber(skills.getXp(skill)) + " xp");
 			grid.add(label);
 		}
 		return grid;
 	}
 
-	static JLabel heading(String text)
+	/**
+	 * A small grey heading over a block, with when it was last seen on the right.
+	 */
+	static JPanel caption(String title, String right)
 	{
-		JLabel label = new JLabel(text);
-		label.setFont(FontManager.getRunescapeSmallFont());
-		label.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
-		label.setBorder(BorderFactory.createEmptyBorder(6, 0, 2, 0));
-		return label;
-	}
-
-	static void clickable(JComponent component, Runnable onClick)
-	{
-		component.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-		component.addMouseListener(new MouseAdapter()
+		JPanel row = new JPanel(new BorderLayout());
+		row.setOpaque(false);
+		row.setBorder(new EmptyBorder(6, 0, 3, 0));
+		row.add(Ui.small(title, ColorScheme.LIGHT_GRAY_COLOR), BorderLayout.WEST);
+		if (right != null)
 		{
-			@Override
-			public void mouseClicked(MouseEvent e)
-			{
-				onClick.run();
-			}
-		});
+			row.add(Ui.muted(right), BorderLayout.EAST);
+		}
+		row.setAlignmentX(Component.LEFT_ALIGNMENT);
+		row.setMaximumSize(new Dimension(Integer.MAX_VALUE, row.getPreferredSize().height));
+		return row;
 	}
 
-	private static JLabel smallLabel(String text)
+	private static JPanel valueRow(String name, String value, Color valueColor)
 	{
-		JLabel label = new JLabel(text);
-		label.setFont(FontManager.getRunescapeSmallFont());
-		label.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
-		return label;
+		JPanel row = new JPanel(new BorderLayout(6, 0));
+		row.setOpaque(false);
+		row.add(Ui.small(name, ColorScheme.LIGHT_GRAY_COLOR), BorderLayout.CENTER);
+		row.add(Ui.small(value, valueColor), BorderLayout.EAST);
+		return row;
+	}
+
+	private static <T extends JComponent> T align(T component)
+	{
+		component.setAlignmentX(Component.LEFT_ALIGNMENT);
+		return component;
 	}
 }
