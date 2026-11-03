@@ -14,6 +14,9 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
+import net.runelite.api.Client;
+import net.runelite.api.GameState;
+import net.runelite.api.events.GameStateChanged;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.PartyChanged;
@@ -58,6 +61,7 @@ public class GroupSync
 	private static final int RECORD_BUDGET = 48_000;
 	private static final long SUMMARY_INTERVAL_MS = 3_000;
 
+	private final Client client;
 	private final PartyService partyService;
 	private final WSClient wsClient;
 	private final ClientThread clientThread;
@@ -71,10 +75,14 @@ public class GroupSync
 	private volatile boolean summaryWanted;
 	private long lastSummaryAt;
 	private boolean inOtherParty;
+	private boolean inGroupParty;
+	private volatile boolean leaving;
+	private volatile boolean rejoinOnLogin;
 
 	@Inject
-	private GroupSync(PartyService partyService, WSClient wsClient, ClientThread clientThread, HomebaseConfig config, Gson gson)
+	private GroupSync(Client client, PartyService partyService, WSClient wsClient, ClientThread clientThread, HomebaseConfig config, Gson gson)
 	{
+		this.client = client;
 		this.partyService = partyService;
 		this.wsClient = wsClient;
 		this.clientThread = clientThread;
@@ -143,6 +151,7 @@ public class GroupSync
 	{
 		if (isGroupParty())
 		{
+			leaving = true;
 			partyService.changeParty(null);
 		}
 	}
@@ -156,8 +165,25 @@ public class GroupSync
 			// they finished with someone else's party, so come home
 			joinGroupParty();
 		}
+		// RuneLite's party plugin leaves after half an hour at the login screen; come back at login
+		rejoinOnLogin = joined == null && inGroupParty && !leaving && client.getGameState() == GameState.LOGIN_SCREEN;
+		leaving = false;
 		inOtherParty = joined != null && !joined.equals(passphrase);
+		inGroupParty = joined != null && joined.equals(passphrase);
 		notifyStatus();
+	}
+
+	@Subscribe
+	public void onGameStateChanged(GameStateChanged event)
+	{
+		if (event.getGameState() == GameState.LOGGED_IN && rejoinOnLogin)
+		{
+			rejoinOnLogin = false;
+			if (config.autoJoin() && !partyService.isInParty())
+			{
+				joinGroupParty();
+			}
+		}
 	}
 
 	@Subscribe
