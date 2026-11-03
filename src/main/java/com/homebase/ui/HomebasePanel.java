@@ -1,12 +1,14 @@
 package com.homebase.ui;
 
 import com.homebase.HomebasePlugin;
+import com.homebase.bounties.BountyService;
 import com.homebase.collect.LocalCollector;
 import com.homebase.data.Clean;
 import com.homebase.data.GroupView;
 import com.homebase.data.ItemsData;
 import com.homebase.data.ProfileData;
 import com.homebase.data.Section;
+import com.homebase.goals.GoalService;
 import com.homebase.party.GroupSync;
 import com.homebase.requests.RequestService;
 import com.homebase.updates.UpdateTracker;
@@ -59,10 +61,12 @@ public class HomebasePanel extends PluginPanel
 	private final JToggleButton membersTab = new JToggleButton("Members");
 	private final JToggleButton updatesTab = new JToggleButton("Updates");
 	private final JToggleButton requestsTab = new JToggleButton("Requests");
-	private final JPanel tabs = new JPanel(new GridLayout(1, 3, 2, 0));
+	private final JToggleButton goalsTab = new JToggleButton("Goals");
+	private final JPanel tabs = new JPanel(new GridLayout(2, 2, 2, 2));
 	private final JPanel list = new JPanel();
 	private final RequestsView requestsView;
 	private final UpdatesView updatesView;
+	private final GoalsView goalsView;
 	private final MemberCard.Context cardContext;
 	private final Map<String, MemberCard> cards = new HashMap<>();
 	private final Set<String> expanded = new HashSet<>();
@@ -76,8 +80,8 @@ public class HomebasePanel extends PluginPanel
 
 	@Inject
 	private HomebasePanel(HomebasePlugin plugin, GroupSync groupSync, PartyService partyService, LocalCollector collector,
-		RequestService requestService, UpdateTracker updateTracker, ItemManager itemManager, SkillIconManager skillIconManager,
-		ClientThread clientThread)
+		RequestService requestService, UpdateTracker updateTracker, GoalService goalService, BountyService bountyService,
+		ItemManager itemManager, SkillIconManager skillIconManager, ClientThread clientThread)
 	{
 		this.plugin = plugin;
 		this.groupSync = groupSync;
@@ -87,6 +91,8 @@ public class HomebasePanel extends PluginPanel
 		this.clientThread = clientThread;
 		this.requestsView = new RequestsView(requestService);
 		this.updatesView = new UpdatesView(updateTracker);
+		this.goalsView = new GoalsView(goalService, bountyService, itemManager, clientThread,
+			() -> view == null ? null : view.get(null, Section.GROUP_STORAGE, ItemsData.class));
 		this.cardContext = new MemberCard.Context(itemManager, skillIconManager, clientThread, openSections, id ->
 		{
 			if (!openSections.remove(id))
@@ -125,7 +131,7 @@ public class HomebasePanel extends PluginPanel
 		});
 
 		ButtonGroup tabGroup = new ButtonGroup();
-		for (JToggleButton tab : new JToggleButton[]{membersTab, updatesTab, requestsTab})
+		for (JToggleButton tab : new JToggleButton[]{membersTab, updatesTab, requestsTab, goalsTab})
 		{
 			tab.setFocusPainted(false);
 			tab.setFont(FontManager.getRunescapeSmallFont());
@@ -213,7 +219,7 @@ public class HomebasePanel extends PluginPanel
 		if (view != null)
 		{
 			int open = requestsView.openCount();
-			// three tabs leave no room for a count, so open requests turn the tab orange instead
+			// the tabs leave no room for a count, so open requests turn the tab orange instead
 			requestsTab.setForeground(open > 0 ? ColorScheme.BRAND_ORANGE : membersTab.getForeground());
 			requestsTab.setToolTipText(open == 1 ? "1 open request" : open + " open requests");
 			if (requestsTab.isSelected())
@@ -227,6 +233,12 @@ public class HomebasePanel extends PluginPanel
 				updatesView.refresh();
 				updatesView.setAlignmentX(Component.LEFT_ALIGNMENT);
 				list.add(updatesView);
+			}
+			else if (goalsTab.isSelected())
+			{
+				goalsView.refresh();
+				goalsView.setAlignmentX(Component.LEFT_ALIGNMENT);
+				list.add(goalsView);
 			}
 			else
 			{

@@ -5,12 +5,17 @@ import com.google.gson.Gson;
 import com.google.gson.JsonParseException;
 import com.google.gson.reflect.TypeToken;
 import com.google.inject.Provides;
+import com.homebase.bounties.BountyGuard;
+import com.homebase.bounties.BountyOverlay;
+import com.homebase.bounties.BountyService;
+import com.homebase.collect.ActivityCollector;
 import com.homebase.collect.LocalCollector;
 import com.homebase.data.GroupIndex;
 import com.homebase.data.GroupView;
 import com.homebase.data.Ids;
 import com.homebase.data.ProfileData;
 import com.homebase.data.UpdateEntry;
+import com.homebase.goals.GoalService;
 import com.homebase.map.GroupWorldMap;
 import com.homebase.overlay.GroupHudOverlay;
 import com.homebase.overlay.GroupTileOverlay;
@@ -151,6 +156,21 @@ public class HomebasePlugin extends Plugin
 	@Inject
 	private GroupWorldMap worldMap;
 
+	@Inject
+	private ActivityCollector activityCollector;
+
+	@Inject
+	private GoalService goalService;
+
+	@Inject
+	private BountyService bountyService;
+
+	@Inject
+	private BountyGuard bountyGuard;
+
+	@Inject
+	private BountyOverlay bountyOverlay;
+
 	/**
 	 * The Group Ironman group being synced automatically, or null when using a passphrase or no group.
 	 */
@@ -165,6 +185,7 @@ public class HomebasePlugin extends Plugin
 	private String openPassphrase;
 	private volatile boolean updatesToAnnounce;
 	private int mapTicks;
+	private final AtomicBoolean goalCheckScheduled = new AtomicBoolean();
 	private final Consumer<UpdateEntry> updateListener = this::onUpdate;
 
 	/**
@@ -194,9 +215,12 @@ public class HomebasePlugin extends Plugin
 		eventBus.register(groupSync);
 		eventBus.register(collector);
 		eventBus.register(groupTiles);
+		eventBus.register(activityCollector);
+		eventBus.register(bountyGuard);
 		collector.setGroupListener(this::onGroupNameRead);
 		collector.setSharePolicy(this::belongsToGroup);
 		collector.start();
+		activityCollector.start();
 
 		// RuneLite's party service shares live stats; our own sync handles everything that persists
 		partyDataService.subscribe(this, PartyDataType.CHARACTER_NAME, PartyDataType.COORD, PartyDataType.ENERGY);
@@ -214,6 +238,7 @@ public class HomebasePlugin extends Plugin
 		clientToolbar.addNavigation(navButton);
 		overlayManager.add(hudOverlay);
 		overlayManager.add(tileOverlay);
+		overlayManager.add(bountyOverlay);
 
 		selectGroup();
 
@@ -233,6 +258,11 @@ public class HomebasePlugin extends Plugin
 		updateTracker.removeListener(updateListener);
 		updateTracker.setGroup(null, null);
 		collector.stop();
+		activityCollector.stop();
+		goalService.setGroup(null, null, null);
+		bountyService.setEngine(null);
+		eventBus.unregister(bountyGuard);
+		eventBus.unregister(activityCollector);
 		eventBus.unregister(groupTiles);
 		eventBus.unregister(collector);
 		eventBus.unregister(groupSync);
@@ -243,6 +273,7 @@ public class HomebasePlugin extends Plugin
 
 		overlayManager.remove(hudOverlay);
 		overlayManager.remove(tileOverlay);
+		overlayManager.remove(bountyOverlay);
 		worldMap.clear();
 		groupIndex.setView(null, p -> true);
 		clientToolbar.removeNavigation(navButton);
@@ -417,6 +448,8 @@ public class HomebasePlugin extends Plugin
 			updateTracker.setGroup(null, null);
 			clientThread.invokeLater(() -> collector.setEngine(null));
 			groupIndex.setView(null, this::belongsToGroup);
+			goalService.setGroup(null, null, null);
+			bountyService.setEngine(null);
 			panel.setView(null);
 			if (wasInGroupParty)
 			{
@@ -432,6 +465,8 @@ public class HomebasePlugin extends Plugin
 		{
 			g.dirty.set(true);
 			groupIndex.invalidate();
+			bountyService.invalidate();
+			scheduleGoalCheck();
 			panel.scheduleRebuild();
 			announce(record);
 			updateTracker.onRecordChanged(previous, record);
@@ -444,6 +479,8 @@ public class HomebasePlugin extends Plugin
 		clientThread.invokeLater(() -> collector.setEngine(g.engine));
 		GroupView view = new GroupView(g.store, gson);
 		groupIndex.setView(view, this::belongsToGroup);
+		goalService.setGroup(g.engine, view, this::belongsToGroup);
+		bountyService.setEngine(g.engine);
 		panel.setView(view);
 
 		// join only once the saved copy is loaded, so updates from others are compared with what we had
@@ -451,11 +488,43 @@ public class HomebasePlugin extends Plugin
 		executor.execute(() ->
 		{
 			load(g);
+			// the first look at goals after loading only notes who has already reached them
+			goalService.checkCompletions();
 			if (join && group == g)
 			{
 				groupSync.joinGroupParty();
 			}
 		});
+	}
+
+	/**
+	 * Look for newly reached goals a little after data changes, so a burst of updates is checked once.
+	 */
+	private void scheduleGoalCheck()
+	{
+		if (!goalCheckScheduled.compareAndSet(false, true))
+		{
+			return;
+		}
+		executor.schedule(() ->
+		{
+			goalCheckScheduled.set(false);
+			List<String> reached = goalService.checkCompletions();
+			if (reached.isEmpty() || !config.goalMessages())
+			{
+				return;
+			}
+			clientThread.invokeLater(() ->
+			{
+				if (client.getGameState() == GameState.LOGGED_IN)
+				{
+					for (String line : reached)
+					{
+						client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "<col=ff9800>[Homebase]</col> " + line, null);
+					}
+				}
+			});
+		}, 2, TimeUnit.SECONDS);
 	}
 
 	/**

@@ -1,9 +1,13 @@
 package com.homebase.ui;
 
 import com.homebase.data.Clean;
+import com.homebase.data.CollectionLogData;
+import com.homebase.data.CombatAchievementsData;
 import com.homebase.data.DiariesData;
 import com.homebase.data.GroupView;
+import com.homebase.data.HouseData;
 import com.homebase.data.ItemsData;
+import com.homebase.data.KillCountsData;
 import com.homebase.data.ProfileData;
 import com.homebase.data.QuestsData;
 import com.homebase.data.Section;
@@ -18,8 +22,11 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.function.Consumer;
 import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
@@ -188,6 +195,10 @@ class MemberCard extends JPanel
 
 		addQuests(details, memberId, view, context);
 		addDiaries(details, memberId, view, context);
+		addCombatAchievements(details, memberId, view);
+		addCollectionLog(details, memberId, view, context);
+		addKillCounts(details, memberId, view, context);
+		addHouse(details, memberId, view, context);
 		addItems(details, "Inventory", memberId, Section.INVENTORY, 4, true, view, context);
 		addItems(details, "Equipment", memberId, Section.EQUIPMENT, 5, false, view, context);
 		addCollapsible(details, "Bank", memberId, Section.BANK, view, context);
@@ -329,6 +340,166 @@ class MemberCard extends JPanel
 			grid.add(row);
 		}
 		parent.add(grid);
+	}
+
+	private static void addCombatAchievements(JPanel parent, String memberId, GroupView view)
+	{
+		CombatAchievementsData ca = view.get(memberId, Section.COMBAT_ACHIEVEMENTS, CombatAchievementsData.class);
+		if (ca == null)
+		{
+			return;
+		}
+		String tier = ca.tierName();
+		JLabel label = heading("Combat achievements  ·  " + ca.getPoints() + " points, " + ca.getTasks() + " tasks"
+			+ (tier == null ? "" : ", " + tier));
+		label.setToolTipText(tier == null ? "No tier reached yet" : "Highest tier reached: " + tier);
+		parent.add(label);
+	}
+
+	private static void addCollectionLog(JPanel parent, String memberId, GroupView view, Context context)
+	{
+		CollectionLogData log = view.get(memberId, Section.COLLECTION_LOG, CollectionLogData.class);
+		if (log == null)
+		{
+			return;
+		}
+		Map<String, CollectionLogData.Page> pages = log.getPages() == null ? new HashMap<>() : log.getPages();
+		List<String> recent = log.getRecent() == null ? new ArrayList<>() : log.getRecent();
+		String id = memberId + ":" + Section.COLLECTION_LOG.getKey();
+		boolean open = context.openSections.contains(id);
+		String counts = log.getObtained() > 0 && log.getTotal() > 0
+			? log.getObtained() + "/" + log.getTotal() + " slots"
+			: pages.size() + (pages.size() == 1 ? " page seen" : " pages seen");
+		JLabel label = heading((open ? "▾ " : "▸ ") + "Collection log  ·  " + counts);
+		label.setForeground(Color.WHITE);
+		clickable(label, () -> context.toggleSection.accept(id));
+		parent.add(label);
+		if (!open)
+		{
+			return;
+		}
+		JPanel list = new JPanel(new GridLayout(0, 1));
+		list.setOpaque(false);
+		int shown = 0;
+		for (String item : recent)
+		{
+			String name = Clean.text(item, 60);
+			if (name != null && shown++ < 5)
+			{
+				list.add(smallLabel("New: " + name));
+			}
+		}
+		TreeMap<String, CollectionLogData.Page> sorted = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+		for (Map.Entry<String, CollectionLogData.Page> e : pages.entrySet())
+		{
+			String name = Clean.text(e.getKey(), 60);
+			if (name != null && e.getValue() != null)
+			{
+				sorted.put(name, e.getValue());
+			}
+		}
+		for (Map.Entry<String, CollectionLogData.Page> e : sorted.entrySet())
+		{
+			CollectionLogData.Page page = e.getValue();
+			int have = page.getItems() == null ? 0 : page.getItems().size();
+			JLabel row = smallLabel(e.getKey() + "  " + have + "/" + page.getSize());
+			row.setForeground(have >= page.getSize() && page.getSize() > 0
+				? ColorScheme.PROGRESS_COMPLETE_COLOR : ColorScheme.LIGHT_GRAY_COLOR);
+			row.setToolTipText("Seen " + Ago.format(page.getSeen()));
+			list.add(row);
+		}
+		if (sorted.isEmpty() && recent.isEmpty())
+		{
+			list.add(smallLabel("Pages appear here as they browse their collection log."));
+		}
+		parent.add(list);
+	}
+
+	private static void addKillCounts(JPanel parent, String memberId, GroupView view, Context context)
+	{
+		KillCountsData kills = view.get(memberId, Section.KILL_COUNTS, KillCountsData.class);
+		if (kills == null || kills.getCounts() == null || kills.getCounts().isEmpty())
+		{
+			return;
+		}
+		String id = memberId + ":" + Section.KILL_COUNTS.getKey();
+		boolean open = context.openSections.contains(id);
+		int bosses = kills.getCounts().size();
+		JLabel label = heading((open ? "▾ " : "▸ ") + "Kill counts  ·  " + bosses + (bosses == 1 ? " boss" : " bosses"));
+		label.setForeground(Color.WHITE);
+		clickable(label, () -> context.toggleSection.accept(id));
+		parent.add(label);
+		if (!open)
+		{
+			return;
+		}
+		List<Map.Entry<String, Integer>> rows = new ArrayList<>();
+		for (Map.Entry<String, Integer> e : kills.getCounts().entrySet())
+		{
+			String name = Clean.text(e.getKey(), 40);
+			if (name != null && e.getValue() != null)
+			{
+				rows.add(new java.util.AbstractMap.SimpleEntry<>(name, e.getValue()));
+			}
+		}
+		rows.sort((a, b) -> b.getValue() - a.getValue());
+		JPanel list = new JPanel(new GridLayout(0, 1));
+		list.setOpaque(false);
+		for (Map.Entry<String, Integer> e : rows)
+		{
+			JPanel row = new JPanel(new BorderLayout());
+			row.setOpaque(false);
+			row.add(smallLabel(e.getKey()), BorderLayout.WEST);
+			row.add(smallLabel(QuantityFormatter.formatNumber(e.getValue())), BorderLayout.EAST);
+			list.add(row);
+		}
+		parent.add(list);
+	}
+
+	private static void addHouse(JPanel parent, String memberId, GroupView view, Context context)
+	{
+		HouseData house = view.get(memberId, Section.HOUSE, HouseData.class);
+		if (house == null)
+		{
+			return;
+		}
+		List<String> furniture = house.getFurniture() == null ? new ArrayList<>() : house.getFurniture();
+		List<Integer> costumes = house.getCostumes() == null ? new ArrayList<>() : house.getCostumes();
+		String id = memberId + ":" + Section.HOUSE.getKey();
+		boolean open = context.openSections.contains(id);
+		JLabel label = heading((open ? "▾ " : "▸ ") + "House  ·  " + furniture.size() + " furniture"
+			+ (costumes.isEmpty() ? "" : ", " + costumes.size() + " costumes") + "  ·  " + Ago.format(view.updatedAt(memberId, Section.HOUSE)));
+		label.setForeground(Color.WHITE);
+		clickable(label, () -> context.toggleSection.accept(id));
+		parent.add(label);
+		if (!open)
+		{
+			return;
+		}
+		JPanel list = new JPanel(new GridLayout(0, 1));
+		list.setOpaque(false);
+		for (String item : furniture)
+		{
+			String name = Clean.text(item, 40);
+			if (name != null)
+			{
+				list.add(smallLabel(name));
+			}
+		}
+		parent.add(list);
+		if (!costumes.isEmpty())
+		{
+			List<Item> items = new ArrayList<>();
+			for (Integer itemId : costumes)
+			{
+				if (itemId != null && itemId > 0)
+				{
+					items.add(new Item(itemId, 1));
+				}
+			}
+			parent.add(heading("Costume room"));
+			parent.add(new ItemGrid(items, 5, false, context.itemManager, context.clientThread));
+		}
 	}
 
 	private static JPanel skillGrid(SkillsData skills, SkillIconManager skillIconManager)

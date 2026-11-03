@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 
 /**
  * Describes what changed between two copies of a member's data, in the words shown to players:
@@ -104,6 +105,97 @@ public final class UpdateDiff
 		for (String name : names)
 		{
 			out.add("completed the " + name + " diary");
+		}
+		return out;
+	}
+
+	/**
+	 * Combat achievement tasks and tiers completed since before. A member we first saw with no tasks
+	 * gets no line, since their tasks may simply not have loaded yet.
+	 */
+	public static List<String> combatAchievements(int tasksBefore, int tasksAfter, int tierBefore, int tierAfter, List<String> tiers)
+	{
+		List<String> out = new ArrayList<>();
+		if (tasksBefore <= 0)
+		{
+			return out;
+		}
+		int done = tasksAfter - tasksBefore;
+		if (done == 1)
+		{
+			out.add("completed a combat achievement");
+		}
+		else if (done > 1)
+		{
+			out.add("completed " + done + " combat achievements");
+		}
+		if (tierAfter > tierBefore && tierAfter >= 0 && tierAfter < tiers.size())
+		{
+			out.add("reached " + tiers.get(tierAfter) + " combat achievements");
+		}
+		return out;
+	}
+
+	/**
+	 * Collection log slots filled since before.
+	 *
+	 * @param recentBefore newest slots as we had them, newest first
+	 * @param recentAfter newest slots as they are now, newest first
+	 */
+	public static List<String> collectionLog(int obtainedBefore, int obtainedAfter, List<String> recentBefore, List<String> recentAfter)
+	{
+		List<String> names = new ArrayList<>();
+		for (String name : recentAfter)
+		{
+			if (recentBefore.contains(name))
+			{
+				break;
+			}
+			names.add(name);
+		}
+		if (names.isEmpty())
+		{
+			int filled = obtainedBefore > 0 ? obtainedAfter - obtainedBefore : 0;
+			if (filled == 1)
+			{
+				return Collections.singletonList("filled a collection log slot");
+			}
+			return filled > 1 ? Collections.singletonList("filled " + filled + " collection log slots") : Collections.emptyList();
+		}
+		if (names.size() > MAX_LISTED)
+		{
+			return Collections.singletonList("filled " + names.size() + " collection log slots");
+		}
+		Collections.reverse(names);
+		List<String> out = new ArrayList<>();
+		for (String name : names)
+		{
+			out.add("new collection log slot: " + name);
+		}
+		return out;
+	}
+
+	/**
+	 * Bosses killed since before. Bosses we hadn't seen a count for get no line, since the count may
+	 * cover years of kills.
+	 *
+	 * @param before boss name to kill count, as we had it
+	 * @param after boss name to kill count, as it is now
+	 */
+	public static List<String> killCounts(Map<String, Integer> before, Map<String, Integer> after)
+	{
+		List<String> out = new ArrayList<>();
+		for (Map.Entry<String, Integer> entry : new TreeMap<>(after).entrySet())
+		{
+			Integer old = before.get(entry.getKey());
+			if (old != null && entry.getValue() != null && entry.getValue() > old)
+			{
+				out.add(entry.getKey() + " kill count " + old + " → " + entry.getValue());
+			}
+		}
+		if (out.size() > MAX_LISTED)
+		{
+			return Collections.singletonList("kill counts went up for " + out.size() + " bosses");
 		}
 		return out;
 	}

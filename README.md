@@ -46,6 +46,13 @@ With one account:
 - [ ] Opening the group storage adds a **Group storage** section at the top, saying who saw it last.
 - [ ] On the **Requests** tab, requesting an item adds it to the list. **Cancel** removes it.
 - [ ] After closing and reopening RuneLite, everything is still there before you log in.
+- [ ] The **Group HUD** box shows your hitpoints, prayer, run energy, combat level and area (for example "Lumbridge"). Its settings change what it shows, compact mode and size, and **Include yourself** hides your own line.
+- [ ] Shift + right-click a tile and choose **Group mark**. The tile is outlined in **Your tile colour** with your name on it. Changing the colour changes the tile. **Group unmark** removes it, and it's still there after restarting.
+- [ ] A combat achievement task, a "New item added to your collection log" message and a boss kill count message each update the matching line on your card (**Combat achievements**, **Collection log**, **Kill counts**).
+- [ ] Browsing a page of your collection log adds that page, with how many of its items you have, under **Collection log** on your card.
+- [ ] Going home (house portal **Home**, Teleport to House or a house tab) lists your useful furniture under **House** on your card. Opening the costume room storage lists what's in it.
+- [ ] On the **Goals** tab, set a goal you've already reached (for example 1 Attack) and one you haven't. The first shows a tick by your name, the second your progress such as "45/50".
+- [ ] **Add bounty** on a goal you haven't reached, pick an item from group storage and tick yourself. In group storage that item gets a red padlock with the goal in its tooltip, and its Withdraw options are gone. Deleting the bounty brings them back.
 
 With a second group member running the plugin:
 
@@ -54,6 +61,9 @@ With a second group member running the plugin:
 - [ ] **I'll get it**, **Done** and **Clear** update for both of you.
 - [ ] When one of you logs out, the other's panel shows "Seen … ago" for them.
 - [ ] While one of you is offline, the other gains a level, finishes a quest or completes a diary tier. On logging back in, the first gets one chat line such as "[Homebase] bonscott1: Magic 15 -> 32, completed The Restless Ghost, completed the Varrock Easy diary." The same summary appears on the **Updates** tab.
+- [ ] Each of you sees the other in the **Group HUD**, on the world map (a dot in their tile colour, with their name and area as the tooltip), and their marked tiles in their colour, including inside a raid you both enter.
+- [ ] When one of you reaches a goal, the other gets a chat message such as "[Homebase] bonscott1 reached the goal: 50 Firemaking." and the goal ticks off for them.
+- [ ] A bounty that locks only one of you leaves the other's Withdraw options alone and shows them a green padlock.
 - [ ] Expanding a member shows **Quests** and **Diaries** lines with their counts. Clicking them shows the quest list and the diary grid. Karamja's Easy, Medium and Hard tiers use older game flags than the other diaries, so check those against the in-game journal.
 
 ## To-do
@@ -105,13 +115,14 @@ Items are ticked when they're built. Each stage's last box is ticked once it has
 - [x] Updates gathered for a few seconds, so catching up on login gives one line per member
 - [x] Quests and Diaries sections on each member's card
 - [x] Tested in the simulated RuneLite, including your example summary
-- [ ] Combat achievements
-- [ ] Collection log (captured as members browse it, plus new-slot chat messages)
-- [ ] Boss kill counts
-- [ ] Player-owned house contents (rooms and furniture built, costume room storage)
-- [ ] Combat achievements, collection log and kill counts in the summaries too
-- [ ] Goals: set a target for every member (for example 50 Firemaking for Wintertodt)
-- [ ] Goals tick off automatically as each member reaches them
+- [x] Combat achievements: points, tasks done and highest tier reached, read from the game
+- [x] Collection log: pages captured as members browse them (how many of each page's items they have), new slots from the "New item added to your collection log" message, and the total when the game provides it
+- [x] Boss kill counts, from kill count messages and the collection log's page headers
+- [x] Player-owned house: useful furniture built (pools, jewellery box, portal nexus, altars, mounted items and more), captured in your own house, and the costume room storage when it's opened
+- [ ] Rooms built in the house (the game doesn't name rooms, so this needs more work)
+- [x] Combat achievements, collection log and kill counts in the summaries too
+- [x] Goals on a new **Goals** tab: skill levels, total level, quests, diaries, kill counts, combat achievement points and collection log slots, for everyone or one member (for example 50 Firemaking for Wintertodt)
+- [x] Goals tick off automatically as each member reaches them, with a chat message when someone does (can be turned off)
 - [ ] Tested in game
 
 ### Stage 4: Request panel
@@ -126,11 +137,11 @@ Items are ticked when they're built. Each stage's last box is ticked once it has
 
 ### Stage 5: Bank bounties
 
-- [ ] Put a bounty on an item in group storage, tied to a goal
-- [ ] Choose which members are locked out until the goal is met
-- [ ] Hide the Withdraw options for locked members (soft lock, RuneLite only)
-- [ ] Lock icon and goal shown on the item in group storage
-- [ ] Bounty lifts automatically when the goal is reached
+- [x] Put a bounty on an item in group storage, tied to a goal (**Add bounty** on a goal)
+- [x] Choose which members are locked out until the goal is met
+- [x] Hide the Withdraw options for locked members (soft lock, RuneLite only)
+- [x] Padlock on the item in group storage, red while it's locked for you and green once it isn't, with the goal in its tooltip
+- [x] Bounty lifts automatically for each locked member as they reach the goal
 - [ ] Tested in game
 
 ### Release

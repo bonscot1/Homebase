@@ -4,7 +4,10 @@ import com.google.gson.Gson;
 import com.google.gson.JsonParseException;
 import com.homebase.collect.LocalCollector;
 import com.homebase.data.Clean;
+import com.homebase.data.CollectionLogData;
+import com.homebase.data.CombatAchievementsData;
 import com.homebase.data.DiariesData;
+import com.homebase.data.KillCountsData;
 import com.homebase.data.ProfileData;
 import com.homebase.data.QuestsData;
 import com.homebase.data.Section;
@@ -201,6 +204,34 @@ public class UpdateTracker
 				diaries(decode(store.get(Section.DIARIES.keyFor(memberId)), DiariesData.class)),
 				DiariesData.REGIONS, DiariesData.TIERS));
 		}
+		SyncRecord caBefore = before.get(Section.COMBAT_ACHIEVEMENTS.getKey());
+		if (caBefore != null)
+		{
+			CombatAchievementsData was = decode(caBefore, CombatAchievementsData.class);
+			CombatAchievementsData now = decode(store.get(Section.COMBAT_ACHIEVEMENTS.keyFor(memberId)), CombatAchievementsData.class);
+			if (was != null && now != null)
+			{
+				changes.addAll(UpdateDiff.combatAchievements(was.getTasks(), now.getTasks(), was.getTier(), now.getTier(),
+					CombatAchievementsData.TIERS));
+			}
+		}
+		SyncRecord logBefore = before.get(Section.COLLECTION_LOG.getKey());
+		if (logBefore != null)
+		{
+			CollectionLogData was = decode(logBefore, CollectionLogData.class);
+			CollectionLogData now = decode(store.get(Section.COLLECTION_LOG.keyFor(memberId)), CollectionLogData.class);
+			if (was != null && now != null)
+			{
+				changes.addAll(UpdateDiff.collectionLog(was.getObtained(), now.getObtained(), names(was.getRecent()), names(now.getRecent())));
+			}
+		}
+		SyncRecord killsBefore = before.get(Section.KILL_COUNTS.getKey());
+		if (killsBefore != null)
+		{
+			changes.addAll(UpdateDiff.killCounts(
+				kills(decode(killsBefore, KillCountsData.class)),
+				kills(decode(store.get(Section.KILL_COUNTS.keyFor(memberId)), KillCountsData.class))));
+		}
 		if (changes.isEmpty())
 		{
 			return;
@@ -224,7 +255,8 @@ public class UpdateTracker
 	private static boolean isTracked(String section)
 	{
 		return Section.SKILLS.getKey().equals(section) || Section.QUESTS.getKey().equals(section)
-			|| Section.DIARIES.getKey().equals(section);
+			|| Section.DIARIES.getKey().equals(section) || Section.COMBAT_ACHIEVEMENTS.getKey().equals(section)
+			|| Section.COLLECTION_LOG.getKey().equals(section) || Section.KILL_COUNTS.getKey().equals(section);
 	}
 
 	private <T> T decode(SyncRecord record, Class<T> type)
@@ -268,6 +300,43 @@ public class UpdateTracker
 			{
 				String name = Clean.text(e.getKey(), 60);
 				if (name != null)
+				{
+					out.put(name, e.getValue());
+				}
+			}
+		}
+		return out;
+	}
+
+	/**
+	 * Names written by other players' clients, cleaned before they're shown.
+	 */
+	private static List<String> names(List<String> raw)
+	{
+		List<String> out = new ArrayList<>();
+		if (raw != null)
+		{
+			for (String name : raw)
+			{
+				String clean = Clean.text(name, 60);
+				if (clean != null)
+				{
+					out.add(clean);
+				}
+			}
+		}
+		return out;
+	}
+
+	private static Map<String, Integer> kills(KillCountsData kills)
+	{
+		Map<String, Integer> out = new HashMap<>();
+		if (kills != null && kills.getCounts() != null)
+		{
+			for (Map.Entry<String, Integer> e : kills.getCounts().entrySet())
+			{
+				String name = Clean.text(e.getKey(), 40);
+				if (name != null && e.getValue() != null)
 				{
 					out.put(name, e.getValue());
 				}

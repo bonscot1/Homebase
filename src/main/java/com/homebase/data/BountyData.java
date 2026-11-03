@@ -1,0 +1,30 @@
+package com.homebase.data;
+
+import java.util.ArrayList;
+import java.util.List;
+import lombok.Data;
+
+/**
+ * An item in group storage that some members can't take until they reach a goal. It's a soft lock:
+ * the plugin hides the Withdraw options for those members, so it only binds people running it.
+ */
+@Data
+public class BountyData
+{
+	private int itemId;
+	private String itemName;
+
+	/**
+	 * Id of the goal that lifts the lock.
+	 */
+	private String goalId;
+
+	/**
+	 * Member ids locked out until they reach the goal.
+	 */
+	private List<String> locked = new ArrayList<>();
+
+	private String createdBy;
+	private String createdByName;
+	private long createdAt;
+}
