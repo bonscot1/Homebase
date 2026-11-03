@@ -6,11 +6,13 @@ import com.homebase.data.GroupIndex;
 import com.homebase.party.GroupSync;
 import com.homebase.party.HomebasePing;
 import java.awt.Color;
+import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import javax.swing.SwingUtilities;
 import net.runelite.api.Client;
 import net.runelite.api.MenuEntry;
 import net.runelite.api.NPC;
@@ -23,15 +25,17 @@ import net.runelite.api.events.MenuOptionClicked;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.input.KeyManager;
+import net.runelite.client.input.MouseAdapter;
+import net.runelite.client.input.MouseManager;
 import net.runelite.client.party.PartyMember;
 import net.runelite.client.party.PartyService;
 import net.runelite.client.party.WSClient;
 import net.runelite.client.util.HotkeyListener;
 
 /**
- * Hold the ping key and left-click the ground or a monster, and everyone in the group sees it marked
- * in your colour for a few seconds. The click itself is swallowed, so nothing happens in game, the
- * same way RuneLite's Party plugin handles its pings.
+ * Middle-click the ground or a monster, or hold the ping key and left-click it, and everyone in the
+ * group sees it marked in your colour for a few seconds. A middle-click does nothing in game; a ping
+ * key click is swallowed so nothing happens, the same way RuneLite's Party plugin handles its pings.
  */
 @Singleton
 public class PingService
@@ -40,6 +44,12 @@ public class PingService
 	 * Clicks closer together than this send one ping.
 	 */
 	private static final long SEND_GAP_MS = 400;
+
+	/**
+	 * A middle press that moves further than this, or is held longer, is turning the camera.
+	 */
+	private static final int CLICK_SLOP_PX = 5;
+	private static final long CLICK_MAX_MS = 500;
 
 	/**
 	 * Pings kept per member, so nobody can fill the screen.
@@ -55,14 +65,18 @@ public class PingService
 	private final GroupSync groupSync;
 	private final GroupIndex index;
 
+	private final MouseManager mouseManager;
 	private final List<Ping> pings = new ArrayList<>();
 	private final HotkeyListener hotkey;
+	private final MouseAdapter middleClick;
 	private volatile boolean keyHeld;
+	private java.awt.Point pressedAt;
+	private long pressedTime;
 	private long lastSent;
 
 	@Inject
 	private PingService(Client client, ClientThread clientThread, HomebaseConfig config, PartyService partyService,
-		WSClient wsClient, KeyManager keyManager, GroupSync groupSync, GroupIndex index)
+		WSClient wsClient, KeyManager keyManager, MouseManager mouseManager, GroupSync groupSync, GroupIndex index)
 	{
 		this.client = client;
 		this.clientThread = clientThread;
@@ -70,8 +84,39 @@ public class PingService
 		this.partyService = partyService;
 		this.wsClient = wsClient;
 		this.keyManager = keyManager;
+		this.mouseManager = mouseManager;
 		this.groupSync = groupSync;
 		this.index = index;
+		middleClick = new MouseAdapter()
+		{
+			@Override
+			public MouseEvent mousePressed(MouseEvent e)
+			{
+				if (SwingUtilities.isMiddleMouseButton(e))
+				{
+					pressedAt = e.getPoint();
+					pressedTime = System.currentTimeMillis();
+				}
+				return e;
+			}
+
+			@Override
+			public MouseEvent mouseReleased(MouseEvent e)
+			{
+				// the event is passed on untouched either way, so dragging still turns the camera
+				if (SwingUtilities.isMiddleMouseButton(e) && pressedAt != null)
+				{
+					boolean click = pressedAt.distance(e.getPoint()) <= CLICK_SLOP_PX
+						&& System.currentTimeMillis() - pressedTime <= CLICK_MAX_MS;
+					pressedAt = null;
+					if (click && config.pingButton() == HomebaseConfig.PingButton.MIDDLE_CLICK)
+					{
+						clientThread.invoke(PingService.this::pingHovered);
+					}
+				}
+				return e;
+			}
+		};
 		hotkey = new HotkeyListener(config::pingKey)
 		{
 			@Override
@@ -92,10 +137,12 @@ public class PingService
 	{
 		wsClient.registerMessage(HomebasePing.class);
 		keyManager.registerKeyListener(hotkey);
+		mouseManager.registerMouseListener(middleClick);
 	}
 
 	public void stop()
 	{
+		mouseManager.unregisterMouseListener(middleClick);
 		keyManager.unregisterKeyListener(hotkey);
 		wsClient.unregisterMessage(HomebasePing.class);
 		keyHeld = false;
@@ -108,18 +155,44 @@ public class PingService
 	@Subscribe
 	public void onMenuOptionClicked(MenuOptionClicked event)
 	{
-		if (!keyHeld || !config.pings() || client.isMenuOpen() || !groupSync.isGroupParty())
+		if (!keyHeld || config.pingButton() != HomebaseConfig.PingButton.KEY_AND_CLICK || client.isMenuOpen())
 		{
 			return;
 		}
+		if (ping(event.getMenuEntry().getNpc()))
+		{
+			event.consume();
+		}
+	}
+
+	/**
+	 * Ping whatever the mouse is over: the monster whose option is on top of the menu, or else the
+	 * tile under the cursor. Runs on the client thread.
+	 */
+	private void pingHovered()
+	{
+		if (client.isMenuOpen())
+		{
+			return;
+		}
+		MenuEntry[] entries = client.getMenu().getMenuEntries();
+		// the last entry is the one a left-click would choose, which belongs to what's on top
+		ping(entries.length == 0 ? null : entries[entries.length - 1].getNpc());
+	}
+
+	/**
+	 * @return true if the click was on the game world, so it was a ping (sent unless it came too soon
+	 * after the last one)
+	 */
+	private boolean ping(NPC npc)
+	{
 		PartyMember local = partyService.getLocalMember();
 		WorldView view = client.getTopLevelWorldView();
-		if (local == null || view == null)
+		if (!config.pings() || !groupSync.isGroupParty() || local == null || view == null)
 		{
-			return;
+			return false;
 		}
 
-		NPC npc = event.getMenuEntry().getNpc();
 		LocalPoint where;
 		if (npc != null)
 		{
@@ -130,21 +203,20 @@ public class PingService
 			// only clicks on the game world, not on the inventory or other interfaces
 			if (!onScene())
 			{
-				return;
+				return false;
 			}
 			Tile tile = view.getSelectedSceneTile();
 			where = tile == null ? null : tile.getLocalLocation();
 		}
 		if (where == null)
 		{
-			return;
+			return false;
 		}
-		event.consume();
 
 		long now = System.currentTimeMillis();
 		if (now - lastSent < SEND_GAP_MS)
 		{
-			return;
+			return true;
 		}
 		lastSent = now;
 		WorldPoint point = WorldPoint.fromLocalInstance(client, where);
@@ -153,6 +225,7 @@ public class PingService
 		ping.setMemberId(local.getMemberId());
 		// the party sends it back to us too, which is how our own ping shows up
 		partyService.send(ping);
+		return true;
 	}
 
 	private boolean onScene()

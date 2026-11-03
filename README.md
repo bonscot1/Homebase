@@ -51,7 +51,7 @@ With one account:
 - [ ] A combat achievement task, a "New item added to your collection log" message and a boss kill count message each update the matching line on your card (**Combat achievements**, **Collection log**, **Kill counts**).
 - [ ] Browsing a page of your collection log adds that page, with how many of its items you have, under **Collection log** on your card.
 - [ ] Going home (house portal **Home**, Teleport to House or a house tab) lists your useful furniture under **House** on your card. Opening the costume room storage lists what's in it.
-- [ ] Hold **Alt** and left-click the ground. Nothing happens in game, and the tile flashes in **Your colour** with your name and a dot on the minimap for a few seconds (**Ping length**). Alt + left-click a monster outlines it instead.
+- [ ] Middle-click the ground (a quick click; dragging still turns the camera). The tile flashes in **Your colour** with your name and a dot on the minimap for a few seconds (**Ping length**). Middle-clicking a monster outlines it instead. Setting **Ping with** to **Ping key + left-click** pings with Ctrl + left-click instead, and that click does nothing in game.
 - [ ] Shift + right-click a monster and choose **Group highlight**. It stays outlined in your colour with your name until it dies, you choose **Group unhighlight**, or you change worlds.
 - [ ] On the **Goals** tab, set a goal you've already reached (for example 1 Attack) and one you haven't. The first shows a tick by your name, the second your progress such as "45/50".
 - [ ] **Add bounty** on a goal you haven't reached, pick an item from group storage and tick yourself. In group storage that item gets a red padlock with the goal in its tooltip, and its Withdraw options are gone. Deleting the bounty brings them back.
@@ -108,7 +108,7 @@ Items are ticked when they're built. Each stage's last box is ticked once it has
 - [x] Group tile markers: Shift + right-click a tile and choose **Group mark**, and the whole group sees it
 - [x] Per-member colours for tiles, pings and highlights, set in the plugin settings (**Your colour**), with optional names
 - [x] Tile markers work inside instances (raids and similar): they're stored at the instance's template location
-- [x] Pings: hold **Alt** (or another **Ping key**) and left-click the ground or a monster, and the group sees it flash in your colour, with your name and a minimap dot, for a few seconds
+- [x] Pings: middle-click the ground or a monster (or hold a **Ping key** and left-click, if you prefer), and the group sees it flash in your colour, with your name and a minimap dot, for a few seconds
 - [x] Group highlights: Shift + right-click a monster and choose **Group highlight** to outline it for the whole group until it dies
 - [x] Area names for player-owned houses
 - [ ] Tested in game

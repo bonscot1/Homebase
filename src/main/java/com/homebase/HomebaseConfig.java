@@ -272,10 +272,29 @@ public interface HomebaseConfig extends Config
 	)
 	String pingSection = "pings";
 
+	enum PingButton
+	{
+		MIDDLE_CLICK("Middle-click"),
+		KEY_AND_CLICK("Ping key + left-click");
+
+		private final String label;
+
+		PingButton(String label)
+		{
+			this.label = label;
+		}
+
+		@Override
+		public String toString()
+		{
+			return label;
+		}
+	}
+
 	@ConfigItem(
 		keyName = "pings",
 		name = "Pings",
-		description = "Hold the ping key and left-click the ground or a monster to point it out to your group",
+		description = "Middle-click the ground or a monster to point it out to your group for a few seconds",
 		section = pingSection,
 		position = 31
 	)
@@ -285,15 +304,28 @@ public interface HomebaseConfig extends Config
 	}
 
 	@ConfigItem(
-		keyName = "pingKey",
-		name = "Ping key",
-		description = "Hold this and left-click to ping. RuneLite's own Party plugin uses Shift for its pings.",
+		keyName = "pingButton",
+		name = "Ping with",
+		description = "Middle-click (dragging with the middle button still turns the camera), or hold the ping key and left-click",
 		section = pingSection,
 		position = 32
 	)
+	default PingButton pingButton()
+	{
+		return PingButton.MIDDLE_CLICK;
+	}
+
+	@ConfigItem(
+		keyName = "pingKey",
+		name = "Ping key",
+		description = "The key to hold while left-clicking, when Ping with is set to use it. Alt moves RuneLite's overlays, "
+			+ "Ctrl + click is the game's run toggle and Shift is used by RuneLite's Party plugin pings.",
+		section = pingSection,
+		position = 33
+	)
 	default Keybind pingKey()
 	{
-		return Keybind.ALT;
+		return Keybind.CTRL;
 	}
 
 	@Range(min = 1, max = 10)
@@ -303,7 +335,7 @@ public interface HomebaseConfig extends Config
 		name = "Ping length",
 		description = "How long a ping stays on screen",
 		section = pingSection,
-		position = 33
+		position = 34
 	)
 	default int pingSeconds()
 	{
@@ -315,7 +347,7 @@ public interface HomebaseConfig extends Config
 		name = "Ping sound",
 		description = "Play a sound when someone in your group pings",
 		section = pingSection,
-		position = 34
+		position = 35
 	)
 	default boolean pingSound()
 	{
@@ -327,7 +359,7 @@ public interface HomebaseConfig extends Config
 		name = "Group highlights",
 		description = "Shift + right-click a monster and choose Group highlight to outline it for the whole group until it dies",
 		section = pingSection,
-		position = 35
+		position = 36
 	)
 	default boolean npcHighlights()
 	{
