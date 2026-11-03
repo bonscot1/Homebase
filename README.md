@@ -27,9 +27,11 @@ It's made for Group Ironman groups, and works for any group of friends too.
 
 ## Getting started
 
-**Group Ironman:** turn the plugin on and log in. It reads your group's name and joins everyone in your group together. Nothing to set up.
+**Group Ironman:** turn the plugin on, log in, open the house icon in the sidebar and click **Connect**. The plugin reads your group's name from the game, so there's nothing to set up. Click **Connect** once each time you start RuneLite.
 
-**Any other group:** one of you opens the house icon in the sidebar, clicks **Create group** and then **Copy passphrase**, and sends the passphrase to the others. Everyone pastes it into **Group passphrase** in the plugin's settings.
+**Any other group:** one of you opens the house icon in the sidebar, clicks **Create group** and then **Copy passphrase**, and sends the passphrase to the others. Everyone pastes it into **Group passphrase** in the plugin's settings and clicks **Connect**.
+
+You stay connected when you log out, so you can switch worlds or characters without connecting again. After 30 minutes at the login screen you're disconnected, the same as with RuneLite's Party plugin.
 
 The house icon in the sidebar opens the panel, with four tabs: **Members**, **Updates**, **Requests** and **Goals**.
 
@@ -47,15 +49,16 @@ Under **Pings and highlights** in the settings you can switch pings to a key + l
 ## Privacy and how sharing works
 
 - You share only your own character's details, and only with your group.
-- Data goes through RuneLite's own party service. You're in your group's party only while you're logged in, and nothing is sent to any other server.
+- Data goes through RuneLite's own party service, and only after you click **Connect**. Nothing is sent to any other server.
 - Each member keeps a copy of the group's data on their own computer. When two members are online together, they fill in each other's gaps, so news reaches members who are never online at the same time.
-- Group Ironman group names are public on the hiscores. To stop anyone who knows your group's name from joining in, everyone in the group can enter the same word in **Group Ironman secret**.
+- Group Ironman group names are public on the hiscores, so someone else could join your group's party. The plugin checks everyone in the party against your group's member list in the game. While anyone else is there, it shares nothing, ignores whatever they send, and the panel says who it is. A modified client could still pretend to be one of your group, so for complete peace of mind, everyone in the group can enter the same word in **Group Ironman secret**.
+- If RuneLite's own Party plugin is turned on, it shares your position and stats with whatever party you're in. That's separate from this plugin.
 - An account that isn't in your Group Ironman group, such as an alt, shares nothing.
 
 ## Good to know
 
 - Data only moves while at least two members are online at once.
-- RuneLite allows one party at a time. If you join someone else's party, syncing pauses, and you're back with your group when you leave it.
+- RuneLite allows one party at a time. If you join someone else's party, syncing pauses until you click **Switch to group**.
 - Bank bounties and items kept for requests only stop withdrawals for members using RuneLite with this plugin turned on.
 - Only the amount asked for is held back. If 5 are kept for someone and there are 8 in group storage, anyone can take the other 3, with Withdraw-1, -5 or -10 when the amount fits. Withdraw-X is hidden while any of an item is held back, because the plugin can't see the number you type.
 - Banks, the seed vault, the looting bag and group storage update when someone opens them, and the collection log when someone browses it.

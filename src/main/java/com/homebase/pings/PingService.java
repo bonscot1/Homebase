@@ -192,7 +192,7 @@ public class PingService
 	{
 		PartyMember local = partyService.getLocalMember();
 		WorldView view = client.getTopLevelWorldView();
-		if (!config.pings() || !groupSync.isGroupParty() || local == null || view == null)
+		if (!config.pings() || !groupSync.isGroupParty() || !groupSync.isShareSafe() || local == null || view == null)
 		{
 			return false;
 		}
@@ -247,14 +247,15 @@ public class PingService
 	@Subscribe
 	public void onHomebasePing(HomebasePing message)
 	{
-		if (!config.pings() || !groupSync.isGroupParty())
+		// a Group Ironman group's party only listens to the group's members
+		if (!config.pings() || !groupSync.isGroupParty() || !groupSync.isTrusted(message.getMemberId()))
 		{
 			return;
 		}
 		presence.heard(message.getMemberId());
 		PartyMember member = partyService.getMemberById(message.getMemberId());
 		String name = member == null ? null : Clean.text(member.getDisplayName(), 20);
-		// only people whose account is in the group, not anyone who learns the party's name
+		// and only to members whose data has arrived, so their pings have a colour and a name
 		if (name == null || index.memberId(name) == null)
 		{
 			return;

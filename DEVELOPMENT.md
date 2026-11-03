@@ -16,9 +16,10 @@ Example: I have bonscott1's data from 5pm and mundell's from 1pm. Fred has munde
 ### Limits
 
 - Data only moves while at least two members are online at once.
-- RuneLite allows one party at a time. If you join someone else's party, syncing pauses, and the plugin rejoins your group when you leave.
+- RuneLite allows one party at a time. If you join someone else's party, syncing pauses until you switch back with the panel's button.
+- The party is only joined when the player clicks **Connect**. RuneLite has turned down plugins that join parties by themselves.
 - Bank bounties are a soft lock. They only stop withdrawals for members running RuneLite with this plugin on.
-- Group Ironman group names are public on the hiscores, so anyone with this plugin who knows your group's name could join its party and see what's shared. To keep them out, everyone in the group enters the same word in the **Group Ironman secret** setting.
+- Group Ironman group names are public on the hiscores, so anyone could join a group's party. Everyone in the party is checked against the group's member list (`ClanSettings` for `ClanID.GROUP_IRONMAN`). While anyone isn't on it, nothing is sent (sync, presence, pings, and the party service's position and stats), and nothing from them is used. Party display names are set by each client, so a modified client could pose as a member; the **Group Ironman secret** setting closes that gap.
 - On an account that isn't in your Group Ironman group, such as an alt, nothing is shared.
 
 ## Testing it in RuneLite
@@ -77,12 +78,13 @@ Items are ticked when they're built. Each stage's last box is ticked once it has
 ### Stage 1: Foundation (sync and member panel)
 
 - [x] Plugin project set up from RuneLite's template (Java 11, BSD-2 licence)
-- [x] Group Ironman players join their group automatically on login, with no passphrase, and the group is remembered for next time
+- [x] Group Ironman players connect with one click, with no passphrase, and the group is remembered for next time
 - [x] Only accounts in the Group Ironman group share data, so alts stay out
 - [x] Optional **Group Ironman secret** to keep out people who only know the group's name
 - [x] Group passphrase setting, **Create group** and **Copy passphrase** buttons, for groups that aren't Group Ironman groups
-- [x] Join the group party when you log in and leave it when you log out, so idle clients don't hold a party connection
-- [x] Pause syncing while in another party, and rejoin the group after leaving it
+- [x] Connect once per session with a button; stay connected through logouts and leave after 30 minutes at the login screen
+- [x] Check party members against the Group Ironman member list and share nothing while anyone else is in the party
+- [x] Pause syncing while in another party, with a button to switch back
 - [x] Save the group's data to disk (loaded on start, saved every 30 seconds and on exit)
 - [x] Sync protocol: summaries on join, newest copy wins per member per section, relaying between members, no duplicate sends
 - [x] Safety checks: members can only write their own data, deleted items stay deleted, bad clocks and malformed messages are rejected

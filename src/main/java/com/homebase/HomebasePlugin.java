@@ -68,6 +68,7 @@ import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.party.PartyDataService;
 import net.runelite.client.party.PartyDataType;
 import net.runelite.client.party.PartyService;
+import net.runelite.client.party.events.UserJoin;
 import net.runelite.client.party.messages.PartyData;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
@@ -212,6 +213,11 @@ public class HomebasePlugin extends Plugin
 	private OpenGroup group;
 	private String openPassphrase;
 	private volatile boolean updatesToAnnounce;
+
+	/**
+	 * Whether position, run energy, hitpoints and prayer are being shared through the party service.
+	 */
+	private boolean liveShared;
 	private int mapTicks;
 	private final AtomicBoolean goalCheckScheduled = new AtomicBoolean();
 	private final Consumer<UpdateEntry> updateListener = this::onUpdate;
@@ -256,9 +262,9 @@ public class HomebasePlugin extends Plugin
 		collector.start();
 		activityCollector.start();
 
-		// RuneLite's party service shares live stats; our own sync handles everything that persists
-		partyDataService.subscribe(this, PartyDataType.CHARACTER_NAME, PartyDataType.COORD, PartyDataType.ENERGY);
-		partyDataService.subscribe(this, Skill.HITPOINTS, Skill.PRAYER);
+		// RuneLite's party service shares live stats; our own sync handles everything that persists. Names
+		// are always sent, so the group can tell who's in the party; the rest only once that's checked.
+		partyDataService.subscribe(this, PartyDataType.CHARACTER_NAME);
 
 		updateTracker.addListener(updateListener);
 		panel = injector.getInstance(HomebasePanel.class);
@@ -280,7 +286,11 @@ public class HomebasePlugin extends Plugin
 
 		selectGroup();
 
-		flushTask = executor.scheduleWithFixedDelay(() -> clientThread.invokeLater(groupSync::flush), 1, 1, TimeUnit.SECONDS);
+		flushTask = executor.scheduleWithFixedDelay(() -> clientThread.invokeLater(() ->
+		{
+			groupSync.flush();
+			updateLiveSharing();
+		}), 1, 1, TimeUnit.SECONDS);
 		saveTask = executor.scheduleWithFixedDelay(this::saveCurrent, SAVE_INTERVAL_SECONDS, SAVE_INTERVAL_SECONDS, TimeUnit.SECONDS);
 	}
 
@@ -314,6 +324,7 @@ public class HomebasePlugin extends Plugin
 
 		partyDataService.unsubscribe(this, PartyDataType.values());
 		partyDataService.unsubscribe(this, Skill.values());
+		liveShared = false;
 
 		overlayManager.remove(hudOverlay);
 		overlayManager.remove(tileOverlay);
@@ -489,12 +500,13 @@ public class HomebasePlugin extends Plugin
 		}
 		openPassphrase = passphrase;
 
-		boolean wasInGroupParty = groupSync.isGroupParty();
+		// a different group means a different party, which is only joined by pressing Connect
+		groupSync.leaveGroupParty();
 		closeGroup();
 
 		if (passphrase.isEmpty())
 		{
-			groupSync.setGroup(null, null);
+			groupSync.setGroup(null, null, null);
 			requestService.setEngine(null);
 			updateTracker.setGroup(null, null);
 			clientThread.invokeLater(() -> collector.setEngine(null));
@@ -502,10 +514,6 @@ public class HomebasePlugin extends Plugin
 			goalService.setGroup(null, null, null);
 			bountyService.setEngine(null);
 			panel.setView(null);
-			if (wasInGroupParty)
-			{
-				partyService.changeParty(null);
-			}
 			return;
 		}
 
@@ -526,7 +534,7 @@ public class HomebasePlugin extends Plugin
 		g.store.addListener(g.listener);
 		group = g;
 
-		groupSync.setGroup(passphrase, g.engine);
+		groupSync.setGroup(passphrase, g.engine, gim);
 		requestService.setEngine(g.engine);
 		clientThread.invokeLater(() -> collector.setEngine(g.engine));
 		GroupView view = new GroupView(g.store, gson);
@@ -535,24 +543,11 @@ public class HomebasePlugin extends Plugin
 		bountyService.setEngine(g.engine);
 		panel.setView(view);
 
-		// join only once the saved copy is loaded, so updates from others are compared with what we had
 		executor.execute(() ->
 		{
 			load(g);
 			// the first look at goals after loading only notes who has already reached them
 			goalService.checkCompletions();
-			if (group != g)
-			{
-				return;
-			}
-			if (wasInGroupParty)
-			{
-				groupSync.joinGroupParty();
-			}
-			else
-			{
-				groupSync.joinIfPlaying();
-			}
 		});
 	}
 
@@ -610,6 +605,37 @@ public class HomebasePlugin extends Plugin
 				client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "<col=ff9800>[Homebase]</col> " + message, null);
 			}
 		});
+	}
+
+	/**
+	 * Share position, run energy, hitpoints and prayer through RuneLite's party service only while
+	 * connected to the group with nobody else in the party. Runs on the client thread.
+	 */
+	private void updateLiveSharing()
+	{
+		boolean share = groupSync.isGroupParty() && groupSync.isShareSafe();
+		if (share == liveShared)
+		{
+			return;
+		}
+		liveShared = share;
+		if (share)
+		{
+			partyDataService.subscribe(this, PartyDataType.COORD, PartyDataType.ENERGY);
+			partyDataService.subscribe(this, Skill.HITPOINTS, Skill.PRAYER);
+		}
+		else
+		{
+			partyDataService.unsubscribe(this, PartyDataType.COORD, PartyDataType.ENERGY);
+			partyDataService.unsubscribe(this, Skill.HITPOINTS, Skill.PRAYER);
+		}
+	}
+
+	@Subscribe
+	public void onUserJoin(UserJoin event)
+	{
+		// whoever arrived isn't checked yet, so stop sharing straight away rather than on the next flush
+		clientThread.invokeLater(this::updateLiveSharing);
 	}
 
 	private void closeGroup()

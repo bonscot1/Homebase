@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.LongPredicate;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import net.runelite.api.Client;
@@ -39,6 +40,11 @@ public class Presence
 	private long lastSent;
 	private Set<Long> lastOnline = new HashSet<>();
 
+	/**
+	 * Which party members count as part of the group; anyone else is never shown as online.
+	 */
+	private volatile LongPredicate trusted = memberId -> true;
+
 	@Inject
 	private Presence(Client client, PartyService party, WSClient wsClient)
 	{
@@ -67,6 +73,11 @@ public class Presence
 	public void addListener(Runnable listener)
 	{
 		listeners.add(listener);
+	}
+
+	public void setTrusted(LongPredicate trusted)
+	{
+		this.trusted = trusted;
 	}
 
 	/**
@@ -160,7 +171,7 @@ public class Presence
 		{
 			return client.getGameState() == GameState.LOGGED_IN;
 		}
-		return isOnline(member.getMemberId(), System.currentTimeMillis());
+		return trusted.test(member.getMemberId()) && isOnline(member.getMemberId(), System.currentTimeMillis());
 	}
 
 	boolean isOnline(long memberId, long now)

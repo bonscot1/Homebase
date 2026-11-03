@@ -20,8 +20,8 @@ public interface HomebaseConfig extends Config
 	@ConfigItem(
 		keyName = GIM_SECRET_KEY,
 		name = "Group Ironman secret",
-		description = "Optional. Group Ironman members are connected automatically using the group's name, which is public. "
-			+ "To keep out anyone else who knows the name, everyone in your group enters the same secret word here.",
+		description = "Optional. Group Ironman groups find each other by the group's name, which is public. Only your group's members "
+			+ "are let in, but a modified client could pretend to be one. To rule that out, everyone in your group enters the same word here.",
 		secret = true,
 		position = 0
 	)
@@ -41,17 +41,6 @@ public interface HomebaseConfig extends Config
 	default String groupPassphrase()
 	{
 		return "";
-	}
-
-	@ConfigItem(
-		keyName = "autoJoin",
-		name = "Join group automatically",
-		description = "Join your group's party when you log in and leave it when you log out, and come back to it after leaving someone else's party",
-		position = 2
-	)
-	default boolean autoJoin()
-	{
-		return true;
 	}
 
 	@ConfigItem(

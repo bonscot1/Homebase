@@ -79,7 +79,8 @@ public class HomebasePanel extends PluginPanel
 	private final JLabel groupLabel = new JLabel();
 	private final JLabel statusLabel = new JLabel();
 	private final JButton actionButton = new JButton();
-	private final JPanel actionRow = new JPanel(new BorderLayout());
+	private final JButton secondButton = Ui.button("", () -> runAction(false));
+	private final JPanel actionRow = new JPanel(new GridLayout(1, 0, 6, 0));
 	private final Map<Tab, JLabel> tabLabels = new EnumMap<>(Tab.class);
 	private final JPanel tabs = new JPanel(new GridLayout(1, 0, 0, 0));
 	private final JPanel list = new JPanel();
@@ -97,6 +98,7 @@ public class HomebasePanel extends PluginPanel
 	private GroupView view;
 	private boolean storageExpanded;
 	private Runnable action;
+	private Runnable secondAction;
 
 	@Inject
 	private HomebasePanel(HomebasePlugin plugin, GroupSync groupSync, PartyService partyService, Presence presence, LocalCollector collector,
@@ -148,13 +150,7 @@ public class HomebasePanel extends PluginPanel
 		statusLabel.setBorder(new EmptyBorder(8, 0, 0, 0));
 
 		Ui.primary(actionButton);
-		actionButton.addActionListener(e ->
-		{
-			if (action != null)
-			{
-				action.run();
-			}
-		});
+		actionButton.addActionListener(e -> runAction(true));
 
 		for (Tab t : Tab.values())
 		{
@@ -182,7 +178,8 @@ public class HomebasePanel extends PluginPanel
 
 		actionRow.setOpaque(false);
 		actionRow.setBorder(new EmptyBorder(8, 0, 0, 0));
-		actionRow.add(actionButton, BorderLayout.CENTER);
+		actionRow.add(actionButton);
+		actionRow.add(secondButton);
 
 		JPanel header = new JPanel(new BorderLayout());
 		header.setOpaque(false);
@@ -432,41 +429,66 @@ public class HomebasePanel extends PluginPanel
 
 	private void updateStatus()
 	{
+		String group = Clean.text(plugin.getGimGroup(), 20);
+		boolean gim = group != null;
 		switch (groupSync.getStatus())
 		{
 			case NO_GROUP:
-				setStatus(ColorScheme.MEDIUM_GRAY_COLOR, "Log in on your Group Ironman account and you'll join your group automatically. "
-					+ "For other groups, create a passphrase or paste one into this plugin's settings.", "Create group", plugin::createGroup);
+				setStatus(ColorScheme.MEDIUM_GRAY_COLOR, "Log in on your Group Ironman account to set up your group. "
+					+ "For other groups, create a passphrase or paste one into this plugin's settings.", "Create group", plugin::createGroup, null, null);
 				break;
-			case WAITING:
-			{
-				// a passphrase group may have just been made, so its passphrase can be copied straight away
-				boolean gim = plugin.getGimGroup() != null;
-				setStatus(ColorScheme.MEDIUM_GRAY_COLOR, "Joins your group when you log in", gim ? null : "Copy passphrase", gim ? null : plugin::copyPassphrase);
+			case LOG_IN:
+				setStatus(ColorScheme.MEDIUM_GRAY_COLOR, "Log in on an account in " + group + " to connect", null, null, null, null);
 				break;
-			}
+			case NOT_IN_GROUP:
+				setStatus(ColorScheme.MEDIUM_GRAY_COLOR, "This account isn't in " + group + ", so it can't connect", null, null, null, null);
+				break;
 			case DISCONNECTED:
-				setStatus(ColorScheme.PROGRESS_ERROR_COLOR, "Not connected to your group", "Join group", groupSync::joinGroupParty);
+				// a passphrase group may have just been made, so its passphrase can be copied straight away
+				setStatus(ColorScheme.PROGRESS_ERROR_COLOR, "Not connected to your group", "Connect", groupSync::joinGroupParty,
+					gim ? null : "Copy passphrase", gim ? null : plugin::copyPassphrase);
 				break;
 			case OTHER_PARTY:
-				setStatus(Ui.WARNING, "You're in another party, so syncing is paused", "Switch to group", groupSync::joinGroupParty);
+				boolean canSwitch = groupSync.canConnect();
+				setStatus(Ui.WARNING, "You're in another party, so syncing is paused", canSwitch ? "Switch to group" : null,
+					canSwitch ? groupSync::joinGroupParty : null, null, null);
+				break;
+			case PAUSED:
+				setStatus(Ui.WARNING, "Nothing is shared while " + Clean.text(String.join(", ", groupSync.strangers()), 60)
+					+ " is in the party and not in " + group, null, null, "Disconnect", groupSync::leaveGroupParty);
 				break;
 			case CONNECTED:
-				boolean gim = plugin.getGimGroup() != null;
 				int online = onlineCount();
 				// a Group Ironman group needs no passphrase, so there's nothing to copy
-				setStatus(Ui.ONLINE, "Connected  ·  " + online + " online", gim ? null : "Copy passphrase", gim ? null : plugin::copyPassphrase);
+				setStatus(Ui.ONLINE, "Connected  ·  " + online + " online", gim ? null : "Copy passphrase", gim ? null : plugin::copyPassphrase,
+					"Disconnect", groupSync::leaveGroupParty);
 				break;
 		}
 	}
 
-	private void setStatus(Color dot, String text, String buttonText, Runnable buttonAction)
+	/**
+	 * Show the status, with up to two buttons under it: the main one in orange and another beside it.
+	 */
+	private void setStatus(Color dot, String text, String buttonText, Runnable buttonAction, String secondText, Runnable second)
 	{
 		statusLabel.setIcon(new Ui.Dot(dot));
 		statusLabel.setText("<html><body style='width:" + (Ui.TEXT_WIDTH - 15) + "px'>" + text + "</body></html>");
 		actionButton.setText(buttonText);
-		actionRow.setVisible(buttonText != null);
+		actionButton.setVisible(buttonText != null);
 		action = buttonAction;
+		secondButton.setText(secondText);
+		secondButton.setVisible(secondText != null);
+		secondAction = second;
+		actionRow.setVisible(buttonText != null || secondText != null);
+	}
+
+	private void runAction(boolean main)
+	{
+		Runnable r = main ? action : secondAction;
+		if (r != null)
+		{
+			r.run();
+		}
 	}
 
 	private int onlineCount()
