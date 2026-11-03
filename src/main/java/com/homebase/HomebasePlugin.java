@@ -25,6 +25,7 @@ import com.homebase.pings.GroupHighlights;
 import com.homebase.pings.PingMinimapOverlay;
 import com.homebase.pings.PingOverlay;
 import com.homebase.pings.PingService;
+import com.homebase.requests.RequestDelivery;
 import com.homebase.requests.RequestService;
 import com.homebase.sync.GroupStore;
 import com.homebase.sync.SyncEngine;
@@ -177,6 +178,9 @@ public class HomebasePlugin extends Plugin
 	private BountyOverlay bountyOverlay;
 
 	@Inject
+	private RequestDelivery requestDelivery;
+
+	@Inject
 	private PingService pingService;
 
 	@Inject
@@ -237,6 +241,7 @@ public class HomebasePlugin extends Plugin
 		eventBus.register(groupTiles);
 		eventBus.register(activityCollector);
 		eventBus.register(bountyGuard);
+		eventBus.register(requestDelivery);
 		pingService.start();
 		eventBus.register(pingService);
 		eventBus.register(groupHighlights);
@@ -290,6 +295,7 @@ public class HomebasePlugin extends Plugin
 		eventBus.unregister(groupHighlights);
 		eventBus.unregister(pingService);
 		pingService.stop();
+		eventBus.unregister(requestDelivery);
 		eventBus.unregister(bountyGuard);
 		eventBus.unregister(activityCollector);
 		eventBus.unregister(groupTiles);
@@ -502,6 +508,7 @@ public class HomebasePlugin extends Plugin
 			g.dirty.set(true);
 			groupIndex.invalidate();
 			bountyService.invalidate();
+			requestService.invalidate();
 			scheduleGoalCheck();
 			panel.scheduleRebuild();
 			announce(record);

@@ -26,4 +26,18 @@ public class RequestData
 
 	private boolean done;
 	private long createdAt;
+
+	/**
+	 * The item the member who took the request on put into group storage, kept for the requester
+	 * until they take it out; 0 while nothing has been put in.
+	 */
+	private int reservedItemId;
+
+	/**
+	 * @return true while the item waits in group storage for the requester
+	 */
+	public boolean isReserved()
+	{
+		return reservedItemId > 0 && !done;
+	}
 }

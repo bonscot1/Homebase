@@ -98,6 +98,7 @@ class GoalsView extends JPanel
 	private List<Integer> bountyItemIds = new ArrayList<>();
 	private Map<Integer, Integer> bountyQuantities = new HashMap<>();
 	private final Map<String, JCheckBox> bountyMembers = new LinkedHashMap<>();
+	private final JTextField bountyAmount = new JTextField("1");
 
 	private List<GoalService.Member> members = new ArrayList<>();
 
@@ -256,6 +257,7 @@ class GoalsView extends JPanel
 				bountyGoal = goal.getId().equals(bountyGoal) ? null : goal.getId();
 				bountyItem = null;
 				bountyMembers.clear();
+				bountyAmount.setText("1");
 				refresh();
 			}));
 			buttons.add(button("Delete", () ->
@@ -300,7 +302,8 @@ class GoalsView extends JPanel
 		itemManager.getImage(data.getItemId()).addTo(icon);
 		row.add(icon, BorderLayout.WEST);
 
-		String item = data.getItemName() == null ? "item " + data.getItemId() : data.getItemName();
+		String item = (data.getItemName() == null ? "item " + data.getItemId() : data.getItemName())
+			+ (data.getQuantity() > 0 ? " ×" + data.getQuantity() : " (all)");
 		JPanel text = new JPanel();
 		text.setLayout(new BoxLayout(text, BoxLayout.Y_AXIS));
 		text.setOpaque(false);
@@ -400,6 +403,14 @@ class GoalsView extends JPanel
 			resolveNames(ids);
 		}
 		form.add(field("Item in group storage", bountyItem));
+		bountyAmount.setColumns(5);
+		bountyAmount.setToolTipText("How many are held back; anything more in group storage is free for anyone. 0 holds them all.");
+		JPanel amountRow = new JPanel(new BorderLayout(6, 0));
+		amountRow.setOpaque(false);
+		amountRow.setBorder(new EmptyBorder(4, 0, 0, 0));
+		amountRow.add(small("How many (0 for all)", ColorScheme.LIGHT_GRAY_COLOR), BorderLayout.CENTER);
+		amountRow.add(bountyAmount, BorderLayout.EAST);
+		form.add(amountRow);
 		JLabel lockedFor = small("Locked until they reach the goal:", ColorScheme.LIGHT_GRAY_COLOR);
 		lockedFor.setBorder(new EmptyBorder(6, 0, 2, 0));
 		form.add(lockedFor);
@@ -435,10 +446,20 @@ class GoalsView extends JPanel
 			{
 				return;
 			}
-			bounties.create(itemId, name(itemId), goal.getId(), locked);
+			int amount;
+			try
+			{
+				amount = Math.max(0, Integer.parseInt(bountyAmount.getText().trim()));
+			}
+			catch (NumberFormatException e)
+			{
+				amount = 1;
+			}
+			bounties.create(itemId, name(itemId), amount, goal.getId(), locked);
 			bountyGoal = null;
 			bountyItem = null;
 			bountyMembers.clear();
+			bountyAmount.setText("1");
 			refresh();
 		});
 		JPanel createRow = new JPanel(new BorderLayout());

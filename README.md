@@ -21,9 +21,9 @@ It's made for Group Ironman groups, and works for any group of friends too.
 - **Group tiles:** mark tiles that the whole group sees, including inside raids.
 
 **Organise the group**
-- **Requests:** ask for an item ("Rune scimitar ×1, for Barrows"). Someone takes it on, marks it done, and everyone gets a chat message along the way.
+- **Requests:** ask for an item ("Rune scimitar ×1, for Barrows"). Someone takes it on and gets it to you, either by putting it in group storage, where it's kept for you until you take it out, or by trading it to you. Nobody can just mark it done, and everyone gets a chat message along the way.
 - **Goals:** set targets for everyone or one member, such as 50 Firemaking before Wintertodt, 100 Vorkath kills or the Varrock Hard diary. Each member's progress shows as a bar, and the group gets a message when someone gets there.
-- **Bank bounties:** put a bounty on an item in group storage, tied to a goal. Members it's locked for can't withdraw it until they reach the goal.
+- **Bank bounties:** put a bounty on some of an item in group storage, tied to a goal. Members it's locked for can't withdraw that many until they reach the goal.
 
 ## Getting started
 
@@ -56,7 +56,8 @@ Under **Pings and highlights** in the settings you can switch pings to a key + l
 
 - Data only moves while at least two members are online at once.
 - RuneLite allows one party at a time. If you join someone else's party, syncing pauses, and you're back with your group when you leave it.
-- Bank bounties only stop withdrawals for members using RuneLite with this plugin turned on.
+- Bank bounties and items kept for requests only stop withdrawals for members using RuneLite with this plugin turned on.
+- Only the amount asked for is held back. If 5 are kept for someone and there are 8 in group storage, anyone can take the other 3, with Withdraw-1, -5 or -10 when the amount fits. Withdraw-X is hidden while any of an item is held back, because the plugin can't see the number you type.
 - Banks, the seed vault, the looting bag and group storage update when someone opens them, and the collection log when someone browses it.
 
 ## Feedback

@@ -10,8 +10,11 @@ import com.homebase.sync.Keys;
 import com.homebase.sync.SyncEngine;
 import com.homebase.sync.SyncRecord;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.function.Consumer;
 import javax.inject.Inject;
@@ -45,10 +48,29 @@ public class RequestService
 		long updatedAt;
 	}
 
+	/**
+	 * An item waiting in group storage for the member who asked for it.
+	 */
+	@Value
+	public static class Reservation
+	{
+		String requestId;
+		String item;
+		String requestedBy;
+		String requestedByName;
+
+		/**
+		 * How many were asked for; anything more in group storage is free for anyone.
+		 */
+		int quantity;
+	}
+
 	private final LocalCollector collector;
 	private final Gson gson;
 
 	private volatile SyncEngine engine;
+	private volatile boolean dirty = true;
+	private volatile Map<Integer, List<Reservation>> reservations = Collections.emptyMap();
 
 	@Inject
 	private RequestService(LocalCollector collector, Gson gson)
@@ -60,6 +82,47 @@ public class RequestService
 	public void setEngine(SyncEngine engine)
 	{
 		this.engine = engine;
+		dirty = true;
+	}
+
+	/**
+	 * Group data changed, which may reserve or release items.
+	 */
+	public void invalidate()
+	{
+		dirty = true;
+	}
+
+	/**
+	 * @return the requests an item in group storage is kept for, if any. Cheap enough to call for
+	 * every menu entry and every frame.
+	 */
+	public List<Reservation> reservationsFor(int itemId)
+	{
+		if (dirty)
+		{
+			dirty = false;
+			Map<Integer, List<Reservation>> out = new HashMap<>();
+			for (Request request : list())
+			{
+				RequestData data = request.getData();
+				if (data.isReserved() && data.getRequestedBy() != null)
+				{
+					out.computeIfAbsent(data.getReservedItemId(), id -> new ArrayList<>()).add(new Reservation(request.getId(),
+						data.getItem(), data.getRequestedBy(), data.getRequestedByName(), Math.max(1, data.getQuantity())));
+				}
+			}
+			reservations = out;
+		}
+		return reservations.getOrDefault(itemId, Collections.emptyList());
+	}
+
+	/**
+	 * The member who took the request on put the item in group storage: keep it for the requester.
+	 */
+	public void reserve(String id, int itemId)
+	{
+		update(id, data -> data.setReservedItemId(itemId));
 	}
 
 	/**
@@ -149,6 +212,7 @@ public class RequestService
 		{
 			data.setAssignedTo(null);
 			data.setAssignedToName(null);
+			data.setReservedItemId(0);
 		});
 	}
 
@@ -190,6 +254,10 @@ public class RequestService
 			return null;
 		}
 		String what = data.getQuantity() > 1 ? data.getQuantity() + " x " + data.getItem() : data.getItem();
+		if (data.isReserved())
+		{
+			return name(data.getAssignedToName()) + " put " + what + " in group storage for " + name(data.getRequestedByName()) + ".";
+		}
 		if (data.isDone())
 		{
 			return name(data.getAssignedToName()) + " finished " + what + " for " + name(data.getRequestedByName()) + ".";

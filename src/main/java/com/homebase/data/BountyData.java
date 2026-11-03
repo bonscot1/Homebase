@@ -24,6 +24,12 @@ public class BountyData
 	 */
 	private List<String> locked = new ArrayList<>();
 
+	/**
+	 * How many are held back; anything more in group storage is free for anyone. 0 means all of
+	 * them, as bounties made before amounts existed did.
+	 */
+	private int quantity;
+
 	private String createdBy;
 	private String createdByName;
 	private long createdAt;

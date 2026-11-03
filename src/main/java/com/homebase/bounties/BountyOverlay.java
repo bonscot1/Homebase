@@ -11,14 +11,13 @@ import net.runelite.api.Client;
 import net.runelite.api.Point;
 import net.runelite.api.gameval.InterfaceID;
 import net.runelite.api.widgets.WidgetItem;
-import net.runelite.client.game.ItemManager;
 import net.runelite.client.ui.overlay.WidgetItemOverlay;
 import net.runelite.client.ui.overlay.tooltip.Tooltip;
 import net.runelite.client.ui.overlay.tooltip.TooltipManager;
 
 /**
- * A padlock on group storage items with a bounty, red while it's locked for you and green once
- * you've reached its goal, with the goal in a tooltip.
+ * A padlock on group storage items with a bounty or a request waiting on them: red while some of it is
+ * held back from you, green while you can take it, with the reasons and what's free in a tooltip.
  */
 @Singleton
 public class BountyOverlay extends WidgetItemOverlay
@@ -27,16 +26,14 @@ public class BountyOverlay extends WidgetItemOverlay
 	private static final Color OPEN = new Color(0x66BB6A);
 
 	private final Client client;
-	private final ItemManager itemManager;
-	private final BountyService bounties;
+	private final StorageHolds holds;
 	private final TooltipManager tooltipManager;
 
 	@Inject
-	private BountyOverlay(Client client, ItemManager itemManager, BountyService bounties, TooltipManager tooltipManager)
+	private BountyOverlay(Client client, StorageHolds holds, TooltipManager tooltipManager)
 	{
 		this.client = client;
-		this.itemManager = itemManager;
-		this.bounties = bounties;
+		this.holds = holds;
 		this.tooltipManager = tooltipManager;
 		showOnInterfaces(InterfaceID.SHARED_BANK);
 	}
@@ -44,24 +41,24 @@ public class BountyOverlay extends WidgetItemOverlay
 	@Override
 	public void renderItemOverlay(Graphics2D graphics, int itemId, WidgetItem widgetItem)
 	{
-		BountyService.Lock lock = bounties.lockFor(itemManager.canonicalize(itemId));
-		if (lock == null)
-		{
-			lock = bounties.lockFor(itemId);
-		}
-		if (lock == null)
+		StorageHolds.Hold hold = holds.holdFor(itemId);
+		if (!hold.any())
 		{
 			return;
 		}
 		Rectangle bounds = widgetItem.getCanvasBounds();
-		drawPadlock(graphics, bounds.x + bounds.width - 9, bounds.y + 1, lock.isLocked() ? LOCKED : OPEN);
+		drawPadlock(graphics, bounds.x + bounds.width - 9, bounds.y + 1, hold.getHeld() > 0 ? LOCKED : OPEN);
 
 		Point mouse = client.getMouseCanvasPosition();
 		if (mouse != null && bounds.contains(mouse.getX(), mouse.getY()))
 		{
-			tooltipManager.add(new Tooltip(lock.isLocked()
-				? "Bounty: locked until you reach " + lock.getGoal()
-				: "Bounty: " + lock.getGoal() + " (you can take this)"));
+			StringBuilder text = new StringBuilder(String.join("</br>", hold.getReasons()));
+			if (hold.getHeld() > 0)
+			{
+				int free = StorageHolds.free(widgetItem.getQuantity(), hold.getHeld());
+				text.append("</br>").append(free > 0 ? free + " free to take" : "None free to take");
+			}
+			tooltipManager.add(new Tooltip(text.toString()));
 		}
 	}
 

@@ -56,7 +56,17 @@ public class BountyService
 		 * True if the player can't withdraw the item yet.
 		 */
 		boolean locked;
+
+		/**
+		 * How many are held back from the player while locked; {@link #ALL} for every one.
+		 */
+		int quantity;
 	}
+
+	/**
+	 * A bounty or request amount meaning the whole stack.
+	 */
+	public static final int ALL = Integer.MAX_VALUE;
 
 	private final LocalCollector collector;
 	private final GoalService goals;
@@ -114,7 +124,7 @@ public class BountyService
 		return out;
 	}
 
-	public void create(int itemId, String itemName, String goalId, List<String> locked)
+	public void create(int itemId, String itemName, int quantity, String goalId, List<String> locked)
 	{
 		SyncEngine engine = this.engine;
 		String me = collector.getMemberId();
@@ -127,6 +137,7 @@ public class BountyService
 		data.setItemId(itemId);
 		data.setItemName(Clean.text(itemName, MAX_ITEM_NAME));
 		data.setGoalId(goalId);
+		data.setQuantity(Math.max(0, quantity));
 		data.setLocked(new ArrayList<>(locked));
 		data.setCreatedBy(me);
 		data.setCreatedByName(myName);
@@ -182,11 +193,18 @@ public class BountyService
 			GoalService.Goal goal = goals.get(bounty.getData().getGoalId());
 			String title = goal == null ? "a deleted goal" : GoalService.title(goal.getData());
 			boolean locked = me != null && isLocked(bounty.getData(), me);
+			int quantity = !locked ? 0 : bounty.getData().getQuantity() > 0 ? bounty.getData().getQuantity() : ALL;
 			Lock existing = out.get(bounty.getData().getItemId());
-			// several bounties on one item: any one still holding locks it
-			if (existing == null || (locked && !existing.isLocked()))
+			if (existing == null)
 			{
-				out.put(bounty.getData().getItemId(), new Lock(title, locked));
+				out.put(bounty.getData().getItemId(), new Lock(title, locked, quantity));
+			}
+			else if (locked)
+			{
+				// several bounties on one item hold back their amounts together
+				long total = (long) existing.getQuantity() + quantity;
+				out.put(bounty.getData().getItemId(), new Lock(existing.isLocked() ? existing.getGoal() : title, true,
+					(int) Math.min(ALL, total)));
 			}
 		}
 		return out;

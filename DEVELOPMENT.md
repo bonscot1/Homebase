@@ -42,7 +42,7 @@ With one account:
 - [ ] Your card appears on the **Members** tab with a green world number. Clicking your name shows your skills, inventory and equipment.
 - [ ] Opening your bank adds a **Bank** line to your card. Clicking it shows the items. The seed vault and looting bag work the same way.
 - [ ] Opening the group storage adds a **Group storage** section at the top, saying who saw it last.
-- [ ] On the **Requests** tab, requesting an item adds it to the list. **Cancel** removes it.
+- [ ] On the **Requests** tab, requesting an item adds it to the list. **Cancel** removes it. There's no button to mark it done.
 - [ ] After closing and reopening RuneLite, everything is still there before you log in.
 - [ ] The **Group HUD** box shows your hitpoints, prayer, run energy, combat level and area (for example "Lumbridge"). Its settings change what it shows, compact mode and size, and **Include yourself** hides your own line.
 - [ ] Shift + right-click a tile and choose **Group mark**. The tile is outlined in **Your colour** with your name on it. Changing the colour changes the tile. **Group unmark** removes it, and it's still there after restarting.
@@ -58,7 +58,10 @@ With a second group member running the plugin:
 
 - [ ] Each of you sees the other's card, with live HP, prayer and run energy while they're online.
 - [ ] A request one of you makes appears for the other, with a chat message starting "[Homebase]".
-- [ ] **I'll get it**, **Done** and **Clear** update for both of you.
+- [ ] **I'll get it** and **Give back** update for both of you, and whoever took it on is told to put it in group storage or trade it.
+- [ ] Whoever took a request on puts the item in group storage. Both of you see "In group storage for …", and the requester gets "Waiting for you in group storage". For the other member the item has a red padlock ("kept for …'s request"), and the Withdraw options that would take any of the requested amount are gone. If there's more than was asked for, Withdraw-1 still takes the spare.
+- [ ] The requester takes the item out of group storage, and the request shows as done for both of you. **Clear** removes it.
+- [ ] Instead, whoever took a request on trades at least the requested amount to the requester. When the trade is accepted, the request shows as done.
 - [ ] When one of you logs out, the other's panel shows "Seen … ago" for them.
 - [ ] While one of you is offline, the other gains a level, finishes a quest or completes a diary tier. On logging back in, the first gets one chat line such as "[Homebase] bonscott1: Magic 15 -> 32, completed The Restless Ghost, completed the Varrock Easy diary." The same summary appears on the **Updates** tab.
 - [ ] Each of you sees the other in the **Group HUD**, on the world map (a dot in their colour, with their name and area as the tooltip), and their marked tiles in their colour, including inside a raid you both enter.
@@ -133,7 +136,7 @@ Items are ticked when they're built. Each stage's last box is ticked once it has
 
 - [x] Request an item from the group (for example a rune scimitar), with a quantity and a note
 - [x] Members can assign themselves to a request, or give it back
-- [x] Mark requests done, cancel them, or clear finished ones
+- [x] Requests finish only from what happens in game: whoever took one on puts the item in group storage, where it's kept for the requester until they take it out, or trades it to them. Requests can be cancelled, and finished ones cleared
 - [x] In-game chat message when someone makes, takes on or finishes a request (can be turned off in settings)
 - [x] Text from other players is cleaned before it's shown, so a request can't inject formatting or load images
 - [x] Tested in the simulated RuneLite
@@ -146,6 +149,7 @@ Items are ticked when they're built. Each stage's last box is ticked once it has
 - [x] Hide the Withdraw options for locked members (soft lock, RuneLite only)
 - [x] Padlock on the item in group storage, red while it's locked for you and green once it isn't, with the goal in its tooltip
 - [x] Bounty lifts automatically for each locked member as they reach the goal
+- [x] Bounties and requests hold back only the amount asked for; anything more in group storage is free for anyone
 - [ ] Tested in game
 
 ### Release

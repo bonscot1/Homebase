@@ -28,6 +28,7 @@ import net.runelite.client.ui.FontManager;
 class RequestsView extends JPanel
 {
 	private static final Color UNCLAIMED = new Color(0xff9800);
+	private static final Color RESERVED = new Color(0x26C6DA);
 
 	private final RequestService service;
 	private final JTextField itemField = new JTextField();
@@ -150,6 +151,7 @@ class RequestsView extends JPanel
 	{
 		RequestData data = request.getData();
 		Color state = data.isDone() ? ColorScheme.PROGRESS_COMPLETE_COLOR
+			: data.isReserved() ? RESERVED
 			: data.getAssignedTo() != null ? ColorScheme.PROGRESS_INPROGRESS_COLOR : UNCLAIMED;
 		JPanel card = new JPanel();
 		card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
@@ -175,9 +177,19 @@ class RequestsView extends JPanel
 		{
 			status = small("Done by " + name(data.getAssignedToName()), state);
 		}
+		else if (data.isReserved())
+		{
+			// the item waits in group storage, held back from everyone but the requester
+			status = small(service.isMe(data.getRequestedBy()) ? "Waiting for you in group storage"
+				: "In group storage for " + name(data.getRequestedByName()), state);
+		}
 		else if (data.getAssignedTo() != null)
 		{
-			status = small(name(data.getAssignedToName()) + " is on it", state);
+			// it's only done when the item turns up, so say how to finish it
+			status = service.isMe(data.getAssignedTo())
+				? Ui.wrapped("You're on it. Put it in group storage or trade it to " + name(data.getRequestedByName())
+				+ " to finish.", state)
+				: small(name(data.getAssignedToName()) + " is on it", state);
 		}
 		else
 		{
@@ -196,13 +208,14 @@ class RequestsView extends JPanel
 			String id = request.getId();
 			boolean mine = service.isMe(data.getRequestedBy());
 			boolean assignedToMe = service.isMe(data.getAssignedTo());
-			if (!data.isDone() && data.getAssignedTo() == null)
+			// nobody can mark a request done: that happens when the item is put in group storage and
+			// collected, or traded to whoever asked
+			if (!data.isDone() && data.getAssignedTo() == null && !mine)
 			{
 				grid.add(button("I'll get it", () -> service.claim(id)));
 			}
-			if (!data.isDone() && assignedToMe)
+			if (!data.isDone() && !data.isReserved() && assignedToMe)
 			{
-				grid.add(button("Done", () -> service.complete(id)));
 				grid.add(button("Give back", () -> service.unclaim(id)));
 			}
 			if (mine || data.isDone())
