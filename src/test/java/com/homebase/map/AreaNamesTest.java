@@ -44,6 +44,13 @@ public class AreaNamesTest
 	}
 
 	@Test
+	public void housesAreNamed()
+	{
+		// a garden tile marked in a real house, as the game reports it inside the instance
+		assertEquals("Player-owned house", AreaNames.describe(1859, 7050));
+	}
+
+	@Test
 	public void nearAndUnknown()
 	{
 		assertEquals("near Lumbridge", AreaNames.describe(3290, 3270));

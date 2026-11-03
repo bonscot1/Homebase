@@ -157,7 +157,9 @@ public final class AreaNames
 		new Place("Zanaris", 2412, 4434, 60),
 		new Place("Motherlode Mine", 3760, 5670, 40),
 		new Place("Keldagrim", 2885, 10200, 70),
-		new Place("Guardians of the Rift", 3615, 9490, 40)
+		new Place("Guardians of the Rift", 3615, 9490, 40),
+		// houses are instances built from room templates kept in this block
+		new Place("Player-owned house", 1952, 7104, 96)
 	);
 
 	private AreaNames()
