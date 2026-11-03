@@ -40,8 +40,10 @@ You need a JDK (Java 11 or 17, for example [Eclipse Temurin](https://adoptium.ne
 With one account:
 
 - [ ] The house icon appears in the sidebar. Before logging in, the status says to log in on your Group Ironman account.
-- [ ] After logging in on your Group Ironman account, the status changes to "Connected" by itself, and the header shows your group's name (for example HungryHorse) under "Group Homebase".
-- [ ] After restarting RuneLite, before you log in, the panel shows your group's saved data and says "Joins your group when you log in". Logging in changes it to "Connected", and logging out back again.
+- [ ] After logging in on your Group Ironman account, the header shows your group's name (for example HungryHorse) and a **Connect** button. Clicking it changes the status to "Connected".
+- [ ] Logging out keeps you connected (your card shows you offline). Logging back in within 30 minutes needs no Connect; after 30 minutes at the login screen you're disconnected.
+- [ ] After restarting RuneLite, before you log in, the panel shows your group's saved data and says to log in on an account in your group to connect.
+- [ ] Logged in on an account that isn't in the group, the panel says it can't connect.
 - [ ] Logging in on an account that isn't in the group adds no card for that account.
 - [ ] Your card appears on the **Members** tab with a green world number. Clicking your name shows your skills, inventory and equipment.
 - [ ] Opening your bank adds a **Bank** line to your card. Clicking it shows the items. The seed vault and looting bag work the same way.
@@ -58,15 +60,21 @@ With one account:
 - [ ] Shift + right-click a monster and choose **Group highlight**. It stays outlined in your colour with your name until it dies, you choose **Group unhighlight**, or you change worlds.
 - [ ] On the **Goals** tab, set a goal you've already reached (for example 1 Attack) and one you haven't. The first shows a tick by your name, the second your progress such as "45/50".
 - [ ] **Add bounty** on a goal you haven't reached, pick an item from group storage and tick yourself. In group storage that item gets a red padlock with the goal in its tooltip, and its Withdraw options are gone. Deleting the bounty brings them back.
+- [ ] With **Hold items in group storage** turned off, the padlock stays but no Withdraw options are hidden.
+- [ ] A few seconds after logging in, **Kill counts** on your card fills in bosses from the hiscores, with none at 0. A boss already listed from chat (for example "Gauntlet") isn't listed twice.
 
 With a second group member running the plugin:
+
+- [ ] Both of you click **Connect**. If someone outside the group joins the party, both panels say "Nothing is shared while … is in the party", and sharing resumes when they leave.
 
 - [ ] Each of you sees the other's card, with live HP, prayer and run energy while they're online.
 - [ ] A request one of you makes appears for the other, with a chat message starting "[Homebase]".
 - [ ] **I'll get it** and **Give back** update for both of you, and whoever took it on is told to put it in group storage or trade it.
 - [ ] Whoever took a request on puts the item in group storage. Both of you see "In group storage for …", and the requester gets "Waiting for you in group storage". For the other member the item has a red padlock ("kept for …'s request"), and the Withdraw options that would take any of the requested amount are gone. If there's more than was asked for, Withdraw-1 still takes the spare.
-- [ ] The requester takes the item out of group storage, and the request shows as done for both of you. **Clear** removes it.
-- [ ] Instead, whoever took a request on trades at least the requested amount to the requester. When the trade is accepted, the request shows as done.
+- [ ] The requester takes the item out of group storage, and the request shows as done for both of you. **Clear** removes it. Taking out only part of it shows "x of y received" and leaves the request open.
+- [ ] Closing group storage without taking anything leaves the request waiting (it isn't counted as collected).
+- [ ] If whoever put it in takes it back out, it stops being held for the requester.
+- [ ] Instead, whoever took a request on trades the item to the requester. When the trade is accepted, the amount counts towards the request, and it's done once everything asked for has arrived. Typing "Accepted trade." in chat does nothing.
 - [ ] When one of you logs out, the other's panel shows "Seen … ago" for them straight away, and they drop out of the other's HUD and world map. If one of you closes RuneLite without logging out, the same happens within about a minute and a quarter.
 - [ ] While one of you is offline, the other gains a level, finishes a quest or completes a diary tier. On logging back in, the first gets one chat line such as "[Homebase] bonscott1: Magic 15 -> 32, completed The Restless Ghost, completed the Varrock Easy diary." The same summary appears on the **Updates** tab.
 - [ ] Each of you sees the other in the **Group HUD**, on the world map (a dot in their colour, with their name and area as the tooltip), and their marked tiles in their colour, including inside a raid you both enter.
