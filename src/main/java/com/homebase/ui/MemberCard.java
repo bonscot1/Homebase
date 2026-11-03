@@ -79,17 +79,15 @@ class MemberCard extends JPanel
 	{
 		final ItemManager itemManager;
 		final SkillIconManager skillIconManager;
-		final GameSprites sprites;
 		final ClientThread clientThread;
 		final Set<String> openSections;
 		final Consumer<String> toggleSection;
 
-		Context(ItemManager itemManager, SkillIconManager skillIconManager, GameSprites sprites, ClientThread clientThread,
+		Context(ItemManager itemManager, SkillIconManager skillIconManager, ClientThread clientThread,
 			Set<String> openSections, Consumer<String> toggleSection)
 		{
 			this.itemManager = itemManager;
 			this.skillIconManager = skillIconManager;
-			this.sprites = sprites;
 			this.clientThread = clientThread;
 			this.openSections = openSections;
 			this.toggleSection = toggleSection;
@@ -212,11 +210,10 @@ class MemberCard extends JPanel
 		details.setBackground(ColorScheme.DARKER_GRAY_COLOR);
 		details.setBorder(new EmptyBorder(0, 8, 8, 8));
 
-		if (skills != null)
+		if (skills != null && addFoldRow(details, "Skills", "Total " + QuantityFormatter.formatNumber(skills.getTotalLevel())
+			+ "  ·  " + Ago.format(view.updatedAt(memberId, Section.SKILLS)), memberId + ":" + Section.SKILLS.getKey(), context))
 		{
-			details.add(caption("Skills", Ago.format(view.updatedAt(memberId, Section.SKILLS))));
-			details.add(skillGrid(skills, context.skillIconManager));
-			details.add(Box.createVerticalStrut(6));
+			addContent(details, skillGrid(skills, context.skillIconManager));
 		}
 
 		addQuests(details, memberId, view, context);
@@ -225,9 +222,9 @@ class MemberCard extends JPanel
 		addCollectionLog(details, memberId, view, context);
 		addKillCounts(details, memberId, view, context);
 		addHouse(details, memberId, view, context);
-		addInventory(details, memberId, view, context);
-		addEquipment(details, memberId, view, context);
-		details.add(Box.createVerticalStrut(8));
+		details.add(Box.createVerticalStrut(6));
+		addItems(details, "Inventory", " items", memberId, Section.INVENTORY, view, context);
+		addItems(details, "Equipment", " worn", memberId, Section.EQUIPMENT, view, context);
 		addCollapsible(details, "Bank", memberId, Section.BANK, view, context);
 		addCollapsible(details, "Seed vault", memberId, Section.SEED_VAULT, view, context);
 		addCollapsible(details, "Looting bag", memberId, Section.LOOTING_BAG, view, context);
@@ -249,6 +246,21 @@ class MemberCard extends JPanel
 	}
 
 	/**
+	 * A row for a section that starts open and can be folded away, such as skills. Folding is
+	 * remembered while RuneLite is open.
+	 *
+	 * @return true if the section is open
+	 */
+	private static boolean addFoldRow(JPanel parent, String title, String summary, String id, Context context)
+	{
+		String folded = id + ":folded";
+		boolean open = !context.openSections.contains(folded);
+		parent.add(Ui.sectionRow(title, summary, open, () -> context.toggleSection.accept(folded)));
+		parent.add(Box.createVerticalStrut(2));
+		return open;
+	}
+
+	/**
 	 * What an open section shows, indented a little under its row.
 	 */
 	private static void addContent(JPanel parent, JComponent content)
@@ -260,36 +272,31 @@ class MemberCard extends JPanel
 		parent.add(wrap);
 	}
 
-	private static void addInventory(JPanel parent, String memberId, GroupView view, Context context)
+	/**
+	 * The inventory or worn equipment: only what's there, so a few items take a single row.
+	 */
+	private static void addItems(JPanel parent, String title, String noun, String memberId, Section section,
+		GroupView view, Context context)
 	{
-		ItemsData items = view.get(memberId, Section.INVENTORY, ItemsData.class);
+		ItemsData items = view.get(memberId, section, ItemsData.class);
 		if (items == null)
 		{
 			return;
 		}
-		int used = 0;
+		int count = 0;
 		for (Item item : items.toItems())
 		{
 			if (item != null)
 			{
-				used++;
+				count++;
 			}
 		}
-		parent.add(Box.createVerticalStrut(4));
-		parent.add(caption("Inventory", (28 - used) + " free  ·  " + Ago.format(view.updatedAt(memberId, Section.INVENTORY))));
-		parent.add(new ItemGrid(items.toItems(), ItemGrid.Look.INVENTORY, context.itemManager, context.clientThread));
-	}
-
-	private static void addEquipment(JPanel parent, String memberId, GroupView view, Context context)
-	{
-		ItemsData items = view.get(memberId, Section.EQUIPMENT, ItemsData.class);
-		if (items == null)
+		if (addFoldRow(parent, title, count + noun + "  ·  " + Ago.format(view.updatedAt(memberId, section)),
+			memberId + ":" + section.getKey(), context) && count > 0)
 		{
-			return;
+			parent.add(new ItemGrid(items.toItems(), context.itemManager, context.clientThread));
+			parent.add(Box.createVerticalStrut(4));
 		}
-		parent.add(Box.createVerticalStrut(4));
-		parent.add(caption("Equipment", Ago.format(view.updatedAt(memberId, Section.EQUIPMENT))));
-		parent.add(new EquipmentGrid(items.toItems(), context.itemManager, context.clientThread, context.sprites));
 	}
 
 	/**
@@ -315,7 +322,7 @@ class MemberCard extends JPanel
 		addRow(parent, title, stacks.size() + " items · " + Ago.format(view.updatedAt(memberId, section)), id, context);
 		if (context.openSections.contains(id))
 		{
-			parent.add(new ItemGrid(stacks, ItemGrid.Look.CONTAINER, context.itemManager, context.clientThread));
+			parent.add(new ItemGrid(stacks, context.itemManager, context.clientThread));
 			parent.add(Box.createVerticalStrut(4));
 		}
 	}
@@ -546,7 +553,7 @@ class MemberCard extends JPanel
 				}
 			}
 			content.add(align(caption("Costume room", null)));
-			content.add(align(new ItemGrid(items, ItemGrid.Look.CONTAINER, context.itemManager, context.clientThread)));
+			content.add(align(new ItemGrid(items, context.itemManager, context.clientThread)));
 		}
 		addContent(parent, content);
 	}

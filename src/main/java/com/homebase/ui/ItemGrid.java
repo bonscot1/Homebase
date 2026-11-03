@@ -16,80 +16,47 @@ import net.runelite.client.game.ItemManager;
 import net.runelite.client.util.QuantityFormatter;
 
 /**
- * A grid of item icons on the game's brown, with name and quantity tooltips.
+ * The items in a container, five across on the game's brown tiles, with name and quantity tooltips.
+ * Empty slots are left out, so a few items take a single row.
  */
 class ItemGrid extends JPanel
 {
-	enum Look
-	{
-		/**
-		 * The inventory as the game shows it: all 28 slots, four across, as one brown panel.
-		 */
-		INVENTORY,
-
-		/**
-		 * A bank-like container: only what's in it, five across, each item on its own tile.
-		 */
-		CONTAINER,
-	}
-
 	/**
-	 * The brown of the game's inventory and its darker edge.
+	 * The brown of the game's inventory and bank, and the darker lines between tiles.
 	 */
 	static final Color BROWN = new Color(62, 53, 41);
 	static final Color BROWN_EDGE = new Color(42, 36, 28);
 
-	private static final int INVENTORY_SLOTS = 28;
+	private static final int COLUMNS = 5;
+	private static final Dimension SLOT = new Dimension(36, 32);
 
-	ItemGrid(List<Item> items, Look look, ItemManager itemManager, ClientThread clientThread)
+	ItemGrid(List<Item> items, ItemManager itemManager, ClientThread clientThread)
 	{
 		super(new FlowLayout(FlowLayout.CENTER, 0, 0));
 		setOpaque(false);
 
-		boolean inventory = look == Look.INVENTORY;
-		List<Item> slots = new ArrayList<>();
-		for (Item item : items)
-		{
-			if (item != null || inventory)
-			{
-				slots.add(item);
-			}
-		}
-		while (inventory && slots.size() < INVENTORY_SLOTS)
-		{
-			slots.add(null);
-		}
-
-		JPanel grid = new JPanel(inventory ? new GridLayout(0, 4, 0, 0) : new GridLayout(0, 5, 1, 1));
-		grid.setBackground(inventory ? BROWN : BROWN_EDGE);
-		grid.setBorder(BorderFactory.createLineBorder(BROWN_EDGE, inventory ? 2 : 1));
-		Dimension size = inventory ? new Dimension(42, 36) : new Dimension(36, 32);
+		JPanel grid = new JPanel(new GridLayout(0, COLUMNS, 1, 1));
+		grid.setBackground(BROWN_EDGE);
+		grid.setBorder(BorderFactory.createLineBorder(BROWN_EDGE, 1));
 
 		List<JLabel> labels = new ArrayList<>();
 		List<Item> shown = new ArrayList<>();
-		for (Item item : slots)
+		for (Item item : items)
 		{
-			JLabel label = new JLabel();
-			label.setPreferredSize(size);
-			label.setHorizontalAlignment(SwingConstants.CENTER);
-			label.setOpaque(!inventory);
-			label.setBackground(BROWN);
-			if (item != null)
+			if (item == null)
 			{
-				itemManager.getImage(item.getId(), item.getQuantity(), item.getQuantity() > 1).addTo(label);
-				labels.add(label);
-				shown.add(item);
+				continue;
 			}
+			JLabel label = tile();
+			itemManager.getImage(item.getId(), item.getQuantity(), item.getQuantity() > 1).addTo(label);
+			labels.add(label);
+			shown.add(item);
 			grid.add(label);
 		}
-		// a bank's last row is filled out with empty tiles so the grid stays even
-		while (!inventory && grid.getComponentCount() % 5 != 0)
+		// the last row is filled out with empty tiles so the grid stays even
+		while (grid.getComponentCount() % COLUMNS != 0)
 		{
-			JLabel blank = new JLabel();
-			blank.setPreferredSize(size);
-			blank.setOpaque(true);
-			blank.setBackground(BROWN);
-			grid.add(blank);
+			grid.add(tile());
 		}
 		add(grid);
 
@@ -109,5 +76,15 @@ class ItemGrid extends JPanel
 					: name);
 			}
 		});
+	}
+
+	private static JLabel tile()
+	{
+		JLabel label = new JLabel();
+		label.setPreferredSize(SLOT);
+		label.setHorizontalAlignment(SwingConstants.CENTER);
+		label.setOpaque(true);
+		label.setBackground(BROWN);
+		return label;
 	}
 }
