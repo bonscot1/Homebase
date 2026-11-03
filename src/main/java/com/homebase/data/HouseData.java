@@ -10,10 +10,8 @@ import lombok.Data;
 @Data
 public class HouseData implements Checkable
 {
-	private static final int MAX_ENTRIES = 1_000;
-
 	public static final int MAX_FURNITURE = 100;
-	public static final int MAX_COSTUMES = 2000;
+	public static final int MAX_COSTUMES = 2_000;
 
 	/**
 	 * Names of useful furniture built, such as "Ornate rejuvenation pool" and "Portal nexus", sorted.
@@ -28,7 +26,7 @@ public class HouseData implements Checkable
 	@Override
 	public void check()
 	{
-		furniture = Checkable.list(furniture, MAX_ENTRIES);
-		costumes = Checkable.list(costumes, MAX_ENTRIES);
+		furniture = Checkable.list(furniture, MAX_FURNITURE);
+		costumes = Checkable.list(costumes, MAX_COSTUMES);
 	}
 }

@@ -34,4 +34,26 @@ public class CheckableTest
 
 		assertEquals(0, read("{\"xp\":null}", SkillsData.class).getXp(Skill.ATTACK));
 	}
+
+	@Test
+	public void diariesCountOnlyRealRegionsAndTiers()
+	{
+		DiariesData diaries = read("{\"done\":{\"Varrock\":255,\"Made up\":15,\"Desert\":-1}}", DiariesData.class);
+		assertEquals(DiariesData.TIERS.size(), diaries.countDone());
+		assertTrue(diaries.isDone("Varrock", 3));
+	}
+
+	@Test
+	public void listsAndMapsAreCappedAtWhatClientsShare()
+	{
+		StringBuilder costumes = new StringBuilder();
+		StringBuilder bosses = new StringBuilder();
+		for (int i = 0; i < HouseData.MAX_COSTUMES + 10; i++)
+		{
+			costumes.append(i == 0 ? "" : ",").append(i);
+			bosses.append(i == 0 ? "" : ",").append("\"Boss ").append(i).append("\":1");
+		}
+		assertEquals(HouseData.MAX_COSTUMES, read("{\"costumes\":[" + costumes + "]}", HouseData.class).getCostumes().size());
+		assertEquals(KillCountsData.MAX_BOSSES, read("{\"counts\":{" + bosses + "}}", KillCountsData.class).getCounts().size());
+	}
 }

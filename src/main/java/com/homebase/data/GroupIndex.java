@@ -26,6 +26,8 @@ public class GroupIndex
 	 */
 	public static final Color DEFAULT_COLOR = new Color(0xFF9800);
 
+	private static final int MAX_NAME = 20;
+
 	@Value
 	public static class MarkedTile
 	{
@@ -135,75 +137,59 @@ public class GroupIndex
 
 	private static Snapshot build(GroupView view, Predicate<ProfileData> belongs)
 	{
-		Snapshot s = new Snapshot();
+		Snapshot out = new Snapshot();
 		if (view == null)
 		{
-			return s;
+			return out;
 		}
+		// the view hands out checked data, so lists are never null and already capped
 		for (String id : view.memberIds())
 		{
 			ProfileData profile = view.get(id, Section.PROFILE, ProfileData.class);
-			if (profile == null || profile.getName() == null || !belongs.test(profile))
-			{
-				continue;
-			}
-			String name = Clean.text(profile.getName(), 20);
-			if (name == null)
+			String name = profile == null ? null : Clean.text(profile.getName(), MAX_NAME);
+			if (name == null || !belongs.test(profile))
 			{
 				continue;
 			}
 			String key = key(name);
-			s.idsByName.put(key, id);
+			out.idsByName.put(key, id);
 
 			SkillsData skills = view.get(id, Section.SKILLS, SkillsData.class);
-			if (skills != null && skills.getXp() != null && !skills.getXp().isEmpty())
+			if (skills != null && !skills.getXp().isEmpty())
 			{
-				s.combatLevels.put(key, Experience.getCombatLevel(
+				out.combatLevels.put(key, Experience.getCombatLevel(
 					skills.getLevel(Skill.ATTACK), skills.getLevel(Skill.STRENGTH), skills.getLevel(Skill.DEFENCE),
 					skills.getLevel(Skill.HITPOINTS), skills.getLevel(Skill.MAGIC), skills.getLevel(Skill.RANGED),
 					skills.getLevel(Skill.PRAYER)));
 			}
 
-			TilesData tiles = view.get(id, Section.TILES, TilesData.class);
-			HighlightsData highlights = view.get(id, Section.HIGHLIGHTS, HighlightsData.class);
 			Color color = DEFAULT_COLOR;
+			HighlightsData highlights = view.get(id, Section.HIGHLIGHTS, HighlightsData.class);
 			if (highlights != null)
 			{
 				color = new Color(highlights.getColor() & 0xFFFFFF);
-				if (highlights.getNpcs() != null)
+				for (HighlightsData.Npc npc : highlights.getNpcs())
 				{
-					int n = 0;
-					for (HighlightsData.Npc npc : highlights.getNpcs())
-					{
-						if (npc != null && n++ < HighlightsData.MAX_HIGHLIGHTS)
-						{
-							s.highlights.add(new Highlight(highlights.getWorld(), npc.getIndex(), npc.getId(), color, name));
-						}
-					}
+					out.highlights.add(new Highlight(highlights.getWorld(), npc.getIndex(), npc.getId(), color, name));
 				}
 			}
+			TilesData tiles = view.get(id, Section.TILES, TilesData.class);
 			if (tiles != null)
 			{
 				color = new Color(tiles.getColor() & 0xFFFFFF);
-				if (tiles.getTiles() != null)
+				for (TilesData.Tile tile : tiles.getTiles())
 				{
-					int n = 0;
-					for (TilesData.Tile tile : tiles.getTiles())
-					{
-						if (tile != null && n++ < TilesData.MAX_TILES)
-						{
-							s.tiles.add(new MarkedTile(new WorldPoint(tile.getX(), tile.getY(), tile.getPlane()), color, name));
-						}
-					}
+					out.tiles.add(new MarkedTile(new WorldPoint(tile.getX(), tile.getY(), tile.getPlane()), color, name));
 				}
 			}
-			s.colors.put(key, color);
+			out.colors.put(key, color);
 		}
-		return s;
+		return out;
 	}
 
 	private static String key(String name)
 	{
-		return name.replace(' ', ' ').trim().toLowerCase(Locale.ROOT);
+		// the game sometimes writes the space in a name as a non-breaking one
+		return name.replace('\u00A0', ' ').trim().toLowerCase(Locale.ROOT);
 	}
 }

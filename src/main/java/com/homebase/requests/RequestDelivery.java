@@ -94,15 +94,15 @@ public class RequestDelivery
 		{
 			return;
 		}
-		Map<Integer, Integer> counts = counts(event.getItemContainer());
+		Map<Integer, Integer> now = counts(event.getItemContainer());
 		Map<Integer, Integer> before = lastCounts;
-		lastCounts = counts;
+		lastCounts = now;
 		// the first look after opening is only where we start from
 		if (before == null || !requests.canEdit())
 		{
 			return;
 		}
-		for (Map.Entry<Integer, Integer> e : counts.entrySet())
+		for (Map.Entry<Integer, Integer> e : now.entrySet())
 		{
 			int added = e.getValue() - before.getOrDefault(e.getKey(), 0);
 			if (added > 0)
@@ -112,7 +112,7 @@ public class RequestDelivery
 		}
 		for (Map.Entry<Integer, Integer> e : before.entrySet())
 		{
-			int taken = e.getValue() - counts.getOrDefault(e.getKey(), 0);
+			int taken = e.getValue() - now.getOrDefault(e.getKey(), 0);
 			if (taken > 0)
 			{
 				withdrawn(e.getKey(), taken);

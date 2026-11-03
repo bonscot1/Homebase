@@ -29,6 +29,9 @@ public enum Section
 	HOUSE("poh", false, 5_000),
 	GROUP_STORAGE("storage", true, 2_000);
 
+	/**
+	 * Part of the record key. Records are saved and sent under it, so it can't change.
+	 */
 	private final String key;
 
 	/**

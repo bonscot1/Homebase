@@ -75,6 +75,6 @@ public class KillCountsData implements Checkable
 	@Override
 	public void check()
 	{
-		counts = Checkable.counts(counts, Integer.MAX_VALUE);
+		counts = Checkable.counts(Checkable.map(counts, MAX_BOSSES), Integer.MAX_VALUE);
 	}
 }

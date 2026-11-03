@@ -53,27 +53,39 @@ public interface Checkable
 	 */
 	static <K, V> Map<K, V> map(Map<K, V> map)
 	{
+		return map(map, Integer.MAX_VALUE);
+	}
+
+	/**
+	 * @return the map without null keys or values and cut to {@code max} entries, or an empty map for none
+	 */
+	static <K, V> Map<K, V> map(Map<K, V> map, int max)
+	{
 		Map<K, V> out = new HashMap<>();
 		if (map != null)
 		{
-			map.forEach((key, value) ->
+			for (Map.Entry<K, V> entry : map.entrySet())
 			{
-				if (key != null && value != null)
+				if (out.size() >= max)
 				{
-					out.put(key, value);
+					break;
 				}
-			});
+				if (entry.getKey() != null && entry.getValue() != null)
+				{
+					out.put(entry.getKey(), entry.getValue());
+				}
+			}
 		}
 		return out;
 	}
 
 	/**
-	 * @return the map without nulls, with every number between 0 and {@code max}
+	 * @return the map without nulls, with every number between 0 and {@code maxValue}
 	 */
-	static <K> Map<K, Integer> counts(Map<K, Integer> map, int max)
+	static <K> Map<K, Integer> counts(Map<K, Integer> map, int maxValue)
 	{
 		Map<K, Integer> out = map(map);
-		out.replaceAll((key, value) -> Math.max(0, Math.min(max, value)));
+		out.replaceAll((key, value) -> Math.max(0, Math.min(maxValue, value)));
 		return out;
 	}
 }

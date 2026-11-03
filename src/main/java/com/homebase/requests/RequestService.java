@@ -105,21 +105,26 @@ public class RequestService
 		if (dirty)
 		{
 			dirty = false;
-			Map<Integer, List<Reservation>> out = new HashMap<>();
-			for (Request request : list())
-			{
-				RequestData data = request.getData();
-				// only kept for, and by, people in the group
-				if (data.isReserved() && groupIndex.isMember(data.getRequestedBy())
-					&& (data.getAssignedTo() == null || groupIndex.isMember(data.getAssignedTo())))
-				{
-					out.computeIfAbsent(data.getReservedItemId(), id -> new ArrayList<>()).add(new Reservation(request.getId(),
-						data.getItem(), data.getRequestedBy(), data.getRequestedByName(), data.getReservedQuantity()));
-				}
-			}
-			reservations = out;
+			reservations = buildReservations();
 		}
 		return reservations.getOrDefault(itemId, Collections.emptyList());
+	}
+
+	private Map<Integer, List<Reservation>> buildReservations()
+	{
+		Map<Integer, List<Reservation>> out = new HashMap<>();
+		for (Request request : list())
+		{
+			RequestData data = request.getData();
+			// only kept for, and by, people in the group
+			if (data.isReserved() && groupIndex.isMember(data.getRequestedBy())
+				&& (data.getAssignedTo() == null || groupIndex.isMember(data.getAssignedTo())))
+			{
+				out.computeIfAbsent(data.getReservedItemId(), id -> new ArrayList<>()).add(new Reservation(request.getId(),
+					data.getItem(), data.getRequestedBy(), data.getRequestedByName(), data.getReservedQuantity()));
+			}
+		}
+		return out;
 	}
 
 	/**
@@ -182,6 +187,7 @@ public class RequestService
 
 	public void create(String item, int quantity, String note)
 	{
+		SyncEngine engine = this.engine;
 		String me = collector.getMemberId();
 		String myName = collector.getLocalName();
 		if (engine == null || me == null || myName == null || Strings.isNullOrEmpty(item))

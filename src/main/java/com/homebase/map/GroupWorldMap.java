@@ -31,6 +31,7 @@ import net.runelite.client.ui.overlay.worldmap.WorldMapPointManager;
 public class GroupWorldMap
 {
 	private static final int DOT_SIZE = 11;
+	private static final int MAX_NAME = 20;
 
 	private final WorldMapPointManager worldMapPointManager;
 	private final PartyService partyService;
@@ -73,7 +74,7 @@ public class GroupWorldMap
 		for (PartyMember member : PartyMembers.current(partyService))
 		{
 			WorldPoint coord = member.getCoord();
-			String name = Clean.text(member.getDisplayName(), 20);
+			String name = Clean.text(member.getDisplayName(), MAX_NAME);
 			// the game already shows you on the map
 			if (!presence.isOnline(member) || coord == null || name == null
 				|| (local != null && local.getMemberId() == member.getMemberId()))
@@ -125,14 +126,6 @@ public class GroupWorldMap
 			worldMapPointManager.remove(point);
 		}
 		points.clear();
-	}
-
-	/**
-	 * @return how many members are on the map, for tests and the panel
-	 */
-	public int size()
-	{
-		return points.size();
 	}
 
 	private BufferedImage dot(Color color)

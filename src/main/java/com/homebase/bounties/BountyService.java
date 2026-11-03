@@ -32,6 +32,11 @@ public class BountyService
 {
 	public static final String TYPE = "bounty";
 
+	/**
+	 * A bounty or request amount meaning the whole stack.
+	 */
+	public static final int ALL = Integer.MAX_VALUE;
+
 	private static final int MAX_ITEM_NAME = 60;
 	private static final int MAX_NAME = 20;
 
@@ -59,15 +64,10 @@ public class BountyService
 		boolean locked;
 
 		/**
-		 * How many are held back from the player while locked; {@link #ALL} for every one.
+		 * How many are held back from the player while locked; {@link BountyService#ALL} for every one.
 		 */
 		int quantity;
 	}
-
-	/**
-	 * A bounty or request amount meaning the whole stack.
-	 */
-	public static final int ALL = Integer.MAX_VALUE;
 
 	private final LocalCollector collector;
 	private final GoalService goals;
@@ -193,26 +193,31 @@ public class BountyService
 		Map<Integer, Lock> out = new HashMap<>();
 		for (Bounty bounty : list())
 		{
-			if (!groupIndex.isMember(bounty.getData().getCreatedBy()))
+			BountyData data = bounty.getData();
+			if (!groupIndex.isMember(data.getCreatedBy()))
 			{
 				// only bounties set by someone in the group hold anything back
 				continue;
 			}
-			GoalService.Goal goal = goals.get(bounty.getData().getGoalId());
+			GoalService.Goal goal = goals.get(data.getGoalId());
 			String title = goal == null ? "a deleted goal" : GoalService.title(goal.getData());
-			boolean locked = me != null && isLocked(bounty.getData(), me);
-			int quantity = !locked ? 0 : bounty.getData().getQuantity() > 0 ? bounty.getData().getQuantity() : ALL;
-			Lock existing = out.get(bounty.getData().getItemId());
+			boolean locked = me != null && isLocked(data, me);
+			int quantity = 0;
+			if (locked)
+			{
+				quantity = data.getQuantity() > 0 ? data.getQuantity() : ALL;
+			}
+			Lock existing = out.get(data.getItemId());
 			if (existing == null)
 			{
-				out.put(bounty.getData().getItemId(), new Lock(title, locked, quantity));
+				out.put(data.getItemId(), new Lock(title, locked, quantity));
 			}
 			else if (locked)
 			{
 				// several bounties on one item hold back their amounts together
 				long total = (long) existing.getQuantity() + quantity;
-				out.put(bounty.getData().getItemId(), new Lock(existing.isLocked() ? existing.getGoal() : title, true,
-					(int) Math.min(ALL, total)));
+				String goalTitle = existing.isLocked() ? existing.getGoal() : title;
+				out.put(data.getItemId(), new Lock(goalTitle, true, (int) Math.min(ALL, total)));
 			}
 		}
 		return out;

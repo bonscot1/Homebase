@@ -7,6 +7,7 @@ import com.homebase.party.GroupSync;
 import com.homebase.party.HomebasePing;
 import com.homebase.party.Presence;
 import java.awt.Color;
+import java.awt.Point;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -45,6 +46,10 @@ public class PingService
 	 * Clicks closer together than this send one ping.
 	 */
 	private static final long SEND_GAP_MS = 400;
+
+	/**
+	 * Pings arriving closer together than this play one sound.
+	 */
 	private static final long SOUND_GAP_MS = 1_000;
 
 	/**
@@ -56,7 +61,9 @@ public class PingService
 	/**
 	 * Pings kept per member, so nobody can fill the screen.
 	 */
-	private static final int PER_MEMBER = 3;
+	private static final int MAX_PINGS_PER_MEMBER = 3;
+
+	private static final int MAX_NAME = 20;
 
 	private final Client client;
 	private final ClientThread clientThread;
@@ -64,16 +71,22 @@ public class PingService
 	private final PartyService partyService;
 	private final WSClient wsClient;
 	private final KeyManager keyManager;
+	private final MouseManager mouseManager;
 	private final GroupSync groupSync;
 	private final GroupIndex index;
 	private final Presence presence;
 
-	private final MouseManager mouseManager;
-	private final List<Ping> pings = new ArrayList<>();
 	private final HotkeyListener hotkey;
 	private final MouseAdapter middleClick;
+
+	/**
+	 * Pings still showing, oldest first. They arrive on the party's thread and are drawn on the client
+	 * thread, so every use locks the list.
+	 */
+	private final List<Ping> pings = new ArrayList<>();
+
 	private volatile boolean keyHeld;
-	private java.awt.Point pressedAt;
+	private Point pressedAt;
 	private long pressedTime;
 	private long lastSent;
 	private volatile long lastSoundAt;
@@ -256,7 +269,7 @@ public class PingService
 		}
 		presence.heard(message.getMemberId());
 		PartyMember member = partyService.getMemberById(message.getMemberId());
-		String name = member == null ? null : Clean.text(member.getDisplayName(), 20);
+		String name = member == null ? null : Clean.text(member.getDisplayName(), MAX_NAME);
 		// and only to members whose data has arrived, so their pings have a colour and a name
 		if (name == null || index.memberId(name) == null)
 		{
@@ -270,7 +283,7 @@ public class PingService
 			int mine = 0;
 			for (int i = pings.size() - 1; i >= 0; i--)
 			{
-				if (pings.get(i).getMemberId() == ping.getMemberId() && ++mine >= PER_MEMBER)
+				if (pings.get(i).getMemberId() == ping.getMemberId() && ++mine >= MAX_PINGS_PER_MEMBER)
 				{
 					pings.remove(i);
 				}

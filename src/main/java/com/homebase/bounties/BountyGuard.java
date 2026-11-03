@@ -29,6 +29,9 @@ import net.runelite.client.eventbus.Subscribe;
 @Singleton
 public class BountyGuard
 {
+	/**
+	 * Ticks a withdrawal we let through stays counted while the game hasn't reported it.
+	 */
 	private static final int PENDING_TICKS = 3;
 
 	private final Client client;
@@ -135,8 +138,11 @@ public class BountyGuard
 		}
 		Map<Integer, Integer> now = counts(event.getItemContainer());
 		// withdrawals the game has now reported no longer need counting
-		pending.replaceAll((itemId, amount) -> Math.max(0,
-			amount - Math.max(0, reported.getOrDefault(itemId, 0) - now.getOrDefault(itemId, 0))));
+		pending.replaceAll((itemId, amount) ->
+		{
+			int taken = Math.max(0, reported.getOrDefault(itemId, 0) - now.getOrDefault(itemId, 0));
+			return Math.max(0, amount - taken);
+		});
 		pending.values().removeIf(amount -> amount == 0);
 		reported = now;
 	}

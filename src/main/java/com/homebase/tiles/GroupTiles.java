@@ -4,12 +4,14 @@ import com.homebase.HomebaseConfig;
 import com.homebase.collect.LocalCollector;
 import com.homebase.data.Section;
 import com.homebase.data.TilesData;
+import java.util.ArrayList;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import net.runelite.api.Client;
 import net.runelite.api.KeyCode;
 import net.runelite.api.MenuAction;
 import net.runelite.api.Tile;
+import net.runelite.api.WorldView;
 import net.runelite.api.coords.LocalPoint;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.events.MenuEntryAdded;
@@ -23,8 +25,8 @@ import net.runelite.client.eventbus.Subscribe;
 @Singleton
 public class GroupTiles
 {
-	static final String MARK = "Group mark";
-	static final String UNMARK = "Group unmark";
+	private static final String MARK = "Group mark";
+	private static final String UNMARK = "Group unmark";
 	private static final String WALK_HERE = "Walk here";
 
 	private final Client client;
@@ -47,7 +49,8 @@ public class GroupTiles
 		{
 			return;
 		}
-		Tile tile = client.getTopLevelWorldView().getSelectedSceneTile();
+		WorldView view = client.getTopLevelWorldView();
+		Tile tile = view == null ? null : view.getSelectedSceneTile();
 		if (tile == null)
 		{
 			return;
@@ -99,7 +102,7 @@ public class GroupTiles
 		}
 		if (data.getTiles() == null)
 		{
-			data.setTiles(new java.util.ArrayList<>());
+			data.setTiles(new ArrayList<>());
 		}
 		return data;
 	}

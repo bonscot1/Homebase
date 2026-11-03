@@ -10,6 +10,11 @@ import java.security.NoSuchAlgorithmException;
  */
 public final class Ids
 {
+	/**
+	 * How much of the hash to keep: 64 bits, written as 16 hex digits.
+	 */
+	private static final int ID_BYTES = 8;
+
 	private Ids()
 	{
 	}
@@ -29,8 +34,8 @@ public final class Ids
 		try
 		{
 			byte[] digest = MessageDigest.getInstance("SHA-256").digest(input.getBytes(StandardCharsets.UTF_8));
-			StringBuilder sb = new StringBuilder(16);
-			for (int i = 0; i < 8; i++)
+			StringBuilder sb = new StringBuilder(ID_BYTES * 2);
+			for (int i = 0; i < ID_BYTES; i++)
 			{
 				sb.append(String.format("%02x", digest[i]));
 			}

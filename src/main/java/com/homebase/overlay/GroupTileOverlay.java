@@ -29,6 +29,7 @@ import net.runelite.client.ui.overlay.OverlayUtil;
 public class GroupTileOverlay extends Overlay
 {
 	private static final Stroke STROKE = new BasicStroke(2f);
+	private static final int FILL_ALPHA = 40;
 
 	private final Client client;
 	private final HomebaseConfig config;
@@ -79,7 +80,7 @@ public class GroupTileOverlay extends Overlay
 					continue;
 				}
 				Color color = tile.getColor();
-				OverlayUtil.renderPolygon(graphics, poly, color, new Color(color.getRed(), color.getGreen(), color.getBlue(), 40), STROKE);
+				OverlayUtil.renderPolygon(graphics, poly, color, new Color(color.getRed(), color.getGreen(), color.getBlue(), FILL_ALPHA), STROKE);
 				if (names)
 				{
 					Point text = Perspective.getCanvasTextLocation(client, graphics, local, tile.getName(), 0);

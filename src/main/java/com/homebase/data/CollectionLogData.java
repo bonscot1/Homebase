@@ -81,8 +81,7 @@ public class CollectionLogData implements Checkable
 	@Override
 	public void check()
 	{
-		pages = Checkable.map(pages);
-		pages.keySet().retainAll(new ArrayList<>(pages.keySet()).subList(0, Math.min(MAX_PAGES, pages.size())));
+		pages = Checkable.map(pages, MAX_PAGES);
 		for (Page page : pages.values())
 		{
 			page.setItems(Checkable.list(page.getItems(), MAX_PAGE_ITEMS));

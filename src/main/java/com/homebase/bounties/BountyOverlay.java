@@ -47,6 +47,7 @@ public class BountyOverlay extends WidgetItemOverlay
 			return;
 		}
 		Rectangle bounds = widgetItem.getCanvasBounds();
+		// in the slot's top right corner, clear of the stack size
 		drawPadlock(graphics, bounds.x + bounds.width - 9, bounds.y + 1, hold.getHeld() > 0 ? LOCKED : OPEN);
 
 		Point mouse = client.getMouseCanvasPosition();
@@ -62,7 +63,7 @@ public class BountyOverlay extends WidgetItemOverlay
 		}
 	}
 
-	static void drawPadlock(Graphics2D g, int x, int y, Color color)
+	private static void drawPadlock(Graphics2D g, int x, int y, Color color)
 	{
 		Object aa = g.getRenderingHint(RenderingHints.KEY_ANTIALIASING);
 		g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);

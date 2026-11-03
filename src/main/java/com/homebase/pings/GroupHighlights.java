@@ -4,6 +4,7 @@ import com.homebase.HomebaseConfig;
 import com.homebase.collect.LocalCollector;
 import com.homebase.data.HighlightsData;
 import com.homebase.data.Section;
+import java.util.ArrayList;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import net.runelite.api.Actor;
@@ -24,8 +25,8 @@ import net.runelite.client.eventbus.Subscribe;
 @Singleton
 public class GroupHighlights
 {
-	static final String HIGHLIGHT = "Group highlight";
-	static final String UNHIGHLIGHT = "Group unhighlight";
+	private static final String HIGHLIGHT = "Group highlight";
+	private static final String UNHIGHLIGHT = "Group unhighlight";
 
 	private final Client client;
 	private final HomebaseConfig config;
@@ -133,7 +134,7 @@ public class GroupHighlights
 		}
 		if (data.getNpcs() == null)
 		{
-			data.setNpcs(new java.util.ArrayList<>());
+			data.setNpcs(new ArrayList<>());
 		}
 		return data;
 	}

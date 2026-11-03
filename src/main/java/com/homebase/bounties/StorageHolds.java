@@ -24,7 +24,7 @@ public class StorageHolds
 	public static class Hold
 	{
 		/**
-		 * How many are held back from the player: 0 for none, {@link #ALL} for every one.
+		 * How many are held back from the player: 0 for none, {@link StorageHolds#ALL} for every one.
 		 */
 		int held;
 
@@ -33,6 +33,9 @@ public class StorageHolds
 		 */
 		List<String> reasons;
 
+		/**
+		 * @return true if there's a bounty or request on the item, even one that holds nothing back
+		 */
 		public boolean any()
 		{
 			return !reasons.isEmpty();
@@ -51,6 +54,9 @@ public class StorageHolds
 		this.requests = requests;
 	}
 
+	/**
+	 * @return how much of the item is held back from the logged in player, and why
+	 */
 	public Hold holdFor(int itemId)
 	{
 		int canonical = itemManager.canonicalize(itemId);
@@ -111,19 +117,19 @@ public class StorageHolds
 	 */
 	public static int amount(String option, int count)
 	{
-		String o = Text.removeTags(option).trim().toLowerCase(Locale.ROOT);
-		if (o.endsWith("-all-but-1"))
+		String text = Text.removeTags(option).trim().toLowerCase(Locale.ROOT);
+		if (text.endsWith("-all-but-1"))
 		{
 			return Math.max(0, count - 1);
 		}
-		if (o.endsWith("-all"))
+		if (text.endsWith("-all"))
 		{
 			return count;
 		}
-		int dash = o.lastIndexOf('-');
+		int dash = text.lastIndexOf('-');
 		try
 		{
-			return Math.min(count, Integer.parseInt(o.substring(dash + 1)));
+			return Math.min(count, Integer.parseInt(text.substring(dash + 1)));
 		}
 		catch (NumberFormatException e)
 		{

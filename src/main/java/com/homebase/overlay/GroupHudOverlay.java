@@ -11,6 +11,7 @@ import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.Graphics2D;
+import java.awt.Point;
 import java.awt.Rectangle;
 import java.util.ArrayList;
 import java.util.List;
@@ -26,6 +27,7 @@ import net.runelite.client.party.PartyService;
 import net.runelite.client.ui.FontManager;
 import net.runelite.client.ui.overlay.OverlayPanel;
 import net.runelite.client.ui.overlay.OverlayPosition;
+import net.runelite.client.ui.overlay.components.ComponentConstants;
 import net.runelite.client.ui.overlay.components.ComponentOrientation;
 import net.runelite.client.ui.overlay.components.LineComponent;
 import net.runelite.client.ui.overlay.components.PanelComponent;
@@ -52,6 +54,8 @@ public class GroupHudOverlay extends OverlayPanel
 	private static final Color RUN_FG = new Color(0xC8A01E);
 	private static final Color RUN_BG = new Color(0x3A3220);
 	private static final int BAR_GAP = 3;
+
+	private static final int MAX_NAME = 20;
 
 	private final Client client;
 	private final HomebaseConfig config;
@@ -113,7 +117,8 @@ public class GroupHudOverlay extends OverlayPanel
 		List<PartyMember> out = new ArrayList<>();
 		for (PartyMember member : PartyMembers.current(partyService))
 		{
-			if (!presence.isOnline(member) || member.getDisplayName() == null)
+			// a name that is nothing once cleaned would leave the title with no text to draw
+			if (!presence.isOnline(member) || Clean.text(member.getDisplayName(), MAX_NAME) == null)
 			{
 				continue;
 			}
@@ -129,7 +134,7 @@ public class GroupHudOverlay extends OverlayPanel
 
 	private void addFull(PartyMember member, Font font, HomebaseConfig.HudSize size)
 	{
-		String name = Clean.text(member.getDisplayName(), 20);
+		String name = Clean.text(member.getDisplayName(), MAX_NAME);
 		int level = index.combatLevel(name);
 		panelComponent.getChildren().add(TitleComponent.builder()
 			.text(level > 0 && config.hudLevel() ? name + "  (level " + level + ")" : name)
@@ -151,7 +156,7 @@ public class GroupHudOverlay extends OverlayPanel
 
 	private void addCompact(PartyMember member, Font font, HomebaseConfig.HudSize size)
 	{
-		String name = Clean.text(member.getDisplayName(), 20);
+		String name = Clean.text(member.getDisplayName(), MAX_NAME);
 		int level = index.combatLevel(name);
 		panelComponent.getChildren().add(LineComponent.builder()
 			.left(level > 0 && config.hudLevel() ? name + " (" + level + ")" : name)
@@ -187,12 +192,12 @@ public class GroupHudOverlay extends OverlayPanel
 		{
 			return;
 		}
-		int width = widthFor(size) - 8;
+		int width = widthFor(size) - 2 * ComponentConstants.STANDARD_BORDER;
 		int each = (width - BAR_GAP * (bars.size() - 1)) / bars.size();
 		int height = barHeight(size);
 		PanelComponent row = new PanelComponent();
 		row.setOrientation(ComponentOrientation.HORIZONTAL);
-		row.setGap(new java.awt.Point(BAR_GAP, 0));
+		row.setGap(new Point(BAR_GAP, 0));
 		row.setBorder(new Rectangle(0, 1, 0, 3));
 		row.setBackgroundColor(null);
 		for (ProgressBarComponent bar : bars)

@@ -18,7 +18,26 @@ public final class AreaNames
 	/**
 	 * Dungeons sit this far north of the land above them on the game's map.
 	 */
-	static final int UNDERGROUND_OFFSET = 6400;
+	private static final int UNDERGROUND_OFFSET = 6400;
+
+	/**
+	 * The band of the game's map that most dungeons are in.
+	 */
+	private static final int UNDERGROUND_SOUTH = 8700;
+	private static final int UNDERGROUND_NORTH = 10500;
+
+	/**
+	 * The Wilderness on the surface. Its dungeons cover the same ground {@link #UNDERGROUND_OFFSET} north.
+	 */
+	private static final int WILDERNESS_WEST = 2944;
+	private static final int WILDERNESS_EAST = 3392;
+	private static final int WILDERNESS_SOUTH = 3520;
+	private static final int WILDERNESS_NORTH = 3968;
+
+	/**
+	 * Rows of tiles to each Wilderness level, going north.
+	 */
+	private static final int ROWS_PER_LEVEL = 8;
 
 	/**
 	 * How far past a place's own radius still counts as "near" it.
@@ -182,10 +201,10 @@ public final class AreaNames
 		int wildy = wildernessLevel(x, y);
 		if (wildy > 0)
 		{
-			return (y >= 9920 ? "Wilderness dungeon" : "Wilderness") + " (level " + wildy + ")";
+			return (isUnderground(y) ? "Wilderness dungeon" : "Wilderness") + " (level " + wildy + ")";
 		}
 
-		if (y >= 8700 && y < 10500)
+		if (isUnderground(y))
 		{
 			String above = describe(x, y - UNDERGROUND_OFFSET);
 			if (UNKNOWN.equals(above))
@@ -205,21 +224,19 @@ public final class AreaNames
 	/**
 	 * @return the Wilderness level at a point, or 0 outside the Wilderness
 	 */
-	static int wildernessLevel(int x, int y)
+	private static int wildernessLevel(int x, int y)
 	{
-		if (x < 2944 || x >= 3392)
+		int surfaceY = y >= WILDERNESS_SOUTH + UNDERGROUND_OFFSET ? y - UNDERGROUND_OFFSET : y;
+		if (x < WILDERNESS_WEST || x >= WILDERNESS_EAST || surfaceY < WILDERNESS_SOUTH || surfaceY >= WILDERNESS_NORTH)
 		{
 			return 0;
 		}
-		if (y >= 3520 && y < 3968)
-		{
-			return (y - 3520) / 8 + 1;
-		}
-		if (y >= 9920 && y < 10368)
-		{
-			return (y - 9920) / 8 + 1;
-		}
-		return 0;
+		return (surfaceY - WILDERNESS_SOUTH) / ROWS_PER_LEVEL + 1;
+	}
+
+	private static boolean isUnderground(int y)
+	{
+		return y >= UNDERGROUND_SOUTH && y < UNDERGROUND_NORTH;
 	}
 
 	private static Place closest(int x, int y)
