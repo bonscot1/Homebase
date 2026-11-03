@@ -4,6 +4,7 @@ import com.homebase.HomebaseConfig;
 import com.homebase.data.Clean;
 import com.homebase.data.GroupIndex;
 import com.homebase.party.GroupSync;
+import com.homebase.party.PartyMembers;
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Graphics2D;
@@ -66,7 +67,7 @@ public class GroupWorldMap
 
 		PartyMember local = partyService.getLocalMember();
 		Set<Long> seen = new HashSet<>();
-		for (PartyMember member : partyService.getMembers())
+		for (PartyMember member : PartyMembers.current(partyService))
 		{
 			WorldPoint coord = member.getCoord();
 			String name = Clean.text(member.getDisplayName(), 20);

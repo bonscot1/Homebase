@@ -28,6 +28,7 @@ import net.runelite.client.ui.FontManager;
 class RequestsView extends JPanel
 {
 	private static final Color UNCLAIMED = new Color(0xff9800);
+	private static final Color TAKEN = new Color(0x42A5F5);
 	private static final Color RESERVED = new Color(0x26C6DA);
 
 	private final RequestService service;
@@ -152,7 +153,7 @@ class RequestsView extends JPanel
 		RequestData data = request.getData();
 		Color state = data.isDone() ? ColorScheme.PROGRESS_COMPLETE_COLOR
 			: data.isReserved() ? RESERVED
-			: data.getAssignedTo() != null ? ColorScheme.PROGRESS_INPROGRESS_COLOR : UNCLAIMED;
+			: data.getAssignedTo() != null ? TAKEN : UNCLAIMED;
 		JPanel card = new JPanel();
 		card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
 		card.setBackground(ColorScheme.DARKER_GRAY_COLOR);
@@ -233,6 +234,8 @@ class RequestsView extends JPanel
 		{
 			((javax.swing.JComponent) c).setAlignmentX(Component.LEFT_ALIGNMENT);
 		}
+		// a card of only labels would otherwise be only as wide as its longest line
+		card.setMaximumSize(new java.awt.Dimension(Integer.MAX_VALUE, card.getPreferredSize().height));
 		return card;
 	}
 

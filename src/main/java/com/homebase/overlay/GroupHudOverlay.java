@@ -5,6 +5,7 @@ import com.homebase.data.Clean;
 import com.homebase.data.GroupIndex;
 import com.homebase.map.AreaNames;
 import com.homebase.party.GroupSync;
+import com.homebase.party.PartyMembers;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Font;
@@ -92,7 +93,7 @@ public class GroupHudOverlay extends OverlayPanel
 		PartyMember local = partyService.getLocalMember();
 		boolean includeSelf = config.hudIncludeSelf();
 		List<PartyMember> out = new ArrayList<>();
-		for (PartyMember member : partyService.getMembers())
+		for (PartyMember member : PartyMembers.current(partyService))
 		{
 			if (!member.isLoggedIn() || member.getDisplayName() == null)
 			{

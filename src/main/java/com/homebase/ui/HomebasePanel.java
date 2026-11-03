@@ -10,6 +10,7 @@ import com.homebase.data.ProfileData;
 import com.homebase.data.Section;
 import com.homebase.goals.GoalService;
 import com.homebase.party.GroupSync;
+import com.homebase.party.PartyMembers;
 import com.homebase.requests.RequestService;
 import com.homebase.updates.UpdateTracker;
 import java.awt.BorderLayout;
@@ -405,7 +406,7 @@ public class HomebasePanel extends PluginPanel
 		{
 			MemberCard card = entry.getValue();
 			String name = card.getMemberName();
-			PartyMember live = inGroupParty && name != null ? partyService.getMemberByDisplayName(name) : null;
+			PartyMember live = inGroupParty && name != null ? PartyMembers.byName(partyService, name) : null;
 			card.updateLive(live, entry.getKey().equals(localId));
 		}
 	}
@@ -463,7 +464,7 @@ public class HomebasePanel extends PluginPanel
 	private int onlineCount()
 	{
 		int count = 0;
-		for (PartyMember member : partyService.getMembers())
+		for (PartyMember member : PartyMembers.current(partyService))
 		{
 			if (member.isLoggedIn())
 			{
