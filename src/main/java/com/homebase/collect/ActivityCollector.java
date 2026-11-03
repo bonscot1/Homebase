@@ -320,6 +320,11 @@ public class ActivityCollector
 
 	private void recordKills(String boss, int count)
 	{
+		if (count <= 0)
+		{
+			// collection log pages show "kills: 0" for bosses never fought
+			return;
+		}
 		KillCountsData kills = collector.shared(Section.KILL_COUNTS, KillCountsData.class);
 		if (kills == null || kills.getCounts() == null)
 		{

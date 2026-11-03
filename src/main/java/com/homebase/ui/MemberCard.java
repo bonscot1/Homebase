@@ -398,14 +398,27 @@ class MemberCard extends JPanel
 				sorted.put(name, e.getValue());
 			}
 		}
+		int empty = 0;
 		for (Map.Entry<String, CollectionLogData.Page> e : sorted.entrySet())
 		{
 			CollectionLogData.Page page = e.getValue();
 			int have = page.getItems() == null ? 0 : page.getItems().size();
+			if (have == 0)
+			{
+				// pages with nothing on them only make the list longer
+				empty++;
+				continue;
+			}
 			JLabel row = smallLabel(e.getKey() + "  " + have + "/" + page.getSize());
 			row.setForeground(have >= page.getSize() && page.getSize() > 0
 				? ColorScheme.PROGRESS_COMPLETE_COLOR : ColorScheme.LIGHT_GRAY_COLOR);
 			row.setToolTipText("Seen " + Ago.format(page.getSeen()));
+			list.add(row);
+		}
+		if (empty > 0)
+		{
+			JLabel row = smallLabel(empty + (empty == 1 ? " more page" : " more pages") + " with nothing yet");
+			row.setForeground(ColorScheme.MEDIUM_GRAY_COLOR);
 			list.add(row);
 		}
 		if (sorted.isEmpty() && recent.isEmpty())
@@ -418,13 +431,28 @@ class MemberCard extends JPanel
 	private static void addKillCounts(JPanel parent, String memberId, GroupView view, Context context)
 	{
 		KillCountsData kills = view.get(memberId, Section.KILL_COUNTS, KillCountsData.class);
-		if (kills == null || kills.getCounts() == null || kills.getCounts().isEmpty())
+		if (kills == null || kills.getCounts() == null)
 		{
 			return;
 		}
+		List<Map.Entry<String, Integer>> rows = new ArrayList<>();
+		for (Map.Entry<String, Integer> e : kills.getCounts().entrySet())
+		{
+			String name = Clean.text(e.getKey(), 40);
+			// a collection log page shows "kills: 0" for bosses never fought, which says nothing
+			if (name != null && e.getValue() != null && e.getValue() > 0)
+			{
+				rows.add(new java.util.AbstractMap.SimpleEntry<>(name, e.getValue()));
+			}
+		}
+		if (rows.isEmpty())
+		{
+			return;
+		}
+		rows.sort((a, b) -> b.getValue() - a.getValue());
 		String id = memberId + ":" + Section.KILL_COUNTS.getKey();
 		boolean open = context.openSections.contains(id);
-		int bosses = kills.getCounts().size();
+		int bosses = rows.size();
 		JLabel label = heading((open ? "▾ " : "▸ ") + "Kill counts  ·  " + bosses + (bosses == 1 ? " boss" : " bosses"));
 		label.setForeground(Color.WHITE);
 		clickable(label, () -> context.toggleSection.accept(id));
@@ -433,16 +461,6 @@ class MemberCard extends JPanel
 		{
 			return;
 		}
-		List<Map.Entry<String, Integer>> rows = new ArrayList<>();
-		for (Map.Entry<String, Integer> e : kills.getCounts().entrySet())
-		{
-			String name = Clean.text(e.getKey(), 40);
-			if (name != null && e.getValue() != null)
-			{
-				rows.add(new java.util.AbstractMap.SimpleEntry<>(name, e.getValue()));
-			}
-		}
-		rows.sort((a, b) -> b.getValue() - a.getValue());
 		JPanel list = new JPanel(new GridLayout(0, 1));
 		list.setOpaque(false);
 		for (Map.Entry<String, Integer> e : rows)
