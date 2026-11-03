@@ -79,15 +79,17 @@ class MemberCard extends JPanel
 	{
 		final ItemManager itemManager;
 		final SkillIconManager skillIconManager;
+		final GameSprites sprites;
 		final ClientThread clientThread;
 		final Set<String> openSections;
 		final Consumer<String> toggleSection;
 
-		Context(ItemManager itemManager, SkillIconManager skillIconManager, ClientThread clientThread,
+		Context(ItemManager itemManager, SkillIconManager skillIconManager, GameSprites sprites, ClientThread clientThread,
 			Set<String> openSections, Consumer<String> toggleSection)
 		{
 			this.itemManager = itemManager;
 			this.skillIconManager = skillIconManager;
+			this.sprites = sprites;
 			this.clientThread = clientThread;
 			this.openSections = openSections;
 			this.toggleSection = toggleSection;
@@ -223,8 +225,8 @@ class MemberCard extends JPanel
 		addCollectionLog(details, memberId, view, context);
 		addKillCounts(details, memberId, view, context);
 		addHouse(details, memberId, view, context);
-		addItems(details, "Inventory", memberId, Section.INVENTORY, 4, true, view, context);
-		addItems(details, "Equipment", memberId, Section.EQUIPMENT, 5, false, view, context);
+		addInventory(details, memberId, view, context);
+		addEquipment(details, memberId, view, context);
 		details.add(Box.createVerticalStrut(8));
 		addCollapsible(details, "Bank", memberId, Section.BANK, view, context);
 		addCollapsible(details, "Seed vault", memberId, Section.SEED_VAULT, view, context);
@@ -258,17 +260,36 @@ class MemberCard extends JPanel
 		parent.add(wrap);
 	}
 
-	private static void addItems(JPanel parent, String title, String memberId, Section section, int columns,
-		boolean keepEmptySlots, GroupView view, Context context)
+	private static void addInventory(JPanel parent, String memberId, GroupView view, Context context)
 	{
-		ItemsData items = view.get(memberId, section, ItemsData.class);
-		if (items == null || (items.isEmpty() && !keepEmptySlots))
+		ItemsData items = view.get(memberId, Section.INVENTORY, ItemsData.class);
+		if (items == null)
+		{
+			return;
+		}
+		int used = 0;
+		for (Item item : items.toItems())
+		{
+			if (item != null)
+			{
+				used++;
+			}
+		}
+		parent.add(Box.createVerticalStrut(4));
+		parent.add(caption("Inventory", (28 - used) + " free  ·  " + Ago.format(view.updatedAt(memberId, Section.INVENTORY))));
+		parent.add(new ItemGrid(items.toItems(), ItemGrid.Look.INVENTORY, context.itemManager, context.clientThread));
+	}
+
+	private static void addEquipment(JPanel parent, String memberId, GroupView view, Context context)
+	{
+		ItemsData items = view.get(memberId, Section.EQUIPMENT, ItemsData.class);
+		if (items == null)
 		{
 			return;
 		}
 		parent.add(Box.createVerticalStrut(4));
-		parent.add(caption(title, Ago.format(view.updatedAt(memberId, section))));
-		parent.add(new ItemGrid(items.toItems(), columns, keepEmptySlots, context.itemManager, context.clientThread));
+		parent.add(caption("Equipment", Ago.format(view.updatedAt(memberId, Section.EQUIPMENT))));
+		parent.add(new EquipmentGrid(items.toItems(), context.itemManager, context.clientThread, context.sprites));
 	}
 
 	/**
@@ -294,7 +315,7 @@ class MemberCard extends JPanel
 		addRow(parent, title, stacks.size() + " items · " + Ago.format(view.updatedAt(memberId, section)), id, context);
 		if (context.openSections.contains(id))
 		{
-			parent.add(new ItemGrid(stacks, 5, false, context.itemManager, context.clientThread));
+			parent.add(new ItemGrid(stacks, ItemGrid.Look.CONTAINER, context.itemManager, context.clientThread));
 			parent.add(Box.createVerticalStrut(4));
 		}
 	}
@@ -525,7 +546,7 @@ class MemberCard extends JPanel
 				}
 			}
 			content.add(align(caption("Costume room", null)));
-			content.add(align(new ItemGrid(items, 5, false, context.itemManager, context.clientThread)));
+			content.add(align(new ItemGrid(items, ItemGrid.Look.CONTAINER, context.itemManager, context.clientThread)));
 		}
 		addContent(parent, content);
 	}

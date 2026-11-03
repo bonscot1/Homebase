@@ -11,7 +11,6 @@ import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.GridLayout;
-import java.awt.Insets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -35,7 +34,6 @@ import javax.swing.JLabel;
 import javax.swing.JList;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
-import javax.swing.SwingUtilities;
 import javax.swing.border.CompoundBorder;
 import javax.swing.border.EmptyBorder;
 import javax.swing.border.MatteBorder;
@@ -76,7 +74,6 @@ class GoalsView extends JPanel
 		TYPE_LABELS.put(GoalData.Type.COLLECTION_LOG, "Collection log slots");
 	}
 
-	private static final Map<Integer, String> ITEM_NAMES = Collections.synchronizedMap(new HashMap<>());
 	private static final Map<Integer, ImageIcon> ITEM_ICONS = new HashMap<>();
 
 	private final GoalService goals;
@@ -458,7 +455,7 @@ class GoalsView extends JPanel
 
 	private static String name(int itemId)
 	{
-		return ITEM_NAMES.getOrDefault(itemId, "item " + itemId);
+		return ItemNames.get(itemId);
 	}
 
 	private static Integer[] sorted(List<Integer> ids)
@@ -505,41 +502,21 @@ class GoalsView extends JPanel
 	}
 
 	/**
-	 * Item names come from the game's cache, which can only be read on the client thread.
+	 * Look up the items' names, then put the list in A to Z order, keeping any choice already made.
 	 */
 	private void resolveNames(List<Integer> ids)
 	{
-		List<Integer> missing = new ArrayList<>();
-		for (Integer id : ids)
+		ItemNames.resolve(ids, itemManager, clientThread, () ->
 		{
-			if (!ITEM_NAMES.containsKey(id))
+			if (bountyItem != null && ids.equals(bountyItemIds))
 			{
-				missing.add(id);
-			}
-		}
-		if (missing.isEmpty())
-		{
-			return;
-		}
-		clientThread.invokeLater(() ->
-		{
-			for (Integer id : missing)
-			{
-				ITEM_NAMES.put(id, itemManager.getItemComposition(id).getName());
-			}
-			SwingUtilities.invokeLater(() ->
-			{
-				if (bountyItem != null && ids.equals(bountyItemIds))
+				Object chosen = bountyItem.getSelectedIndex() > 0 ? bountyItem.getSelectedItem() : null;
+				bountyItem.setModel(new DefaultComboBoxModel<>(sorted(ids)));
+				if (chosen != null)
 				{
-					// now the names are known, put the list in A to Z order, keeping any choice already made
-					Object chosen = bountyItem.getSelectedIndex() > 0 ? bountyItem.getSelectedItem() : null;
-					bountyItem.setModel(new DefaultComboBoxModel<>(sorted(ids)));
-					if (chosen != null)
-					{
-						bountyItem.setSelectedItem(chosen);
-					}
+					bountyItem.setSelectedItem(chosen);
 				}
-			});
+			}
 		});
 	}
 

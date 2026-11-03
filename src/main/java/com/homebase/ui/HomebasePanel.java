@@ -41,6 +41,7 @@ import javax.swing.border.EmptyBorder;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.game.ItemManager;
 import net.runelite.client.game.SkillIconManager;
+import net.runelite.client.game.SpriteManager;
 import net.runelite.client.party.PartyMember;
 import net.runelite.client.party.PartyService;
 import net.runelite.client.ui.ColorScheme;
@@ -98,7 +99,7 @@ public class HomebasePanel extends PluginPanel
 	@Inject
 	private HomebasePanel(HomebasePlugin plugin, GroupSync groupSync, PartyService partyService, LocalCollector collector,
 		RequestService requestService, UpdateTracker updateTracker, GoalService goalService, BountyService bountyService,
-		ItemManager itemManager, SkillIconManager skillIconManager, ClientThread clientThread)
+		ItemManager itemManager, SkillIconManager skillIconManager, SpriteManager spriteManager, ClientThread clientThread)
 	{
 		this.plugin = plugin;
 		this.groupSync = groupSync;
@@ -110,7 +111,7 @@ public class HomebasePanel extends PluginPanel
 		this.updatesView = new UpdatesView(updateTracker);
 		this.goalsView = new GoalsView(goalService, bountyService, itemManager, clientThread,
 			() -> view == null ? null : view.get(null, Section.GROUP_STORAGE, ItemsData.class));
-		this.cardContext = new MemberCard.Context(itemManager, skillIconManager, clientThread, openSections, id ->
+		this.cardContext = new MemberCard.Context(itemManager, skillIconManager, new GameSprites(spriteManager), clientThread, openSections, id ->
 		{
 			if (!openSections.remove(id))
 			{
@@ -377,7 +378,7 @@ public class HomebasePanel extends PluginPanel
 
 		if (storageExpanded)
 		{
-			ItemGrid grid = new ItemGrid(storage.toItems(), 5, false, itemManager, clientThread);
+			ItemGrid grid = new ItemGrid(storage.toItems(), ItemGrid.Look.CONTAINER, itemManager, clientThread);
 			grid.setBorder(new EmptyBorder(0, 8, 8, 8));
 			panel.add(grid, BorderLayout.CENTER);
 		}
