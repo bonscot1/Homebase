@@ -15,7 +15,9 @@ import javax.inject.Inject;
 import javax.inject.Singleton;
 import net.runelite.api.Client;
 import net.runelite.api.GameState;
+import net.runelite.api.Player;
 import net.runelite.api.Skill;
+import net.runelite.api.coords.WorldPoint;
 import net.runelite.client.party.PartyMember;
 import net.runelite.client.party.PartyService;
 import net.runelite.client.ui.FontManager;
@@ -129,9 +131,10 @@ public class GroupHudOverlay extends OverlayPanel
 		{
 			add("Run", member.getRunEnergy() + "%", RUN, font);
 		}
-		if (config.hudPosition() && member.getCoord() != null)
+		WorldPoint coord = coordOf(member);
+		if (config.hudPosition() && coord != null)
 		{
-			add("Area", AreaNames.describe(member.getCoord()), AREA, font);
+			add("Area", AreaNames.describe(coord), AREA, font);
 		}
 	}
 
@@ -155,9 +158,10 @@ public class GroupHudOverlay extends OverlayPanel
 		{
 			append(right, member.getRunEnergy() + "%");
 		}
-		if (config.hudPosition() && member.getCoord() != null)
+		WorldPoint coord = coordOf(member);
+		if (config.hudPosition() && coord != null)
 		{
-			append(right, AreaNames.describe(member.getCoord()));
+			append(right, AreaNames.describe(coord));
 		}
 		panelComponent.getChildren().add(LineComponent.builder()
 			.left(level > 0 && config.hudLevel() ? name + " (" + level + ")" : name)
@@ -167,6 +171,21 @@ public class GroupHudOverlay extends OverlayPanel
 			.rightColor(color)
 			.rightFont(font)
 			.build());
+	}
+
+	/**
+	 * Where a member is. The party only sends a position once the player moves, so after joining
+	 * before login our own would be missing until we walk; ours is read from the game instead.
+	 */
+	private WorldPoint coordOf(PartyMember member)
+	{
+		PartyMember local = partyService.getLocalMember();
+		Player player = client.getLocalPlayer();
+		if (local != null && local.getMemberId() == member.getMemberId() && player != null)
+		{
+			return WorldPoint.fromLocalInstance(client, player.getLocalLocation());
+		}
+		return member.getCoord();
 	}
 
 	private void add(String label, String value, Color color, Font font)
