@@ -28,6 +28,10 @@ import net.runelite.client.party.events.UserPart;
 public class Presence
 {
 	static final long HEARTBEAT_MS = 30_000;
+
+	/**
+	 * A little over two heartbeats, so one lost message doesn't drop anyone.
+	 */
 	static final long TIMEOUT_MS = 75_000;
 
 	private final Client client;
@@ -35,6 +39,10 @@ public class Presence
 	private final WSClient wsClient;
 
 	private final Map<Long, Long> lastHeard = new ConcurrentHashMap<>();
+
+	/**
+	 * Members who said they were going offline, until they're heard from again.
+	 */
 	private final Set<Long> gone = ConcurrentHashMap.newKeySet();
 	private final List<Runnable> listeners = new CopyOnWriteArrayList<>();
 	private long lastSent;
@@ -46,7 +54,7 @@ public class Presence
 	private volatile LongPredicate trusted = memberId -> true;
 
 	@Inject
-	private Presence(Client client, PartyService party, WSClient wsClient)
+	Presence(Client client, PartyService party, WSClient wsClient)
 	{
 		this.client = client;
 		this.party = party;
@@ -121,16 +129,18 @@ public class Presence
 	/**
 	 * Send "still here" when it's due, and tell listeners when someone has gone quiet. Runs about once
 	 * a second on the client thread.
+	 *
+	 * @param sharing whether we're in the group's party and it's safe to share with everyone in it
 	 */
-	public void tick(boolean inGroupParty)
+	public void tick(boolean sharing)
 	{
 		long now = System.currentTimeMillis();
-		if (inGroupParty && client.getGameState() == GameState.LOGGED_IN && now - lastSent >= HEARTBEAT_MS)
+		if (sharing && client.getGameState() == GameState.LOGGED_IN && now - lastSent >= HEARTBEAT_MS)
 		{
 			send(true);
 		}
 		Set<Long> online = new HashSet<>();
-		if (inGroupParty)
+		if (sharing)
 		{
 			for (PartyMember member : party.getMembers())
 			{
@@ -153,6 +163,7 @@ public class Presence
 	public void sendOffline()
 	{
 		send(false);
+		// so the next login says "still here" straight away
 		lastSent = 0;
 	}
 

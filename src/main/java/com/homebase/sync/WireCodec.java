@@ -44,6 +44,8 @@ public final class WireCodec
 
 	private static final int SAVE_FORMAT = 1;
 
+	private static final int CHUNK_BYTES = 4096;
+
 	private WireCodec()
 	{
 	}
@@ -57,11 +59,11 @@ public final class WireCodec
 			deflater.setInput(input);
 			deflater.finish();
 			ByteArrayOutputStream out = new ByteArrayOutputStream(Math.max(64, input.length / 4));
-			byte[] buf = new byte[4096];
+			byte[] chunk = new byte[CHUNK_BYTES];
 			while (!deflater.finished())
 			{
-				int n = deflater.deflate(buf);
-				out.write(buf, 0, n);
+				int length = deflater.deflate(chunk);
+				out.write(chunk, 0, length);
 			}
 			return Base64.getEncoder().encodeToString(out.toByteArray());
 		}
@@ -90,16 +92,17 @@ public final class WireCodec
 		try
 		{
 			inflater.setInput(input);
-			ByteArrayOutputStream out = new ByteArrayOutputStream(input.length * 4);
-			byte[] buf = new byte[4096];
+			// capped, so a huge payload can't allocate past the limit before a byte is inflated
+			ByteArrayOutputStream out = new ByteArrayOutputStream((int) Math.min(input.length * 4L, MAX_INFLATED_BYTES));
+			byte[] chunk = new byte[CHUNK_BYTES];
 			while (!inflater.finished())
 			{
-				int n = inflater.inflate(buf);
-				if (n == 0 && (inflater.needsInput() || inflater.needsDictionary()))
+				int length = inflater.inflate(chunk);
+				if (length == 0 && (inflater.needsInput() || inflater.needsDictionary()))
 				{
 					throw new IOException("truncated payload");
 				}
-				out.write(buf, 0, n);
+				out.write(chunk, 0, length);
 				if (out.size() > MAX_INFLATED_BYTES)
 				{
 					throw new IOException("payload too large");

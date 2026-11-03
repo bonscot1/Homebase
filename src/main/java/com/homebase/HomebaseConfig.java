@@ -16,6 +16,7 @@ public interface HomebaseConfig extends Config
 	String PASSPHRASE_KEY = "groupPassphrase";
 	String GIM_SECRET_KEY = "gimSecret";
 	String GIM_GROUP_KEY = "gimGroup";
+	String TILE_COLOR_KEY = "tileColor";
 
 	@ConfigItem(
 		keyName = GIM_SECRET_KEY,
@@ -75,13 +76,6 @@ public interface HomebaseConfig extends Config
 	default boolean goalMessages()
 	{
 		return true;
-	}
-
-	enum HudSize
-	{
-		SMALL,
-		MEDIUM,
-		LARGE
 	}
 
 	@ConfigItem(
@@ -199,6 +193,13 @@ public interface HomebaseConfig extends Config
 		return false;
 	}
 
+	enum HudSize
+	{
+		SMALL,
+		MEDIUM,
+		LARGE
+	}
+
 	@ConfigItem(
 		keyName = "hudSize",
 		name = "Size",
@@ -243,7 +244,7 @@ public interface HomebaseConfig extends Config
 	}
 
 	@ConfigItem(
-		keyName = "tileColor",
+		keyName = TILE_COLOR_KEY,
 		name = "Your colour",
 		description = "The colour of your marked tiles, pings and highlights. Everyone in your group sees them in this colour.",
 		section = mapSection,

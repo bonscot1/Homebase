@@ -169,13 +169,8 @@ public class GroupStore
 	public synchronized int purgeDeleted(long cutoff)
 	{
 		int before = records.size();
-		records.values().removeIf(r -> r.isDeleted() && r.getVersion() < cutoff);
+		records.values().removeIf(record -> record.isDeleted() && record.getVersion() < cutoff);
 		return before - records.size();
-	}
-
-	public synchronized int size()
-	{
-		return records.size();
 	}
 
 	private void notifyListeners(SyncRecord previous, SyncRecord current)

@@ -91,6 +91,10 @@ import net.runelite.client.util.ImageUtil;
 public class HomebasePlugin extends Plugin
 {
 	private static final long SAVE_INTERVAL_SECONDS = 30;
+	private static final long FLUSH_INTERVAL_SECONDS = 1;
+	private static final int WORLD_MAP_UPDATE_TICKS = 2;
+	private static final long GOAL_CHECK_DELAY_SECONDS = 2;
+	private static final String CHAT_PREFIX = "<col=ff9800>[Homebase]</col> ";
 
 	/**
 	 * How long deleted items are remembered, so an old copy relayed by someone who was away can't
@@ -218,11 +222,15 @@ public class HomebasePlugin extends Plugin
 	@Getter
 	private volatile String gimGroup;
 
-	private HomebasePanel panel;
+	private volatile HomebasePanel panel;
 	private NavigationButton navButton;
 	private ScheduledFuture<?> flushTask;
 	private ScheduledFuture<?> saveTask;
-	private OpenGroup group;
+	private volatile OpenGroup currentGroup;
+
+	/**
+	 * The passphrase {@link #currentGroup} was opened with, or empty when no group is open.
+	 */
 	private String openPassphrase;
 	private volatile boolean updatesToAnnounce;
 
@@ -314,7 +322,7 @@ public class HomebasePlugin extends Plugin
 		{
 			groupSync.flush();
 			updateLiveSharing();
-		}), 1, 1, TimeUnit.SECONDS);
+		}), FLUSH_INTERVAL_SECONDS, FLUSH_INTERVAL_SECONDS, TimeUnit.SECONDS);
 		saveTask = executor.scheduleWithFixedDelay(this::saveCurrent, SAVE_INTERVAL_SECONDS, SAVE_INTERVAL_SECONDS, TimeUnit.SECONDS);
 	}
 
@@ -383,7 +391,7 @@ public class HomebasePlugin extends Plugin
 			case HomebaseConfig.GIM_GROUP_KEY:
 				selectGroup();
 				break;
-			case "tileColor":
+			case HomebaseConfig.TILE_COLOR_KEY:
 				clientThread.invokeLater(() ->
 				{
 					groupTiles.colorChanged();
@@ -396,7 +404,7 @@ public class HomebasePlugin extends Plugin
 	@Subscribe
 	public void onGameTick(GameTick event)
 	{
-		if (++mapTicks >= 2)
+		if (++mapTicks >= WORLD_MAP_UPDATE_TICKS)
 		{
 			mapTicks = 0;
 			worldMap.update();
@@ -404,13 +412,13 @@ public class HomebasePlugin extends Plugin
 		if (updatesToAnnounce && collector.getMemberId() != null)
 		{
 			updatesToAnnounce = false;
-			boolean show = config.updateMessages();
-			for (UpdateEntry entry : updateTracker.takeUnannounced())
+			// taken even when the messages are turned off, so turning them on later doesn't replay old ones
+			List<UpdateEntry> unannounced = updateTracker.takeUnannounced();
+			if (config.updateMessages())
 			{
-				if (show)
+				for (UpdateEntry entry : unannounced)
 				{
-					client.addChatMessage(ChatMessageType.GAMEMESSAGE, "",
-						"<col=ff9800>[Homebase]</col> " + UpdateDiff.chatLine(entry.getName(), entry.getChanges()), null);
+					addChatLine(UpdateDiff.chatLine(entry.getName(), entry.getChanges()));
 				}
 			}
 		}
@@ -421,10 +429,10 @@ public class HomebasePlugin extends Plugin
 	 */
 	private void onUpdate(UpdateEntry entry)
 	{
-		OpenGroup g = group;
-		if (g != null)
+		OpenGroup group = currentGroup;
+		if (group != null)
 		{
-			g.updatesDirty.set(true);
+			group.updatesDirty.set(true);
 		}
 		HomebasePanel panel = this.panel;
 		if (panel != null)
@@ -460,8 +468,8 @@ public class HomebasePlugin extends Plugin
 	 */
 	public boolean belongsToGroup(ProfileData profile)
 	{
-		String group = gimGroup;
-		return group == null || (profile.getGroupName() != null && normalize(profile.getGroupName()).equals(normalize(group)));
+		String gim = gimGroup;
+		return gim == null || (profile.getGroupName() != null && normalize(profile.getGroupName()).equals(normalize(gim)));
 	}
 
 	public void copyPassphrase()
@@ -497,8 +505,8 @@ public class HomebasePlugin extends Plugin
 	 */
 	static String gimPassphrase(String groupName, String secret)
 	{
-		String s = Strings.nullToEmpty(secret).trim();
-		return "homebase-gim:" + normalize(groupName) + (s.isEmpty() ? "" : ":" + s);
+		String trimmedSecret = Strings.nullToEmpty(secret).trim();
+		return "homebase-gim:" + normalize(groupName) + (trimmedSecret.isEmpty() ? "" : ":" + trimmedSecret);
 	}
 
 	private static String normalize(String groupName)
@@ -518,11 +526,16 @@ public class HomebasePlugin extends Plugin
 		}
 	}
 
+	/**
+	 * Switch to the group for a passphrase, or to no group when it's empty.
+	 *
+	 * @param gim the Group Ironman group's name, or null for a passphrase group
+	 */
 	private void openGroup(String passphrase, String gim)
 	{
 		passphrase = Strings.nullToEmpty(passphrase).trim();
 		gimGroup = gim;
-		if (group != null && passphrase.equals(openPassphrase))
+		if (currentGroup != null && passphrase.equals(openPassphrase))
 		{
 			return;
 		}
@@ -546,38 +559,38 @@ public class HomebasePlugin extends Plugin
 		}
 
 		String id = Ids.group(passphrase);
-		OpenGroup g = new OpenGroup(groupFile("group-" + id + ".json"), groupFile("updates-" + id + ".json"));
+		OpenGroup group = new OpenGroup(groupFile("group-" + id + ".json"), groupFile("updates-" + id + ".json"));
 		HomebasePanel panel = this.panel;
-		g.listener = (previous, record) ->
+		group.listener = (previous, record) ->
 		{
-			g.dirty.set(true);
+			group.dirty.set(true);
 			groupIndex.invalidate();
 			bountyService.invalidate();
 			requestService.invalidate();
 			scheduleGoalCheck();
 			panel.scheduleRebuild();
-			if (g.loaded)
+			if (group.loaded)
 			{
 				announce(record);
 			}
 			updateTracker.onRecordChanged(previous, record);
 		};
-		g.store.addListener(g.listener);
-		group = g;
+		group.store.addListener(group.listener);
+		currentGroup = group;
 
-		groupSync.setGroup(passphrase, g.engine, gim);
-		requestService.setEngine(g.engine);
-		clientThread.invokeLater(() -> collector.setEngine(g.engine));
-		GroupView view = new GroupView(g.store, gson);
+		groupSync.setGroup(passphrase, group.engine, gim);
+		requestService.setEngine(group.engine);
+		clientThread.invokeLater(() -> collector.setEngine(group.engine));
+		GroupView view = new GroupView(group.store, gson);
 		groupIndex.setView(view, this::belongsToGroup);
-		goalService.setGroup(g.engine, view, this::belongsToGroup);
-		bountyService.setEngine(g.engine);
+		goalService.setGroup(group.engine, view, this::belongsToGroup);
+		bountyService.setEngine(group.engine);
 		panel.setView(view);
 
 		executor.execute(() ->
 		{
-			load(g);
-			g.loaded = true;
+			load(group);
+			group.loaded = true;
 			// the first look at goals after loading only notes who has already reached them
 			goalService.checkCompletions();
 		});
@@ -604,13 +617,10 @@ public class HomebasePlugin extends Plugin
 			{
 				if (client.getGameState() == GameState.LOGGED_IN)
 				{
-					for (String line : reached)
-					{
-						client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "<col=ff9800>[Homebase]</col> " + line, null);
-					}
+					reached.forEach(this::addChatLine);
 				}
 			});
-		}, 2, TimeUnit.SECONDS);
+		}, GOAL_CHECK_DELAY_SECONDS, TimeUnit.SECONDS);
 	}
 
 	/**
@@ -635,9 +645,17 @@ public class HomebasePlugin extends Plugin
 		{
 			if (client.getGameState() == GameState.LOGGED_IN)
 			{
-				client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "<col=ff9800>[Homebase]</col> " + message, null);
+				addChatLine(message);
 			}
 		});
+	}
+
+	/**
+	 * Runs on the client thread.
+	 */
+	private void addChatLine(String line)
+	{
+		client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", CHAT_PREFIX + line, null);
 	}
 
 	/**
@@ -691,16 +709,18 @@ public class HomebasePlugin extends Plugin
 
 	private void closeGroup()
 	{
-		OpenGroup g = group;
-		if (g == null)
+		OpenGroup group = currentGroup;
+		if (group == null)
 		{
 			return;
 		}
-		group = null;
-		g.store.removeListener(g.listener);
+		currentGroup = null;
+		group.store.removeListener(group.listener);
 		// copy the summaries now: shutting down clears them before the save runs
 		List<UpdateEntry> updates = new ArrayList<>(updateTracker.getEntries());
-		executor.execute(() -> save(g, updates));
+		// RuneLite's executor runs one task at a time, so this save always comes after the group's load
+		// and can't overwrite the saved copy with a half-loaded one
+		executor.execute(() -> save(group, updates));
 	}
 
 	private Filepath groupFile(String name)
@@ -716,20 +736,20 @@ public class HomebasePlugin extends Plugin
 		}
 	}
 
-	private void load(OpenGroup g)
+	private void load(OpenGroup group)
 	{
-		updateTracker.setGroup(g.store, loadUpdates(g));
-		if (g.file == null || !g.file.exists())
+		updateTracker.setGroup(group.store, loadUpdates(group));
+		if (group.file == null || !group.file.exists())
 		{
 			return;
 		}
-		try (Reader reader = g.file.openBufferedReader())
+		try (Reader reader = group.file.openBufferedReader())
 		{
 			List<SyncRecord> records = WireCodec.readSave(gson, reader);
 			if (records != null)
 			{
-				g.engine.load(records);
-				g.store.purgeDeleted(System.currentTimeMillis() - TOMBSTONE_LIFETIME_MS);
+				group.engine.load(records);
+				group.store.purgeDeleted(System.currentTimeMillis() - TOMBSTONE_LIFETIME_MS);
 				log.debug("Loaded {} group records", records.size());
 			}
 		}
@@ -739,13 +759,13 @@ public class HomebasePlugin extends Plugin
 		}
 	}
 
-	private List<UpdateEntry> loadUpdates(OpenGroup g)
+	private List<UpdateEntry> loadUpdates(OpenGroup group)
 	{
-		if (g.updatesFile == null || !g.updatesFile.exists())
+		if (group.updatesFile == null || !group.updatesFile.exists())
 		{
 			return null;
 		}
-		try (Reader reader = g.updatesFile.openBufferedReader())
+		try (Reader reader = group.updatesFile.openBufferedReader())
 		{
 			return gson.fromJson(reader, UPDATES_TYPE);
 		}
@@ -758,22 +778,22 @@ public class HomebasePlugin extends Plugin
 
 	private void saveCurrent()
 	{
-		OpenGroup g = group;
-		if (g != null)
+		OpenGroup group = currentGroup;
+		if (group != null)
 		{
-			save(g, new ArrayList<>(updateTracker.getEntries()));
+			save(group, new ArrayList<>(updateTracker.getEntries()));
 		}
 	}
 
-	private void save(OpenGroup g, List<UpdateEntry> updates)
+	private void save(OpenGroup group, List<UpdateEntry> updates)
 	{
-		if (g.dirty.getAndSet(false) && !write(g.file, writer -> WireCodec.writeSave(gson, writer, g.store.all())))
+		if (group.dirty.getAndSet(false) && !write(group.file, writer -> WireCodec.writeSave(gson, writer, group.store.all())))
 		{
-			g.dirty.set(true);
+			group.dirty.set(true);
 		}
-		if (g.updatesDirty.getAndSet(false) && !write(g.updatesFile, writer -> gson.toJson(updates, UPDATES_TYPE, writer)))
+		if (group.updatesDirty.getAndSet(false) && !write(group.updatesFile, writer -> gson.toJson(updates, UPDATES_TYPE, writer)))
 		{
-			g.updatesDirty.set(true);
+			group.updatesDirty.set(true);
 		}
 	}
 
@@ -788,18 +808,19 @@ public class HomebasePlugin extends Plugin
 		{
 			return true;
 		}
-		Filepath tmp = null;
+		Filepath tempFile = null;
 		try
 		{
 			Filepath dir = file.getParent();
 			dir.createDirectories();
-			tmp = dir.createTempFile("homebase-", ".tmp");
-			try (Writer writer = tmp.openBufferedWriter())
+			tempFile = dir.createTempFile("homebase-", ".tmp");
+			try (Writer writer = tempFile.openBufferedWriter())
 			{
 				content.accept(writer);
 			}
-			tmp.moveTo(file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-			tmp = null;
+			tempFile.moveTo(file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+			// moved into place, so there's nothing left to delete
+			tempFile = null;
 			return true;
 		}
 		catch (IOException | JsonParseException e)
@@ -809,11 +830,11 @@ public class HomebasePlugin extends Plugin
 		}
 		finally
 		{
-			if (tmp != null)
+			if (tempFile != null)
 			{
 				try
 				{
-					tmp.deleteIfExists();
+					tempFile.deleteIfExists();
 				}
 				catch (IOException ignored)
 				{

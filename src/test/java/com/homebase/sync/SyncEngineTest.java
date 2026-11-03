@@ -5,12 +5,14 @@ import com.google.gson.JsonPrimitive;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import org.junit.Test;
@@ -64,11 +66,11 @@ public class SyncEngineTest
 	{
 		node.online = true;
 		// the party service tells everyone, including the newcomer, that someone joined
-		for (Node n : nodes)
+		for (Node member : nodes)
 		{
-			if (n.online)
+			if (member.online)
 			{
-				n.summaryWanted = true;
+				member.summaryWanted = true;
 			}
 		}
 	}
@@ -84,11 +86,11 @@ public class SyncEngineTest
 		for (long t = 0; t < millis; t += 1000)
 		{
 			now += 1000;
-			for (Node n : nodes)
+			for (Node node : nodes)
 			{
-				if (n.online)
+				if (node.online)
 				{
-					flush(n);
+					flush(node);
 				}
 			}
 		}
@@ -102,14 +104,14 @@ public class SyncEngineTest
 			{
 				sender.summaryWanted = false;
 				String packed = WireCodec.pack(gson.toJson(sender.engine.summary()));
-				for (Node n : nodes)
+				for (Node receiver : nodes)
 				{
-					if (n.online && n != sender)
+					if (receiver.online && receiver != sender)
 					{
 						Map<String, Long> summary = gson.fromJson(WireCodec.unpack(packed), WireCodec.SUMMARY_TYPE);
-						if (n.engine.onSummary(summary))
+						if (receiver.engine.onSummary(summary))
 						{
-							n.summaryWanted = true;
+							receiver.summaryWanted = true;
 						}
 					}
 				}
@@ -120,12 +122,12 @@ public class SyncEngineTest
 			{
 				recordMessages++;
 				String packed = WireCodec.pack(gson.toJson(due));
-				for (Node n : nodes)
+				for (Node receiver : nodes)
 				{
-					if (n.online && n != sender)
+					if (receiver.online && receiver != sender)
 					{
 						List<SyncRecord> records = gson.fromJson(WireCodec.unpack(packed), WireCodec.RECORDS_TYPE);
-						n.engine.onRecords(records);
+						receiver.engine.onRecords(records);
 					}
 				}
 			}
@@ -277,7 +279,7 @@ public class SyncEngineTest
 	public void unchangedDataIsNotRepublished()
 	{
 		Node alice = new Node("alice");
-		assertTrue(alice.engine.publish(Keys.member("alice", "inv"), "alice", new JsonPrimitive("x")) != null);
+		assertNotNull(alice.engine.publish(Keys.member("alice", "inv"), "alice", new JsonPrimitive("x")));
 		assertNull(alice.engine.publish(Keys.member("alice", "inv"), "alice", new JsonPrimitive("x")));
 	}
 
@@ -298,7 +300,7 @@ public class SyncEngineTest
 		GroupStore store = new GroupStore();
 		SyncEngine engine = new SyncEngine(store, () -> now, new Random(1));
 		engine.load(Arrays.asList(record("bob", "bank", now - HOUR, "old")));
-		assertTrue(engine.onSummary(java.util.Collections.singletonMap(Keys.member("bob", "bank"), now)));
-		assertFalse(engine.onSummary(java.util.Collections.singletonMap(Keys.member("bob", "bank"), now - 2 * HOUR)));
+		assertTrue(engine.onSummary(Collections.singletonMap(Keys.member("bob", "bank"), now)));
+		assertFalse(engine.onSummary(Collections.singletonMap(Keys.member("bob", "bank"), now - 2 * HOUR)));
 	}
 }

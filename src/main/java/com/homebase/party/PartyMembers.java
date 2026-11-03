@@ -50,21 +50,22 @@ public final class PartyMembers
 
 	/**
 	 * @param members in the order they joined
-	 * @param name each member's display name, or null if it isn't known yet
+	 * @param nameOf each member's display name, or null if it isn't known yet
 	 */
-	static <T> List<T> newestPerName(List<T> members, Function<T, String> name)
+	static <T> List<T> newestPerName(List<T> members, Function<T, String> nameOf)
 	{
 		Map<String, T> byName = new LinkedHashMap<>();
 		List<T> unnamed = new ArrayList<>();
 		for (T member : members)
 		{
-			String n = name.apply(member);
-			if (n == null)
+			String name = nameOf.apply(member);
+			if (name == null)
 			{
 				unnamed.add(member);
 				continue;
 			}
-			String key = key(n);
+			String key = key(name);
+			// removed first so the player moves to where their newest connection joined
 			byName.remove(key);
 			byName.put(key, member);
 		}

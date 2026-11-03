@@ -127,11 +127,6 @@ public class SyncEngine
 		return queue.takeDue(clock.getAsLong(), budget, sizer);
 	}
 
-	public int pendingCount()
-	{
-		return queue.size();
-	}
-
 	private SyncRecord write(String key, String author, JsonElement data, boolean deleted)
 	{
 		long now = clock.getAsLong();

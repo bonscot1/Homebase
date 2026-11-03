@@ -13,6 +13,7 @@ public final class Keys
 	static final String MEMBER = "m:";
 	static final String GROUP = "g:";
 	static final String SHARED = "s:";
+	private static final int MAX_KEY_LENGTH = 128;
 
 	private Keys()
 	{
@@ -21,11 +22,6 @@ public final class Keys
 	public static String member(String memberId, String section)
 	{
 		return MEMBER + memberId + ':' + section;
-	}
-
-	public static String memberPrefix(String memberId)
-	{
-		return MEMBER + memberId + ':';
 	}
 
 	public static String group(String name)
@@ -69,9 +65,12 @@ public final class Keys
 		return end < 0 ? null : key.substring(end + 1);
 	}
 
+	/**
+	 * @return true if the key is in one of the namespaces and not too long
+	 */
 	public static boolean isValid(String key)
 	{
-		if (key == null || key.isEmpty() || key.length() > 128)
+		if (key == null || key.isEmpty() || key.length() > MAX_KEY_LENGTH)
 		{
 			return false;
 		}

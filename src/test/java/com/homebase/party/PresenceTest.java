@@ -2,24 +2,11 @@ package com.homebase.party;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import java.lang.reflect.Constructor;
-import net.runelite.api.Client;
-import net.runelite.client.party.PartyService;
-import net.runelite.client.party.WSClient;
-import org.junit.Before;
 import org.junit.Test;
 
 public class PresenceTest
 {
-	private Presence presence;
-
-	@Before
-	public void setUp() throws Exception
-	{
-		Constructor<Presence> c = Presence.class.getDeclaredConstructor(Client.class, PartyService.class, WSClient.class);
-		c.setAccessible(true);
-		presence = c.newInstance(null, null, null);
-	}
+	private final Presence presence = new Presence(null, null, null);
 
 	@Test
 	public void quietMembersGoOffline()

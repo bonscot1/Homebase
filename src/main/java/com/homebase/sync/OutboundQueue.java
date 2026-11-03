@@ -64,30 +64,21 @@ public class OutboundQueue
 		int used = 0;
 		for (Iterator<Pending> it = pending.values().iterator(); it.hasNext(); )
 		{
-			Pending p = it.next();
-			if (p.dueAt > now)
+			Pending entry = it.next();
+			if (entry.dueAt > now)
 			{
 				continue;
 			}
-			int size = sizer.applyAsInt(p.record);
+			int size = sizer.applyAsInt(entry.record);
 			if (!out.isEmpty() && used + size > budget)
 			{
+				// left for the next batch, but a smaller record further on may still fit in this one
 				continue;
 			}
-			out.add(p.record);
+			out.add(entry.record);
 			used += size;
 			it.remove();
 		}
 		return out;
-	}
-
-	public synchronized int size()
-	{
-		return pending.size();
-	}
-
-	public synchronized void clear()
-	{
-		pending.clear();
 	}
 }

@@ -95,6 +95,11 @@ public class GroupSync
 	 * Rough cap on the uncompressed size of one batch of records.
 	 */
 	private static final int RECORD_BUDGET = 48_000;
+
+	/**
+	 * Rough allowance for a record's version, author and JSON punctuation when estimating its size.
+	 */
+	private static final int RECORD_OVERHEAD = 64;
 	private static final long SUMMARY_INTERVAL_MS = 3_000;
 
 	/**
@@ -127,6 +132,10 @@ public class GroupSync
 	 */
 	private volatile Set<String> roster = Collections.emptySet();
 	private volatile boolean localInGroup;
+
+	/**
+	 * When the player logged out while connected, or 0 while playing or not connected.
+	 */
 	private long loginScreenSince;
 
 	/**
@@ -307,8 +316,8 @@ public class GroupSync
 
 	public boolean isGroupParty()
 	{
-		String p = passphrase;
-		return p != null && p.equals(partyService.getPartyPassphrase());
+		String passphrase = this.passphrase;
+		return passphrase != null && passphrase.equals(partyService.getPartyPassphrase());
 	}
 
 	/**
@@ -325,11 +334,11 @@ public class GroupSync
 	 */
 	public void joinGroupParty()
 	{
-		String p = passphrase;
-		if (p != null && canConnect())
+		String passphrase = this.passphrase;
+		if (passphrase != null && canConnect())
 		{
 			loginScreenSince = 0;
-			clientThread.invokeLater(() -> partyService.changeParty(p));
+			clientThread.invokeLater(() -> partyService.changeParty(passphrase));
 		}
 	}
 
@@ -376,6 +385,11 @@ public class GroupSync
 			localInGroup = false;
 			rosterChecked = false;
 			loggedInTicks = 0;
+		}
+		else if (event.getGameState() == GameState.LOGGED_IN)
+		{
+			// playing again, so the next logout starts the idle time afresh instead of leaving straight away
+			loginScreenSince = 0;
 		}
 		notifyStatus();
 	}
@@ -466,10 +480,10 @@ public class GroupSync
 			leaveGroupParty();
 			return;
 		}
-		boolean safe = connected && isShareSafe();
-		presence.tick(safe);
+		boolean sharing = connected && isShareSafe();
+		presence.tick(sharing);
 		SyncEngine engine = this.engine;
-		if (engine == null || !safe)
+		if (engine == null || !sharing)
 		{
 			return;
 		}
@@ -496,7 +510,7 @@ public class GroupSync
 
 	private static int estimateSize(SyncRecord record)
 	{
-		return 64 + record.getKey().length() + (record.getData() == null ? 0 : record.getData().toString().length());
+		return RECORD_OVERHEAD + record.getKey().length() + (record.getData() == null ? 0 : record.getData().toString().length());
 	}
 
 	private void notifyStatus()
