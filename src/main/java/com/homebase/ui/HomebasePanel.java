@@ -511,9 +511,13 @@ public class HomebasePanel extends PluginPanel
 					canSwitch ? groupSync::joinGroupParty : null, null, null);
 				break;
 			case PAUSED:
-				setStatus(Ui.WARNING, "Nothing is shared while " + Clean.text(String.join(", ", groupSync.strangers()), MAX_STRANGERS)
+			{
+				// they may have left since the status was read
+				String strangers = Clean.text(String.join(", ", groupSync.strangers()), MAX_STRANGERS);
+				setStatus(Ui.WARNING, "Nothing is shared while " + (strangers == null ? "someone" : strangers)
 					+ " is in the party and not in " + gimGroup, null, null, "Disconnect", groupSync::leaveGroupParty);
 				break;
+			}
 			case CONNECTED:
 				// a Group Ironman group needs no passphrase, so there's nothing to copy
 				setStatus(Ui.ONLINE, "Connected  ·  " + onlineCount() + " online", isGim ? null : "Copy passphrase",

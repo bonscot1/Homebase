@@ -771,7 +771,13 @@ public class HomebasePlugin extends Plugin
 		}
 		try (Reader reader = group.updatesFile.openBufferedReader())
 		{
-			return gson.fromJson(reader, UPDATES_TYPE);
+			List<UpdateEntry> updates = gson.fromJson(reader, UPDATES_TYPE);
+			if (updates != null)
+			{
+				// a damaged file shouldn't leave the Updates tab blank
+				updates.removeIf(entry -> entry == null || entry.getChanges() == null);
+			}
+			return updates;
 		}
 		catch (IOException | JsonParseException e)
 		{
