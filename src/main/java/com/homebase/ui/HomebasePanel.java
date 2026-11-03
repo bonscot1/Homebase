@@ -460,6 +460,9 @@ public class HomebasePanel extends PluginPanel
 				setStatus(ColorScheme.MEDIUM_GRAY_COLOR, "Log in on your Group Ironman account and you'll join your group automatically. "
 					+ "For other groups, create a passphrase or paste one into this plugin's settings.", "Create group", plugin::createGroup);
 				break;
+			case WAITING:
+				setStatus(ColorScheme.MEDIUM_GRAY_COLOR, "Joins your group when you log in", null, null);
+				break;
 			case DISCONNECTED:
 				setStatus(ColorScheme.PROGRESS_ERROR_COLOR, "Not connected to your group", "Join group", groupSync::joinGroupParty);
 				break;

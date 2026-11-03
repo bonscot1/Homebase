@@ -43,6 +43,10 @@ public class GroupSync
 		 */
 		NO_GROUP,
 		/**
+		 * Not logged in, so not in the group's party yet; it's joined at login.
+		 */
+		WAITING,
+		/**
 		 * Not in any party.
 		 */
 		DISCONNECTED,
@@ -75,9 +79,6 @@ public class GroupSync
 	private volatile boolean summaryWanted;
 	private long lastSummaryAt;
 	private boolean inOtherParty;
-	private boolean inGroupParty;
-	private volatile boolean leaving;
-	private volatile boolean rejoinOnLogin;
 
 	@Inject
 	private GroupSync(Client client, PartyService partyService, WSClient wsClient, ClientThread clientThread, HomebaseConfig config, Gson gson)
@@ -129,7 +130,11 @@ public class GroupSync
 		{
 			return Status.CONNECTED;
 		}
-		return partyService.isInParty() ? Status.OTHER_PARTY : Status.DISCONNECTED;
+		if (partyService.isInParty())
+		{
+			return Status.OTHER_PARTY;
+		}
+		return config.autoJoin() && !isPlaying() ? Status.WAITING : Status.DISCONNECTED;
 	}
 
 	public boolean isGroupParty()
@@ -147,11 +152,23 @@ public class GroupSync
 		}
 	}
 
+	/**
+	 * Join the group's party if joining automatically is on, we're in the game, and we aren't in
+	 * someone else's party. Clients at the login screen stay out, so RuneLite's party servers only
+	 * carry people who are playing.
+	 */
+	public void joinIfPlaying()
+	{
+		if (config.autoJoin() && isPlaying() && !partyService.isInParty())
+		{
+			joinGroupParty();
+		}
+	}
+
 	public void leaveGroupParty()
 	{
 		if (isGroupParty())
 		{
-			leaving = true;
 			partyService.changeParty(null);
 		}
 	}
@@ -160,30 +177,35 @@ public class GroupSync
 	public void onPartyChanged(PartyChanged event)
 	{
 		String joined = event.getPassphrase();
-		if (joined == null && inOtherParty && config.autoJoin())
+		if (joined == null && inOtherParty)
 		{
 			// they finished with someone else's party, so come home
-			joinGroupParty();
+			joinIfPlaying();
 		}
-		// RuneLite's party plugin leaves after half an hour at the login screen; come back at login
-		rejoinOnLogin = joined == null && inGroupParty && !leaving && client.getGameState() == GameState.LOGIN_SCREEN;
-		leaving = false;
 		inOtherParty = joined != null && !joined.equals(passphrase);
-		inGroupParty = joined != null && joined.equals(passphrase);
 		notifyStatus();
 	}
 
 	@Subscribe
 	public void onGameStateChanged(GameStateChanged event)
 	{
-		if (event.getGameState() == GameState.LOGGED_IN && rejoinOnLogin)
+		if (event.getGameState() == GameState.LOGGED_IN)
 		{
-			rejoinOnLogin = false;
-			if (config.autoJoin() && !partyService.isInParty())
-			{
-				joinGroupParty();
-			}
+			joinIfPlaying();
 		}
+		else if (event.getGameState() == GameState.LOGIN_SCREEN && config.autoJoin() && isGroupParty())
+		{
+			// send whatever is waiting before going
+			flush();
+			leaveGroupParty();
+		}
+		notifyStatus();
+	}
+
+	private boolean isPlaying()
+	{
+		GameState state = client.getGameState();
+		return state == GameState.LOGGED_IN || state == GameState.LOADING || state == GameState.HOPPING;
 	}
 
 	@Subscribe

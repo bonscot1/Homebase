@@ -6,7 +6,7 @@ It works for Group Ironman groups and for normal groups of friends. Nobody hosts
 
 ## How syncing works
 
-- **Group Ironman players don't set anything up.** When you log in, the plugin reads your group's name (for example HungryHorse) and joins a RuneLite party for that group. Everyone in the group ends up in the same party. The group is remembered, so next time RuneLite starts it reconnects before you log in.
+- **Group Ironman players don't set anything up.** When you log in, the plugin reads your group's name (for example HungryHorse) and joins a RuneLite party for that group. Everyone in the group ends up in the same party. You're in the party only while you're logged in: the plugin joins when you load into the game and leaves when you log out, so RuneLite's party servers only carry people who are playing. The group is remembered, so its saved data shows before you log in.
 - Other groups share a **group passphrase** instead, set once in the plugin's settings.
 - Every member's client keeps its own copy of the group's data on disk.
 - Data is stored per member, per section (bank, skills, inventory and so on), and each section is stamped with the time it was captured. When two copies meet, the newer one wins.
@@ -39,7 +39,7 @@ With one account:
 
 - [ ] The house icon appears in the sidebar. Before logging in, the status says to log in on your Group Ironman account.
 - [ ] After logging in on your Group Ironman account, the status changes to "Connected" by itself, and the header shows your group's name (for example HungryHorse) under "Group Homebase".
-- [ ] After restarting RuneLite, it says "Connected" again before you log in.
+- [ ] After restarting RuneLite, before you log in, the panel shows your group's saved data and says "Joins your group when you log in". Logging in changes it to "Connected", and logging out back again.
 - [ ] Logging in on an account that isn't in the group adds no card for that account.
 - [ ] Your card appears on the **Members** tab with a green world number. Clicking your name shows your skills, inventory and equipment.
 - [ ] Opening your bank adds a **Bank** line to your card. Clicking it shows the items. The seed vault and looting bag work the same way.
@@ -76,11 +76,11 @@ Items are ticked when they're built. Each stage's last box is ticked once it has
 ### Stage 1: Foundation (sync and member panel)
 
 - [x] Plugin project set up from RuneLite's template (Java 11, BSD-2 licence)
-- [x] Group Ironman players join their group automatically on login, with no passphrase, and reconnect on the next launch before logging in
+- [x] Group Ironman players join their group automatically on login, with no passphrase, and the group is remembered for next time
 - [x] Only accounts in the Group Ironman group share data, so alts stay out
 - [x] Optional **Group Ironman secret** to keep out people who only know the group's name
 - [x] Group passphrase setting, **Create group** and **Copy passphrase** buttons, for groups that aren't Group Ironman groups
-- [x] Join the group party automatically on launch
+- [x] Join the group party when you log in and leave it when you log out, so idle clients don't hold a party connection
 - [x] Pause syncing while in another party, and rejoin the group after leaving it
 - [x] Save the group's data to disk (loaded on start, saved every 30 seconds and on exit)
 - [x] Sync protocol: summaries on join, newest copy wins per member per section, relaying between members, no duplicate sends

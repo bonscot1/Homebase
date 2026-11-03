@@ -46,7 +46,7 @@ public interface HomebaseConfig extends Config
 	@ConfigItem(
 		keyName = "autoJoin",
 		name = "Join group automatically",
-		description = "Join your group's party when RuneLite starts, rejoin it after leaving another party, and rejoin at login if RuneLite left it while you were logged out",
+		description = "Join your group's party when you log in and leave it when you log out, and come back to it after leaving someone else's party",
 		position = 2
 	)
 	default boolean autoJoin()

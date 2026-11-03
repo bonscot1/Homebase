@@ -520,15 +520,22 @@ public class HomebasePlugin extends Plugin
 		panel.setView(view);
 
 		// join only once the saved copy is loaded, so updates from others are compared with what we had
-		boolean join = wasInGroupParty || (config.autoJoin() && !partyService.isInParty());
 		executor.execute(() ->
 		{
 			load(g);
 			// the first look at goals after loading only notes who has already reached them
 			goalService.checkCompletions();
-			if (join && group == g)
+			if (group != g)
+			{
+				return;
+			}
+			if (wasInGroupParty)
 			{
 				groupSync.joinGroupParty();
+			}
+			else
+			{
+				groupSync.joinIfPlaying();
 			}
 		});
 	}
