@@ -11,8 +11,6 @@ import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.Graphics2D;
-import java.awt.Point;
-import java.awt.Rectangle;
 import java.util.ArrayList;
 import java.util.List;
 import javax.inject.Inject;
@@ -28,9 +26,7 @@ import net.runelite.client.ui.FontManager;
 import net.runelite.client.ui.overlay.OverlayPanel;
 import net.runelite.client.ui.overlay.OverlayPosition;
 import net.runelite.client.ui.overlay.components.ComponentConstants;
-import net.runelite.client.ui.overlay.components.ComponentOrientation;
 import net.runelite.client.ui.overlay.components.LineComponent;
-import net.runelite.client.ui.overlay.components.PanelComponent;
 import net.runelite.client.ui.overlay.components.ProgressBarComponent;
 import net.runelite.client.ui.overlay.components.TitleComponent;
 
@@ -171,22 +167,28 @@ public class GroupHudOverlay extends OverlayPanel
 	 */
 	private void addBars(PartyMember member, HomebaseConfig.HudSize size)
 	{
+		// our own numbers come straight from the game, since the party only sends them once they change
+		PartyMember local = partyService.getLocalMember();
+		boolean self = local != null && local.getMemberId() == member.getMemberId();
+
 		List<ProgressBarComponent> bars = new ArrayList<>();
-		if (config.hudHitpoints() && member.getStatBase(Skill.HITPOINTS) > 0)
+		int maxHp = self ? client.getRealSkillLevel(Skill.HITPOINTS) : member.getStatBase(Skill.HITPOINTS);
+		if (config.hudHitpoints() && maxHp > 0)
 		{
-			int hp = member.getStatBoost(Skill.HITPOINTS);
-			int max = member.getStatBase(Skill.HITPOINTS);
-			bars.add(bar(hp, max, hp + "/" + max, HP_FG, HP_BG));
+			int hp = self ? client.getBoostedSkillLevel(Skill.HITPOINTS) : member.getStatBoost(Skill.HITPOINTS);
+			bars.add(bar(hp, maxHp, hp + "/" + maxHp, HP_FG, HP_BG));
 		}
-		if (config.hudPrayer() && member.getStatBase(Skill.PRAYER) > 0)
+		int maxPrayer = self ? client.getRealSkillLevel(Skill.PRAYER) : member.getStatBase(Skill.PRAYER);
+		if (config.hudPrayer() && maxPrayer > 0)
 		{
-			int prayer = member.getStatBoost(Skill.PRAYER);
-			int max = member.getStatBase(Skill.PRAYER);
-			bars.add(bar(prayer, max, prayer + "/" + max, PRAY_FG, PRAY_BG));
+			int prayer = self ? client.getBoostedSkillLevel(Skill.PRAYER) : member.getStatBoost(Skill.PRAYER);
+			bars.add(bar(prayer, maxPrayer, prayer + "/" + maxPrayer, PRAY_FG, PRAY_BG));
 		}
 		if (config.hudRunEnergy())
 		{
-			bars.add(bar(member.getRunEnergy(), 100, member.getRunEnergy() + "%", RUN_FG, RUN_BG));
+			// the game counts run energy in hundredths of a percent
+			int run = self ? client.getEnergy() / 100 : member.getRunEnergy();
+			bars.add(bar(run, 100, run + "%", RUN_FG, RUN_BG));
 		}
 		if (bars.isEmpty())
 		{
@@ -194,18 +196,7 @@ public class GroupHudOverlay extends OverlayPanel
 		}
 		int width = widthFor(size) - 2 * ComponentConstants.STANDARD_BORDER;
 		int each = (width - BAR_GAP * (bars.size() - 1)) / bars.size();
-		int height = barHeight(size);
-		PanelComponent row = new PanelComponent();
-		row.setOrientation(ComponentOrientation.HORIZONTAL);
-		row.setGap(new Point(BAR_GAP, 0));
-		row.setBorder(new Rectangle(0, 1, 0, 3));
-		row.setBackgroundColor(null);
-		for (ProgressBarComponent bar : bars)
-		{
-			bar.setPreferredSize(new Dimension(each, height));
-			row.getChildren().add(bar);
-		}
-		panelComponent.getChildren().add(row);
+		panelComponent.getChildren().add(new BarRow(bars, each, barHeight(size), BAR_GAP, 1, 3));
 	}
 
 	private static ProgressBarComponent bar(int value, int max, String label, Color fg, Color bg)

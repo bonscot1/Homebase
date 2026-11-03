@@ -70,9 +70,11 @@ import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.party.PartyDataService;
 import net.runelite.client.party.PartyDataType;
+import net.runelite.client.party.PartyMember;
 import net.runelite.client.party.PartyService;
 import net.runelite.client.party.events.UserJoin;
 import net.runelite.client.party.messages.PartyData;
+import net.runelite.client.party.messages.UserSync;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.ClientToolbar;
@@ -696,6 +698,14 @@ public class HomebasePlugin extends Plugin
 		{
 			partyDataService.subscribe(this, PartyDataType.COORD, PartyDataType.ENERGY);
 			partyDataService.subscribe(this, Skill.HITPOINTS, Skill.PRAYER);
+			// the party only sends stats when they change, so ask everyone, us included, to send theirs now
+			PartyMember local = partyService.getLocalMember();
+			if (local != null)
+			{
+				UserSync sync = new UserSync();
+				sync.setMemberId(local.getMemberId());
+				partyService.send(sync);
+			}
 		}
 		else
 		{
