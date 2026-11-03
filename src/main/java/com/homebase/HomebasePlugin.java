@@ -20,6 +20,11 @@ import com.homebase.map.GroupWorldMap;
 import com.homebase.overlay.GroupHudOverlay;
 import com.homebase.overlay.GroupTileOverlay;
 import com.homebase.party.GroupSync;
+import com.homebase.pings.GroupHighlightOverlay;
+import com.homebase.pings.GroupHighlights;
+import com.homebase.pings.PingMinimapOverlay;
+import com.homebase.pings.PingOverlay;
+import com.homebase.pings.PingService;
 import com.homebase.requests.RequestService;
 import com.homebase.sync.GroupStore;
 import com.homebase.sync.SyncEngine;
@@ -171,6 +176,21 @@ public class HomebasePlugin extends Plugin
 	@Inject
 	private BountyOverlay bountyOverlay;
 
+	@Inject
+	private PingService pingService;
+
+	@Inject
+	private PingOverlay pingOverlay;
+
+	@Inject
+	private PingMinimapOverlay pingMinimapOverlay;
+
+	@Inject
+	private GroupHighlights groupHighlights;
+
+	@Inject
+	private GroupHighlightOverlay highlightOverlay;
+
 	/**
 	 * The Group Ironman group being synced automatically, or null when using a passphrase or no group.
 	 */
@@ -217,6 +237,9 @@ public class HomebasePlugin extends Plugin
 		eventBus.register(groupTiles);
 		eventBus.register(activityCollector);
 		eventBus.register(bountyGuard);
+		pingService.start();
+		eventBus.register(pingService);
+		eventBus.register(groupHighlights);
 		collector.setGroupListener(this::onGroupNameRead);
 		collector.setSharePolicy(this::belongsToGroup);
 		collector.start();
@@ -239,6 +262,9 @@ public class HomebasePlugin extends Plugin
 		overlayManager.add(hudOverlay);
 		overlayManager.add(tileOverlay);
 		overlayManager.add(bountyOverlay);
+		overlayManager.add(highlightOverlay);
+		overlayManager.add(pingOverlay);
+		overlayManager.add(pingMinimapOverlay);
 
 		selectGroup();
 
@@ -261,6 +287,9 @@ public class HomebasePlugin extends Plugin
 		activityCollector.stop();
 		goalService.setGroup(null, null, null);
 		bountyService.setEngine(null);
+		eventBus.unregister(groupHighlights);
+		eventBus.unregister(pingService);
+		pingService.stop();
 		eventBus.unregister(bountyGuard);
 		eventBus.unregister(activityCollector);
 		eventBus.unregister(groupTiles);
@@ -274,6 +303,9 @@ public class HomebasePlugin extends Plugin
 		overlayManager.remove(hudOverlay);
 		overlayManager.remove(tileOverlay);
 		overlayManager.remove(bountyOverlay);
+		overlayManager.remove(highlightOverlay);
+		overlayManager.remove(pingOverlay);
+		overlayManager.remove(pingMinimapOverlay);
 		worldMap.clear();
 		groupIndex.setView(null, p -> true);
 		clientToolbar.removeNavigation(navButton);
@@ -298,7 +330,11 @@ public class HomebasePlugin extends Plugin
 				selectGroup();
 				break;
 			case "tileColor":
-				clientThread.invokeLater(groupTiles::colorChanged);
+				clientThread.invokeLater(() ->
+				{
+					groupTiles.colorChanged();
+					groupHighlights.colorChanged();
+				});
 				break;
 		}
 	}

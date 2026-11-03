@@ -34,12 +34,23 @@ public class GroupIndex
 		String name;
 	}
 
+	@Value
+	public static class Highlight
+	{
+		int world;
+		int index;
+		int id;
+		Color color;
+		String name;
+	}
+
 	private static final class Snapshot
 	{
 		final Map<String, Integer> combatLevels = new HashMap<>();
 		final Map<String, Color> colors = new HashMap<>();
 		final Map<String, String> idsByName = new HashMap<>();
 		final List<MarkedTile> tiles = new ArrayList<>();
+		final List<Highlight> highlights = new ArrayList<>();
 	}
 
 	private volatile GroupView view;
@@ -96,6 +107,14 @@ public class GroupIndex
 		return Collections.unmodifiableList(current().tiles);
 	}
 
+	/**
+	 * @return every monster highlighted by anyone in the group
+	 */
+	public List<Highlight> highlights()
+	{
+		return Collections.unmodifiableList(current().highlights);
+	}
+
 	private Snapshot current()
 	{
 		if (dirty)
@@ -138,7 +157,23 @@ public class GroupIndex
 			}
 
 			TilesData tiles = view.get(id, Section.TILES, TilesData.class);
+			HighlightsData highlights = view.get(id, Section.HIGHLIGHTS, HighlightsData.class);
 			Color color = DEFAULT_COLOR;
+			if (highlights != null)
+			{
+				color = new Color(highlights.getColor() & 0xFFFFFF);
+				if (highlights.getNpcs() != null)
+				{
+					int n = 0;
+					for (HighlightsData.Npc npc : highlights.getNpcs())
+					{
+						if (npc != null && n++ < HighlightsData.MAX_HIGHLIGHTS)
+						{
+							s.highlights.add(new Highlight(highlights.getWorld(), npc.getIndex(), npc.getId(), color, name));
+						}
+					}
+				}
+			}
 			if (tiles != null)
 			{
 				color = new Color(tiles.getColor() & 0xFFFFFF);

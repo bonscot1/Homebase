@@ -47,10 +47,12 @@ With one account:
 - [ ] On the **Requests** tab, requesting an item adds it to the list. **Cancel** removes it.
 - [ ] After closing and reopening RuneLite, everything is still there before you log in.
 - [ ] The **Group HUD** box shows your hitpoints, prayer, run energy, combat level and area (for example "Lumbridge"). Its settings change what it shows, compact mode and size, and **Include yourself** hides your own line.
-- [ ] Shift + right-click a tile and choose **Group mark**. The tile is outlined in **Your tile colour** with your name on it. Changing the colour changes the tile. **Group unmark** removes it, and it's still there after restarting.
+- [ ] Shift + right-click a tile and choose **Group mark**. The tile is outlined in **Your colour** with your name on it. Changing the colour changes the tile. **Group unmark** removes it, and it's still there after restarting.
 - [ ] A combat achievement task, a "New item added to your collection log" message and a boss kill count message each update the matching line on your card (**Combat achievements**, **Collection log**, **Kill counts**).
 - [ ] Browsing a page of your collection log adds that page, with how many of its items you have, under **Collection log** on your card.
 - [ ] Going home (house portal **Home**, Teleport to House or a house tab) lists your useful furniture under **House** on your card. Opening the costume room storage lists what's in it.
+- [ ] Hold **Alt** and left-click the ground. Nothing happens in game, and the tile flashes in **Your colour** with your name and a dot on the minimap for a few seconds (**Ping length**). Alt + left-click a monster outlines it instead.
+- [ ] Shift + right-click a monster and choose **Group highlight**. It stays outlined in your colour with your name until it dies, you choose **Group unhighlight**, or you change worlds.
 - [ ] On the **Goals** tab, set a goal you've already reached (for example 1 Attack) and one you haven't. The first shows a tick by your name, the second your progress such as "45/50".
 - [ ] **Add bounty** on a goal you haven't reached, pick an item from group storage and tick yourself. In group storage that item gets a red padlock with the goal in its tooltip, and its Withdraw options are gone. Deleting the bounty brings them back.
 
@@ -61,7 +63,8 @@ With a second group member running the plugin:
 - [ ] **I'll get it**, **Done** and **Clear** update for both of you.
 - [ ] When one of you logs out, the other's panel shows "Seen … ago" for them.
 - [ ] While one of you is offline, the other gains a level, finishes a quest or completes a diary tier. On logging back in, the first gets one chat line such as "[Homebase] bonscott1: Magic 15 -> 32, completed The Restless Ghost, completed the Varrock Easy diary." The same summary appears on the **Updates** tab.
-- [ ] Each of you sees the other in the **Group HUD**, on the world map (a dot in their tile colour, with their name and area as the tooltip), and their marked tiles in their colour, including inside a raid you both enter.
+- [ ] Each of you sees the other in the **Group HUD**, on the world map (a dot in their colour, with their name and area as the tooltip), and their marked tiles in their colour, including inside a raid you both enter.
+- [ ] A ping from one of you shows up for the other with the pinger's name and colour, and a ping sound (**Ping sound**). A monster pinged or highlighted by one of you is outlined for the other when you're on the same world.
 - [ ] When one of you reaches a goal, the other gets a chat message such as "[Homebase] bonscott1 reached the goal: 50 Firemaking." and the goal ticks off for them.
 - [ ] A bounty that locks only one of you leaves the other's Withdraw options alone and shows them a green padlock.
 - [ ] Expanding a member shows **Quests** and **Diaries** lines with their counts. Clicking them shows the quest list and the diary grid. Karamja's Easy, Medium and Hard tiers use older game flags than the other diaries, so check those against the in-game journal.
@@ -103,8 +106,11 @@ Items are ticked when they're built. Each stage's last box is ticked once it has
 - [x] Area names for members' positions (for example "Varrock", "near Catherby", "Wilderness (level 11)", "Varrock (underground)")
 - [x] Group members on the world map, updated live, with their area in the tooltip
 - [x] Group tile markers: Shift + right-click a tile and choose **Group mark**, and the whole group sees it
-- [x] Per-member tile colours, set in the plugin settings (**Your tile colour**), with optional names on tiles
+- [x] Per-member colours for tiles, pings and highlights, set in the plugin settings (**Your colour**), with optional names
 - [x] Tile markers work inside instances (raids and similar): they're stored at the instance's template location
+- [x] Pings: hold **Alt** (or another **Ping key**) and left-click the ground or a monster, and the group sees it flash in your colour, with your name and a minimap dot, for a few seconds
+- [x] Group highlights: Shift + right-click a monster and choose **Group highlight** to outline it for the whole group until it dies
+- [x] Area names for player-owned houses
 - [ ] Tested in game
 
 ### Stage 3: Quests, activities and goals

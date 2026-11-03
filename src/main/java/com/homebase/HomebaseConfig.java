@@ -5,6 +5,9 @@ import net.runelite.client.config.Config;
 import net.runelite.client.config.ConfigGroup;
 import net.runelite.client.config.ConfigItem;
 import net.runelite.client.config.ConfigSection;
+import net.runelite.client.config.Keybind;
+import net.runelite.client.config.Range;
+import net.runelite.client.config.Units;
 
 @ConfigGroup(HomebaseConfig.GROUP)
 public interface HomebaseConfig extends Config
@@ -240,8 +243,8 @@ public interface HomebaseConfig extends Config
 
 	@ConfigItem(
 		keyName = "tileColor",
-		name = "Your tile colour",
-		description = "The colour of the tiles you mark. Everyone in your group sees your tiles in this colour.",
+		name = "Your colour",
+		description = "The colour of your marked tiles, pings and highlights. Everyone in your group sees them in this colour.",
 		section = mapSection,
 		position = 23
 	)
@@ -252,12 +255,81 @@ public interface HomebaseConfig extends Config
 
 	@ConfigItem(
 		keyName = "tileNames",
-		name = "Names on tiles",
-		description = "Show who marked each tile",
+		name = "Names on tiles and highlights",
+		description = "Show who marked each tile or highlighted each monster",
 		section = mapSection,
 		position = 24
 	)
 	default boolean tileNames()
+	{
+		return true;
+	}
+
+	@ConfigSection(
+		name = "Pings and highlights",
+		description = "Point things out to your group for a few seconds, or highlight a monster for everyone",
+		position = 30
+	)
+	String pingSection = "pings";
+
+	@ConfigItem(
+		keyName = "pings",
+		name = "Pings",
+		description = "Hold the ping key and left-click the ground or a monster to point it out to your group",
+		section = pingSection,
+		position = 31
+	)
+	default boolean pings()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "pingKey",
+		name = "Ping key",
+		description = "Hold this and left-click to ping. RuneLite's own Party plugin uses Shift for its pings.",
+		section = pingSection,
+		position = 32
+	)
+	default Keybind pingKey()
+	{
+		return Keybind.ALT;
+	}
+
+	@Range(min = 1, max = 10)
+	@Units(Units.SECONDS)
+	@ConfigItem(
+		keyName = "pingSeconds",
+		name = "Ping length",
+		description = "How long a ping stays on screen",
+		section = pingSection,
+		position = 33
+	)
+	default int pingSeconds()
+	{
+		return 4;
+	}
+
+	@ConfigItem(
+		keyName = "pingSound",
+		name = "Ping sound",
+		description = "Play a sound when someone in your group pings",
+		section = pingSection,
+		position = 34
+	)
+	default boolean pingSound()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "npcHighlights",
+		name = "Group highlights",
+		description = "Shift + right-click a monster and choose Group highlight to outline it for the whole group until it dies",
+		section = pingSection,
+		position = 35
+	)
+	default boolean npcHighlights()
 	{
 		return true;
 	}

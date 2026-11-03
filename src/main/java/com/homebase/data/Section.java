@@ -22,6 +22,7 @@ public enum Section
 	QUESTS("quests", false, 5_000),
 	DIARIES("diaries", false, 2_000),
 	TILES("tiles", false, 1_000),
+	HIGHLIGHTS("npcs", false, 300),
 	COMBAT_ACHIEVEMENTS("ca", false, 5_000),
 	COLLECTION_LOG("clog", false, 3_000),
 	KILL_COUNTS("kc", false, 3_000),
