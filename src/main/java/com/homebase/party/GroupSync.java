@@ -14,6 +14,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -33,6 +34,7 @@ import net.runelite.client.party.PartyService;
 import net.runelite.client.party.WSClient;
 import net.runelite.client.party.events.UserJoin;
 import net.runelite.client.party.events.UserPart;
+import net.runelite.client.party.messages.PartyData;
 import net.runelite.client.util.Text;
 
 /**
@@ -83,6 +85,19 @@ public class GroupSync
 	 * How long at the login screen before leaving the group's party, as RuneLite's Party plugin does.
 	 */
 	static final long IDLE_LEAVE_MS = 30 * 60_000L;
+
+	/**
+	 * How long a nameless party member may stay silent before they're taken to be a closed connection.
+	 * RuneLite's party server keeps listing a connection for a few minutes after it closes, and anyone
+	 * who joins after that sees it with no name. Anyone actually there answers a newcomer within a few
+	 * seconds, and a nameless member who says anything at all still counts as a stranger.
+	 */
+	static final long SILENT_CONNECTION_MS = 10_000;
+
+	/**
+	 * The name RuneLite gives a party member until theirs arrives.
+	 */
+	private static final String NO_NAME = "<unknown>";
 
 	/**
 	 * Ticks after logging in to wait for the game to say which group the account is in.
@@ -137,6 +152,17 @@ public class GroupSync
 	 * When the player logged out while connected, or 0 while playing or not connected.
 	 */
 	private long loginScreenSince;
+
+	/**
+	 * Party members heard from since we joined, by any message, and when each was first listed.
+	 */
+	private final Set<Long> heardFrom = ConcurrentHashMap.newKeySet();
+	private final Map<Long, Long> listedAt = new ConcurrentHashMap<>();
+
+	/**
+	 * Whether we were sharing at the last flush, so a change can be shown straight away.
+	 */
+	private boolean wasSharing;
 
 	/**
 	 * Whether the game has had time to say which group this account is in since logging in.
@@ -235,6 +261,7 @@ public class GroupSync
 		{
 			return out;
 		}
+		long now = System.currentTimeMillis();
 		PartyMember local = partyService.getLocalMember();
 		for (PartyMember member : partyService.getMembers())
 		{
@@ -242,12 +269,30 @@ public class GroupSync
 			{
 				continue;
 			}
-			if (!isVerified(member))
+			boolean named = hasName(member);
+			boolean closed = isClosedConnection(named, heardFrom.contains(member.getMemberId()),
+				listedAt.getOrDefault(member.getMemberId(), now), now);
+			if (!isVerified(member) && !closed)
 			{
-				out.add(Strings.isNullOrEmpty(member.getDisplayName()) ? "someone" : member.getDisplayName());
+				out.add(named ? member.getDisplayName() : "someone");
 			}
 		}
 		return out;
+	}
+
+	/**
+	 * @return true if a party member is most likely a connection that has already closed: they have no
+	 * name, and haven't said anything in all the time they've been listed
+	 */
+	static boolean isClosedConnection(boolean named, boolean heard, long listedAt, long now)
+	{
+		return !named && !heard && now - listedAt >= SILENT_CONNECTION_MS;
+	}
+
+	private static boolean hasName(PartyMember member)
+	{
+		String name = member.getDisplayName();
+		return !Strings.isNullOrEmpty(name) && !NO_NAME.equals(name);
 	}
 
 	/**
@@ -266,8 +311,7 @@ public class GroupSync
 
 	private boolean isVerified(PartyMember member)
 	{
-		String name = member.getDisplayName();
-		return !Strings.isNullOrEmpty(name) && roster.contains(rosterKey(name));
+		return hasName(member) && roster.contains(rosterKey(member.getDisplayName()));
 	}
 
 	/**
@@ -359,6 +403,8 @@ public class GroupSync
 	@Subscribe
 	public void onPartyChanged(PartyChanged event)
 	{
+		heardFrom.clear();
+		listedAt.clear();
 		notifyStatus();
 	}
 
@@ -397,6 +443,8 @@ public class GroupSync
 	@Subscribe
 	public void onUserJoin(UserJoin event)
 	{
+		// joining a party lists everyone already in it, so for them this is when we arrived
+		listedAt.putIfAbsent(event.getMemberId(), System.currentTimeMillis());
 		if (isGroupParty())
 		{
 			// someone arrived, possibly us: swap summaries so everyone catches up
@@ -408,12 +456,35 @@ public class GroupSync
 	@Subscribe
 	public void onUserPart(UserPart event)
 	{
+		heardFrom.remove(event.getMemberId());
+		listedAt.remove(event.getMemberId());
 		notifyStatus();
+	}
+
+	// anything from a party member shows their connection is open, whoever they are
+
+	@Subscribe
+	public void onPartyData(PartyData message)
+	{
+		heardFrom.add(message.getMemberId());
+	}
+
+	@Subscribe
+	public void onHomebasePresence(HomebasePresence message)
+	{
+		heardFrom.add(message.getMemberId());
+	}
+
+	@Subscribe
+	public void onHomebasePing(HomebasePing message)
+	{
+		heardFrom.add(message.getMemberId());
 	}
 
 	@Subscribe
 	public void onHomebaseSyncMessage(HomebaseSyncMessage message)
 	{
+		heardFrom.add(message.getMemberId());
 		SyncEngine engine = this.engine;
 		if (engine == null || !isGroupParty())
 		{
@@ -481,6 +552,16 @@ public class GroupSync
 			return;
 		}
 		boolean sharing = connected && isShareSafe();
+		if (sharing != wasSharing)
+		{
+			wasSharing = sharing;
+			if (sharing)
+			{
+				// whatever arrived while paused may be news to the others
+				summaryWanted = true;
+			}
+			notifyStatus();
+		}
 		presence.tick(sharing);
 		SyncEngine engine = this.engine;
 		if (engine == null || !sharing)

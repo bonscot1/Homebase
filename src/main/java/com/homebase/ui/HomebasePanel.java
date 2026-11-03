@@ -77,6 +77,12 @@ public class HomebasePanel extends PluginPanel
 	private static final int MAX_NAME = 20;
 	private static final int MAX_STRANGERS = 60;
 
+	/**
+	 * Padding above and below the main button's text, and the space between it and the button below.
+	 */
+	private static final int MAIN_BUTTON_PADDING = 11;
+	private static final int MAIN_BUTTON_GAP = 6;
+
 	private enum Tab
 	{
 		MEMBERS("Members"),
@@ -104,7 +110,7 @@ public class HomebasePanel extends PluginPanel
 	private final JLabel statusLabel = new JLabel();
 	private final JButton mainButton = Ui.primaryButton("", () -> runAction(true));
 	private final JButton secondButton = Ui.button("", () -> runAction(false));
-	private final JPanel buttonRow = new JPanel(new GridLayout(1, 0, 6, 0));
+	private final JPanel statusButtons = new JPanel(new BorderLayout(0, MAIN_BUTTON_GAP));
 	private final Map<Tab, JLabel> tabLabels = new EnumMap<>(Tab.class);
 	private final JPanel tabBar = new JPanel(new GridLayout(1, 0, 0, 0));
 	private final JPanel tabContent = new JPanel();
@@ -199,16 +205,19 @@ public class HomebasePanel extends PluginPanel
 		titles.add(groupLabel);
 		titles.add(statusLabel);
 
-		buttonRow.setOpaque(false);
-		buttonRow.setBorder(new EmptyBorder(8, 0, 0, 0));
-		buttonRow.add(mainButton);
-		buttonRow.add(secondButton);
-		buttonRow.setVisible(false);
+		// the main button, such as Connect, is the one thing to do next, so it's big and spans the panel
+		mainButton.setFont(FontManager.getRunescapeBoldFont());
+		mainButton.setBorder(new EmptyBorder(MAIN_BUTTON_PADDING, 8, MAIN_BUTTON_PADDING, 8));
+		statusButtons.setOpaque(false);
+		statusButtons.setBorder(new EmptyBorder(10, 0, 2, 0));
+		statusButtons.add(mainButton, BorderLayout.CENTER);
+		statusButtons.add(secondButton, BorderLayout.SOUTH);
+		statusButtons.setVisible(false);
 
 		JPanel header = new JPanel(new BorderLayout());
 		header.setOpaque(false);
 		header.add(titles, BorderLayout.NORTH);
-		header.add(buttonRow, BorderLayout.CENTER);
+		header.add(statusButtons, BorderLayout.CENTER);
 		header.add(tabBar, BorderLayout.SOUTH);
 		header.setBorder(new EmptyBorder(0, 0, 8, 0));
 
@@ -527,7 +536,7 @@ public class HomebasePanel extends PluginPanel
 	}
 
 	/**
-	 * Show the status, with up to two buttons under it: the main one in orange and another beside it.
+	 * Show the status, with up to two buttons under it: a big orange main one, and a smaller one below.
 	 * A button is hidden when its text is null.
 	 */
 	private void setStatus(Color dotColor, String text, String mainText, Runnable mainAction, String secondText, Runnable secondAction)
@@ -541,7 +550,7 @@ public class HomebasePanel extends PluginPanel
 		secondButton.setText(secondText);
 		secondButton.setVisible(secondText != null);
 		this.secondAction = secondAction;
-		buttonRow.setVisible(mainText != null || secondText != null);
+		statusButtons.setVisible(mainText != null || secondText != null);
 	}
 
 	private void runAction(boolean main)
