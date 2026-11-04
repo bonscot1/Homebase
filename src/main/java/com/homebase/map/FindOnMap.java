@@ -34,6 +34,7 @@ public class FindOnMap
 	static final long REMEMBER_MS = 60_000;
 
 	private static final int MAX_NAME = 20;
+	private static final int NO_BUTTON = -1;
 
 	private final Client client;
 	private final ClientThread clientThread;
@@ -49,7 +50,7 @@ public class FindOnMap
 		@Override
 		public MouseEvent mousePressed(MouseEvent e)
 		{
-			swallowing = false;
+			swallowedButton = NO_BUTTON;
 			// Alt is how overlays are moved, so it's left alone
 			if (!SwingUtilities.isLeftMouseButton(e) || e.isAltDown() || !config.hudClickToMap())
 			{
@@ -60,7 +61,7 @@ public class FindOnMap
 			{
 				return e;
 			}
-			swallowing = true;
+			swallowedButton = e.getButton();
 			e.consume();
 			clientThread.invoke(() -> clicked(memberId));
 			return e;
@@ -69,7 +70,7 @@ public class FindOnMap
 		@Override
 		public MouseEvent mouseReleased(MouseEvent e)
 		{
-			if (swallowing)
+			if (e.getButton() == swallowedButton)
 			{
 				e.consume();
 			}
@@ -79,9 +80,9 @@ public class FindOnMap
 		@Override
 		public MouseEvent mouseClicked(MouseEvent e)
 		{
-			if (swallowing)
+			if (e.getButton() == swallowedButton)
 			{
-				swallowing = false;
+				swallowedButton = NO_BUTTON;
 				e.consume();
 			}
 			return e;
@@ -89,7 +90,11 @@ public class FindOnMap
 	};
 
 	private Consumer<String> messages;
-	private volatile boolean swallowing;
+
+	/**
+	 * The button of a press we kept from the game, so its release doesn't reach the game either.
+	 */
+	private volatile int swallowedButton = NO_BUTTON;
 	private long wantedMember;
 	private long wantedAt;
 	private boolean wanted;

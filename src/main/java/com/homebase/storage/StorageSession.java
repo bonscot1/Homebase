@@ -31,6 +31,14 @@ final class StorageSession
 	private int closedTicks;
 
 	/**
+	 * True until the tick it was opened on ends. The first look can be the copy left from last time it
+	 * was open, with the game's fresh one just behind it, and nobody can change anything that quickly,
+	 * so everything until then is just what storage holds. Otherwise another member's save made while
+	 * it was closed would be counted as ours.
+	 */
+	private boolean opening;
+
+	/**
 	 * The interface was drawn from what the game sent. It's the one time an empty storage can be
 	 * believed: an empty container on its own can just mean it hasn't been filled in yet. Only while
 	 * it's closing is it ignored, since by then the temporary copy may already be gone.
@@ -59,6 +67,10 @@ final class StorageSession
 	{
 		if (saved == null)
 		{
+			opening = true;
+		}
+		if (opening)
+		{
 			saved = now;
 		}
 		current = now;
@@ -73,6 +85,7 @@ final class StorageSession
 	 */
 	List<StorageHistory.Change> tick(boolean open, boolean saving)
 	{
+		opening = false;
 		List<StorageHistory.Change> out = Collections.emptyList();
 		if (saving && saved != null)
 		{
@@ -99,5 +112,6 @@ final class StorageSession
 		saved = null;
 		current = null;
 		closedTicks = 0;
+		opening = false;
 	}
 }

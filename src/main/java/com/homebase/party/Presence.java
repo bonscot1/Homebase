@@ -219,10 +219,11 @@ public class Presence
 		long now = System.currentTimeMillis();
 		if (sharing && client.getGameState() == GameState.LOGGED_IN)
 		{
-			WorldPoint here = config.sharePosition() ? localPosition() : null;
+			boolean sharePosition = config.sharePosition();
+			WorldPoint here = sharePosition ? localPosition() : null;
 			if (isSendDue(now - lastSent, !Objects.equals(here, lastSentPosition)))
 			{
-				send(true, here == null ? HomebasePresence.NO_POSITION : HomebasePresence.packCoord(here));
+				send(true, coordToSend(sharePosition, here));
 				lastSentPosition = here;
 			}
 		}
@@ -242,6 +243,19 @@ public class Presence
 			lastOnline = online;
 			notifyListeners();
 		}
+	}
+
+	/**
+	 * @return what to tell the group about where we are. Just after logging in the game may not have us
+	 * yet, which is different from choosing not to share, so it says nothing rather than hide us.
+	 */
+	static Integer coordToSend(boolean sharePosition, WorldPoint here)
+	{
+		if (!sharePosition)
+		{
+			return HomebasePresence.NO_POSITION;
+		}
+		return here == null ? null : HomebasePresence.packCoord(here);
 	}
 
 	/**

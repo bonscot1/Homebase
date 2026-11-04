@@ -72,6 +72,11 @@ public class GroupHudOverlay extends OverlayPanel
 	 */
 	private static final double MIN_NAME_BRIGHTNESS = 130;
 
+	/**
+	 * How long since it was last drawn that the box still counts as being there for a click.
+	 */
+	private static final long MAX_DRAWN_AGE_MS = 250;
+
 	private final Client client;
 	private final HomebaseConfig config;
 	private final PartyService partyService;
@@ -86,10 +91,17 @@ public class GroupHudOverlay extends OverlayPanel
 	private List<MemberStart> drawing = new ArrayList<>();
 
 	/**
-	 * Whether the mouse was over the game world as last drawn. The HUD is drawn under interfaces, so
-	 * otherwise a click on it could really be meant for the bank on top of it.
+	 * Whether the mouse was over plain ground as last drawn. The HUD is drawn under interfaces and over
+	 * the game, so otherwise a click on it could really be meant for the bank on top of it or a monster
+	 * behind it.
 	 */
-	private volatile boolean mouseOverWorld;
+	private volatile boolean mouseOverGround;
+
+	/**
+	 * RuneLite doesn't draw overlays at the login screen, and that doesn't reach render, so this says
+	 * whether what's above is still true.
+	 */
+	private volatile long drawnAt;
 
 	@Inject
 	private GroupHudOverlay(Client client, HomebaseConfig config, PartyService partyService, GroupSync groupSync, GroupIndex index,
@@ -108,15 +120,16 @@ public class GroupHudOverlay extends OverlayPanel
 	@Override
 	public Dimension render(Graphics2D graphics)
 	{
-		memberStarts = Collections.emptyList();
 		if (!config.hudEnabled() || client.getGameState() != GameState.LOGGED_IN || !groupSync.isGroupParty())
 		{
+			memberStarts = Collections.emptyList();
 			return null;
 		}
-		mouseOverWorld = isMouseOverWorld();
+		mouseOverGround = isMouseOverGround();
 		List<PartyMember> members = visibleMembers();
 		if (members.isEmpty())
 		{
+			memberStarts = Collections.emptyList();
 			return null;
 		}
 
@@ -140,17 +153,18 @@ public class GroupHudOverlay extends OverlayPanel
 		}
 		Dimension drawn = super.render(graphics);
 		memberStarts = drawing;
+		drawnAt = System.currentTimeMillis();
 		return drawn;
 	}
 
 	/**
 	 * @return the member whose part of the box a point on the screen is in, or null if it isn't in the
-	 * box or there's an interface in the way
+	 * box or a click there is meant for something else
 	 */
 	public Long memberAt(Point point)
 	{
 		Rectangle box = getBounds();
-		if (!mouseOverWorld || box == null || !box.contains(point))
+		if (!mouseOverGround || box == null || !box.contains(point) || System.currentTimeMillis() - drawnAt > MAX_DRAWN_AGE_MS)
 		{
 			return null;
 		}
@@ -167,16 +181,15 @@ public class GroupHudOverlay extends OverlayPanel
 		return found;
 	}
 
-	private boolean isMouseOverWorld()
+	private boolean isMouseOverGround()
 	{
-		for (MenuEntry entry : client.getMenu().getMenuEntries())
+		if (client.isMenuOpen())
 		{
-			if (entry.getType() == MenuAction.WALK)
-			{
-				return true;
-			}
+			return false;
 		}
-		return false;
+		MenuEntry[] entries = client.getMenu().getMenuEntries();
+		// the last entry is the one a left-click would choose, so this is only true if it would just walk
+		return entries.length > 0 && entries[entries.length - 1].getType() == MenuAction.WALK;
 	}
 
 	/**

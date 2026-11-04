@@ -189,6 +189,7 @@ public class StorageSessionTest
 	{
 		// the container's report first, with no drawing of the interface yet
 		session.changed(items(SHARK, 5), true);
+		assertTrue(session.tick(true, false).isEmpty());
 		session.changed(items(SHARK, 2), true);
 		assertEquals(just(SHARK, -3), session.tick(true, true));
 
@@ -198,6 +199,20 @@ public class StorageSessionTest
 		assertTrue(other.tick(true, false).isEmpty());
 		other.changed(items(COAL, 9), true);
 		assertEquals(just(COAL, 2), other.tick(true, true));
+	}
+
+	@Test
+	public void aFreshCopyArrivingAsItOpensIsNotOurChange()
+	{
+		StorageSession session = new StorageSession();
+		// drawn from the copy left from last time, then the game's fresh one with another member's save
+		session.built(items(SHARK, 5), true);
+		session.changed(items(SHARK, 2), true);
+		assertTrue(session.tick(true, false).isEmpty());
+
+		// what we then do ourselves still counts
+		session.changed(items(SHARK, 1), true);
+		assertEquals(just(SHARK, -1), session.tick(true, true));
 	}
 
 	@Test

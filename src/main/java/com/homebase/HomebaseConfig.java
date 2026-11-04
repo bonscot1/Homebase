@@ -219,7 +219,7 @@ public interface HomebaseConfig extends Config
 		keyName = "hudClickToMap",
 		name = "Click to find on map",
 		description = "Click a member in the group HUD, then open your world map, and the map goes straight to them. "
-			+ "Clicks on the HUD don't reach the game behind it while this is on.",
+			+ "While this is on, clicking the HUD won't walk you to the ground behind it. Monsters and objects behind it can still be clicked.",
 		section = hudSection,
 		position = 113
 	)
