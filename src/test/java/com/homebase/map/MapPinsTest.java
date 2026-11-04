@@ -2,6 +2,7 @@ package com.homebase.map;
 
 import java.awt.Rectangle;
 import net.runelite.api.coords.WorldPoint;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import org.junit.Test;
 
@@ -33,6 +34,16 @@ public class MapPinsTest
 		// a pixel can land on the neighbouring tile at the far zoomed-in or zoomed-out levels, which is close enough
 		assertTrue(found + " for " + x + "," + y + " at zoom " + zoom,
 			Math.abs(found.getX() - x) <= 1 && Math.abs(found.getY() - y) <= 1);
+	}
+
+	@Test
+	public void changingColourLaterIsntANewPin()
+	{
+		long placed = 1_000_000;
+		// sent a moment after it was placed
+		assertTrue(MapPins.isNewPin(placed + 600, placed));
+		// sent again much later, with a new colour
+		assertFalse(MapPins.isNewPin(placed + 60_000, placed));
 	}
 
 	@Test

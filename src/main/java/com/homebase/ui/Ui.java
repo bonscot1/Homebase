@@ -50,9 +50,11 @@ final class Ui
 	static final int GAP = 6;
 
 	/**
-	 * Width HTML labels wrap at. Wider than this clips inside the sidebar.
+	 * Width HTML labels wrap at, for text across a whole card. Swing draws an HTML width 1.3 times as
+	 * wide as it says, so this comes out at 188 pixels of the 189 inside a card. Any wider and the end of
+	 * the line is cut off.
 	 */
-	static final int TEXT_WIDTH = 160;
+	static final int TEXT_WIDTH = 145;
 
 	private Ui()
 	{

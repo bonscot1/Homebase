@@ -235,6 +235,7 @@ public final class UpdateDiff
 			newestSeen = Math.max(newestSeen, entry.getAt());
 		}
 		List<String> gotten = new ArrayList<>();
+		List<String> pets = new ArrayList<>();
 		List<String> died = new ArrayList<>();
 		for (FeedData.Entry entry : after)
 		{
@@ -257,7 +258,7 @@ public final class UpdateDiff
 				case FeedData.PET:
 					if (drops)
 					{
-						gotten.add("got a pet!");
+						pets.add("got a pet!");
 					}
 					break;
 				case FeedData.DEATH:
@@ -280,6 +281,8 @@ public final class UpdateDiff
 		{
 			out.addAll(gotten);
 		}
+		// too good to fold into a count
+		out.addAll(pets);
 		if (died.size() > MAX_LISTED)
 		{
 			out.add("died " + died.size() + " times");

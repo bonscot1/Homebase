@@ -7,6 +7,7 @@ import java.awt.Color;
 import java.util.Arrays;
 import java.util.Random;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import org.junit.Before;
 import org.junit.Test;
@@ -49,6 +50,17 @@ public class GroupIndexTest
 		assertEquals("Mundell", index.nameOf("a"));
 		assertEquals(301, index.world("Mundell"));
 		assertEquals(0, index.world("Nobody"));
+	}
+
+	@Test
+	public void knowsWhetherAnyoneElseIsInTheGroup()
+	{
+		assertFalse(index.hasOtherMembers("a"));
+		publish("a", Section.PROFILE, new ProfileData("Mundell", 301, null));
+		assertFalse(index.hasOtherMembers("a"));
+		assertTrue(index.hasOtherMembers("b"));
+		publish("b", Section.PROFILE, new ProfileData("Bonscott", 301, null));
+		assertTrue(index.hasOtherMembers("a"));
 	}
 
 	@Test

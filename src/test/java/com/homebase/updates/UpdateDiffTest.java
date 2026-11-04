@@ -89,6 +89,20 @@ public class UpdateDiffTest
 	}
 
 	@Test
+	public void aPetIsNeverFoldedIntoACountOfDrops()
+	{
+		List<FeedData.Entry> after = new ArrayList<>();
+		for (int i = 1; i <= 7; i++)
+		{
+			after.add(drop(i, "Item " + i, 1, 200_000, "Boss"));
+		}
+		after.add(new FeedData.Entry(8, FeedData.PET, null, 0, 0, null));
+
+		assertEquals(Arrays.asList("got 7 valuable drops", "got a pet!"),
+			UpdateDiff.feed(Collections.emptyList(), after, true, 100_000, true));
+	}
+
+	@Test
 	public void strangeFeedEntriesAreSafelyIgnored()
 	{
 		List<FeedData.Entry> after = Arrays.asList(

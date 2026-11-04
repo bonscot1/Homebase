@@ -27,7 +27,7 @@ final class StorageHistoryView
 	/**
 	 * Narrower than other wrapped text, since these rows sit inside the storage section and a list.
 	 */
-	private static final int TEXT_WIDTH = Ui.TEXT_WIDTH - 24;
+	private static final int TEXT_WIDTH = Ui.TEXT_WIDTH - 9;
 
 	/**
 	 * Longest player and item names shown. Player names come from other members' data.

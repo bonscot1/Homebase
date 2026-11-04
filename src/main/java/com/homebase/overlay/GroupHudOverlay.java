@@ -219,7 +219,7 @@ public class GroupHudOverlay extends OverlayPanel
 			int run = self ? client.getEnergy() / 100 : member.getRunEnergy();
 			bars.add(bar(run, 100, run + "%", RUN_FG, RUN_BG));
 		}
-		if (config.hudSpecEnergy())
+		if (config.hudSpecEnergy() && (self || presence.knowsSpec(member.getMemberId())))
 		{
 			// the game counts special attack energy in tenths of a percent
 			int spec = self ? client.getVarpValue(VarPlayerID.SA_ENERGY) / 10 : member.getSpecEnergy();

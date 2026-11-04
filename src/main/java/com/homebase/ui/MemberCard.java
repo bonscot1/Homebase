@@ -67,6 +67,11 @@ class MemberCard extends JPanel
 	private static final int DIARY_REGION_WIDTH = 100;
 
 	/**
+	 * Where text wraps inside an open section, which is indented further than a card's own text.
+	 */
+	private static final int SECTION_TEXT_WIDTH = Ui.TEXT_WIDTH - 9;
+
+	/**
 	 * Newest collection log slots listed above the pages.
 	 */
 	private static final int RECENT_SLOTS_SHOWN = 5;
@@ -186,7 +191,7 @@ class MemberCard extends JPanel
 			add(buildDetails(memberId, view, skills, context), BorderLayout.CENTER);
 		}
 
-		updateLive(null, false);
+		updateLive(null, false, false);
 	}
 
 	String getMemberName()
@@ -199,8 +204,10 @@ class MemberCard extends JPanel
 	 *
 	 * @param live their party data, or null if they aren't in the party right now
 	 * @param isLocal true if this card is the logged in player
+	 * @param knowsSpec true if their special attack has arrived, which an older version of the plugin
+	 * may never send
 	 */
-	void updateLive(PartyMember live, boolean isLocal)
+	void updateLive(PartyMember live, boolean isLocal, boolean knowsSpec)
 	{
 		boolean online = isLocal || (live != null && live.isLoggedIn());
 		nameLabel.setIcon(new Ui.Dot(online ? Ui.ONLINE : Ui.AWAY));
@@ -225,7 +232,7 @@ class MemberCard extends JPanel
 			hpBar.set(hp, maxHp, hp + "/" + maxHp);
 			prayerBar.set(prayer, maxPrayer, prayer + "/" + maxPrayer);
 			runBar.set(live.getRunEnergy(), 100, live.getRunEnergy() + "%");
-			specBar.set(live.getSpecEnergy(), 100, live.getSpecEnergy() + "%");
+			specBar.set(knowsSpec ? live.getSpecEnergy() : 0, 100, knowsSpec ? live.getSpecEnergy() + "%" : "-");
 			bars.setVisible(true);
 		}
 		else
@@ -490,7 +497,7 @@ class MemberCard extends JPanel
 		}
 		if (listed == 0 && recent.isEmpty())
 		{
-			list.add(Ui.wrapped("Pages appear here once they open their collection log and click Search.", ColorScheme.MEDIUM_GRAY_COLOR));
+			list.add(Ui.wrapped("Pages appear here once they open their collection log and click Search.", ColorScheme.MEDIUM_GRAY_COLOR, SECTION_TEXT_WIDTH));
 		}
 		addContent(parent, list);
 	}

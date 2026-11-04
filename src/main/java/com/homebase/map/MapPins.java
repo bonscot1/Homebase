@@ -36,6 +36,11 @@ public class MapPins
 	private static final String UNPIN = "Remove your pin";
 	private static final String MENU_TARGET = ColorUtil.wrapWithColorTag("Map", JagexColors.MENU_TARGET);
 
+	/**
+	 * A pin sent later than this after it was placed, as changing colour does, isn't news.
+	 */
+	private static final long NEW_PIN_MS = 10_000;
+
 	private final Client client;
 	private final HomebaseConfig config;
 	private final LocalCollector collector;
@@ -141,12 +146,23 @@ public class MapPins
 		{
 			return null;
 		}
-		if (name == null || pin == null || !pin.isPlaced())
+		if (name == null || pin == null || !pin.isPlaced() || !isNewPin(record.getVersion(), pin.getAt()))
 		{
 			return null;
 		}
 		String area = AreaNames.describe(pin.getX(), pin.getY());
 		return name + " pinned a spot on the world map" + (AreaNames.UNKNOWN.equals(area) ? "." : ": " + area + ".");
+	}
+
+	/**
+	 * Both times come from the clock of whoever placed the pin, so it doesn't matter if ours differs.
+	 *
+	 * @param sentAt when this copy of the pin was sent
+	 * @param placedAt when the pin was placed
+	 */
+	static boolean isNewPin(long sentAt, long placedAt)
+	{
+		return sentAt - placedAt <= NEW_PIN_MS;
 	}
 
 	private boolean hasPin()

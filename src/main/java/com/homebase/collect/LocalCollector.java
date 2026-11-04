@@ -172,6 +172,8 @@ public class LocalCollector
 	{
 		this.engine = engine;
 		lastPublished.clear();
+		// a new group hasn't been told what's turned off yet
+		withheld.clear();
 		if (engine != null && memberId != null)
 		{
 			// switched group while logged in, so give the new group everything
@@ -394,6 +396,14 @@ public class LocalCollector
 		capture(Section.SKILLS, readSkills());
 		captureItems(Section.INVENTORY, client.getItemContainer(InventoryID.INV));
 		captureItems(Section.EQUIPMENT, client.getItemContainer(InventoryID.WORN));
+		// anything turned off while logged out goes now, rather than whenever that container next opens
+		for (Section section : ITEM_SECTIONS.keySet())
+		{
+			if (!isShared(section))
+			{
+				captureItems(section, null);
+			}
+		}
 		capture(Section.DIARIES, readDiaries());
 		questTicks = QUEST_DELAY_TICKS;
 		flush(true);

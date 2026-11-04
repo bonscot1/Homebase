@@ -24,6 +24,7 @@ import net.runelite.client.party.PartyService;
 import net.runelite.client.party.WSClient;
 import net.runelite.client.party.events.UserJoin;
 import net.runelite.client.party.events.UserPart;
+import net.runelite.client.party.messages.PartyData;
 
 /**
  * Who in the party is actually playing. RuneLite's party server doesn't reliably tell everyone when a
@@ -71,6 +72,12 @@ public class Presence
 	 * Members who have chosen not to share their position.
 	 */
 	private final Set<Long> hiddenPositions = ConcurrentHashMap.newKeySet();
+
+	/**
+	 * Members who have sent their special attack. RuneLite's party has it as 0 until they do, and a
+	 * member on an older version of the plugin may never send it.
+	 */
+	private final Set<Long> specKnown = ConcurrentHashMap.newKeySet();
 	private final List<Runnable> listeners = new CopyOnWriteArrayList<>();
 	private volatile long lastSent;
 	private volatile WorldPoint lastSentPosition;
@@ -102,6 +109,7 @@ public class Presence
 		gone.clear();
 		positions.clear();
 		hiddenPositions.clear();
+		specKnown.clear();
 		listeners.clear();
 		lastSent = 0;
 		lastSentPosition = null;
@@ -161,6 +169,25 @@ public class Presence
 		gone.remove(event.getMemberId());
 		positions.remove(event.getMemberId());
 		hiddenPositions.remove(event.getMemberId());
+		specKnown.remove(event.getMemberId());
+	}
+
+	@Subscribe
+	public void onPartyData(PartyData message)
+	{
+		if (message.getSpecEnergy() != null)
+		{
+			specKnown.add(message.getMemberId());
+		}
+	}
+
+	/**
+	 * @return true if the member's special attack as the party has it is real, rather than the 0 it
+	 * starts as
+	 */
+	public boolean knowsSpec(long memberId)
+	{
+		return specKnown.contains(memberId);
 	}
 
 	private void notePosition(long memberId, Integer coord)

@@ -169,15 +169,16 @@ public class GroupWorldMap
 					continue;
 				}
 				seen.add(pin.getMemberId());
+				WorldPoint shown = pinOnMap(pin.getPoint());
 				Marker marker = pinMarkers.get(pin.getMemberId());
 				boolean isNew = marker == null;
 				if (isNew)
 				{
-					marker = new Marker(pin.getPoint(), true);
+					marker = new Marker(shown, true);
 					pinMarkers.put(pin.getMemberId(), marker);
 				}
 				String title = pin.getName() + "'s pin";
-				marker.show(pin.getPoint(), title, pin.getName(), pin.getColor(), title + " - " + AreaNames.describe(pin.getPoint()));
+				marker.show(shown, title, pin.getName(), pin.getColor(), title + " - " + AreaNames.describe(pin.getPoint()));
 				if (isNew)
 				{
 					worldMapPointManager.add(marker);
@@ -194,6 +195,16 @@ public class GroupWorldMap
 				it.remove();
 			}
 		}
+	}
+
+	/**
+	 * @return where to put a pin on the map being looked at: where it was placed, or above it if it was
+	 * placed on a dungeon's own map and this is the surface
+	 */
+	private WorldPoint pinOnMap(WorldPoint point)
+	{
+		WorldMapData openMap = openMap();
+		return openMap == null || openMap.surfaceContainsPosition(point.getX(), point.getY()) ? point : AreaNames.aboveGround(point);
 	}
 
 	/**

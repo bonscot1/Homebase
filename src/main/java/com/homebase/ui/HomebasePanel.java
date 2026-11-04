@@ -611,7 +611,8 @@ public class HomebasePanel extends PluginPanel
 				// gone quiet or said they were leaving, even if the party still lists them
 				live = null;
 			}
-			card.updateLive(live, entry.getKey().equals(localId));
+			boolean isLocal = entry.getKey().equals(localId);
+			card.updateLive(live, isLocal, live != null && (isLocal || presence.knowsSpec(live.getMemberId())));
 		}
 	}
 
@@ -673,8 +674,8 @@ public class HomebasePanel extends PluginPanel
 	private void setStatus(Color dotColor, String text, String mainText, Runnable mainAction, String secondText, Runnable secondAction)
 	{
 		statusLabel.setIcon(new Ui.Dot(dotColor));
-		// narrower than other wrapped text, to leave room for the dot
-		statusLabel.setText("<html><body style='width:" + (Ui.TEXT_WIDTH - 15) + "px'>" + text + "</body></html>");
+		// there's no card's padding around this, which leaves room for the dot
+		statusLabel.setText("<html><body style='width:" + Ui.TEXT_WIDTH + "px'>" + text + "</body></html>");
 		mainButton.setText(mainText);
 		mainButton.setVisible(mainText != null);
 		this.mainAction = mainAction;

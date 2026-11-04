@@ -142,6 +142,15 @@ public class GroupIndex
 	}
 
 	/**
+	 * @return true if there's anyone in the group besides this member
+	 */
+	public boolean hasOtherMembers(String memberId)
+	{
+		Map<String, String> names = current().namesById;
+		return names.size() > (memberId != null && names.containsKey(memberId) ? 1 : 0);
+	}
+
+	/**
 	 * @return the world the member was last on, or 0 if they've logged out or we don't know
 	 */
 	public int world(String name)

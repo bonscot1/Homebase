@@ -94,7 +94,7 @@ public class CollectionLogOverlay extends Overlay
 				names.add(owner.getName());
 			}
 			boolean hovered = mouse != null && visible.contains(mouse.getX(), mouse.getY()) && bounds.contains(mouse.getX(), mouse.getY());
-			if (hovered && !client.isMenuOpen())
+			if (hovered && !client.isMenuOpen() && (!names.isEmpty() || index.hasOtherMembers(me)))
 			{
 				tooltipManager.add(new Tooltip(names.isEmpty() ? "Nobody else in your group has shown this yet" : "Also has this: " + String.join(", ", names)));
 			}

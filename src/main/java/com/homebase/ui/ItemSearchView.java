@@ -39,6 +39,12 @@ class ItemSearchView extends JPanel
 	private static final int ICON_GAP = 6;
 
 	/**
+	 * Where the text beside an item's picture wraps. Swing draws an HTML width a little wider than it
+	 * says, so this is narrower than the room there is.
+	 */
+	static final int TEXT_WIDTH = 110;
+
+	/**
 	 * Each member's containers, by how they're named in the results.
 	 */
 	private static final Map<Section, String> PLACES = new LinkedHashMap<>();
@@ -178,10 +184,10 @@ class ItemSearchView extends JPanel
 		JPanel text = new JPanel();
 		text.setLayout(new BoxLayout(text, BoxLayout.Y_AXIS));
 		text.setOpaque(false);
-		text.add(Ui.wrapped(Ui.escapeHtml(result.getName()) + " ×" + QuantityFormatter.formatNumber(result.getTotal()), Color.WHITE));
+		text.add(Ui.wrapped(Ui.escapeHtml(result.getName()) + " ×" + QuantityFormatter.formatNumber(result.getTotal()), Color.WHITE, TEXT_WIDTH));
 		for (Map.Entry<String, Map<String, Long>> owner : result.getOwners().entrySet())
 		{
-			text.add(Ui.wrapped(Ui.escapeHtml(describe(owner.getKey(), owner.getValue())), ColorScheme.LIGHT_GRAY_COLOR));
+			text.add(Ui.wrapped(Ui.escapeHtml(describe(owner.getKey(), owner.getValue())), ColorScheme.LIGHT_GRAY_COLOR, TEXT_WIDTH));
 		}
 		Ui.alignChildrenLeft(text);
 		card.add(text, BorderLayout.CENTER);

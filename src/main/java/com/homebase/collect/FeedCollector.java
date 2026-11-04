@@ -117,7 +117,8 @@ public class FeedCollector
 		{
 			return;
 		}
-		WorldPoint where = presence.localPosition();
+		// someone hiding their position still has their death reported, without saying where
+		WorldPoint where = config.sharePosition() ? presence.localPosition() : null;
 		add(new FeedData.Entry(System.currentTimeMillis(), FeedData.DEATH,
 			where == null ? null : AreaNames.describe(where), 0, 0, null));
 	}

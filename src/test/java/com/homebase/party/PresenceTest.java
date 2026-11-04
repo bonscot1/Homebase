@@ -7,6 +7,7 @@ import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import net.runelite.api.coords.WorldPoint;
+import net.runelite.client.party.messages.PartyData;
 import org.junit.Test;
 
 public class PresenceTest
@@ -32,6 +33,25 @@ public class PresenceTest
 		// and showing it again brings it back
 		presence.onHomebasePresence(shown);
 		assertEquals(where, presence.position(7, fromParty));
+	}
+
+	@Test
+	public void specialAttackCountsOnceItHasArrived()
+	{
+		assertFalse(presence.knowsSpec(7));
+
+		PartyData stats = new PartyData();
+		stats.setMemberId(7);
+		stats.setRunEnergy(50);
+		presence.onPartyData(stats);
+		assertFalse(presence.knowsSpec(7));
+
+		PartyData spec = new PartyData();
+		spec.setMemberId(7);
+		spec.setSpecEnergy(0);
+		presence.onPartyData(spec);
+		assertTrue(presence.knowsSpec(7));
+		assertFalse(presence.knowsSpec(8));
 	}
 
 	@Test
