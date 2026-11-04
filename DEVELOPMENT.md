@@ -47,6 +47,7 @@ With one account:
 - [ ] After restarting RuneLite, before you log in, the panel shows your group's saved data and says to log in on an account in your group to connect.
 - [ ] Logged in on an account that isn't in the group, the panel says it can't connect.
 - [ ] Logging in on an account that isn't in the group adds no card for that account.
+- [ ] Connecting again soon after closing RuneLite can say "Connecting..." for up to 10 seconds while the party still lists the old connection. It doesn't warn about someone outside the group, and it then changes to "Connected".
 - [ ] Your card appears on the **Members** tab with a green world number. Clicking your name shows your skills, inventory and equipment.
 - [ ] Opening your bank adds a **Bank** line to your card. Clicking it shows the items. The seed vault and looting bag work the same way.
 - [ ] Opening the group storage adds a **Group storage** section at the top, saying who saw it last.
@@ -95,7 +96,7 @@ With a second group member running the plugin:
 - [ ] Right-click the world map and choose **Pin for group**. The other sees a pin in your colour with your name and gets a chat message; **Focus on** takes them to it. **Remove your pin** takes it away for both of you, and placing another moves it.
 - [ ] One of you gets a drop worth more than **Drops worth at least**, or dies. The other gets it on the **Updates** tab and in chat, with the amount it's worth or where it happened. A chest or clue casket counts too, with the Loot Tracker plugin on.
 - [ ] Typing an item in the search box above the tabs lists everyone who has it, with how many and where, including items in the group storage. Clearing it, or clicking a tab, goes back to the tabs. Keep typing while results appear: the box keeps the keyboard.
-- [ ] In the collection log, an item the other has shows a dot in their colour, and hovering over any item says who else has it. Scrolling the page doesn't draw dots outside the list.
+- [ ] In the collection log, on a page and in the log's search results, an item the other has shows a dot in their colour, and hovering over any item says who else has it. Scrolling the list doesn't draw dots outside it.
 - [ ] Each option under **What you share**: turning off your bank, inventory or the like empties it on the other's card, and turning it back on brings it back (your bank, once you next open it). Turning off your position takes your arrow off the other's map and the area off their HUD within a few seconds.
 - [ ] The other options do what they say: **Only your world**, **Order**, **Names on map markers**, **Map marker size**, **Keep off-screen members at the edge**, **Pins last**, **Pings on the minimap**, **Show offline members**, **Online members first**, **Live bars on cards**, and each kind of update under **Updates and chat**.
 - [ ] Opening a member's big bank doesn't make the game stutter, and it still doesn't when the panel refreshes with the bank open. Scrolling shows the items as they come into view, and hovering shows each one's name and amount.

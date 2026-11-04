@@ -75,6 +75,11 @@ public class GroupSync
 		 */
 		OTHER_PARTY,
 		/**
+		 * In the group's party, but someone there hasn't said who they are yet, so nothing is shared
+		 * until they do. It's most likely a connection that has already closed.
+		 */
+		CONNECTING,
+		/**
 		 * In the group's party, but someone in it isn't in the group, so nothing is shared.
 		 */
 		PAUSED,
@@ -228,7 +233,11 @@ public class GroupSync
 		}
 		if (isGroupParty())
 		{
-			return isShareSafe() ? Status.CONNECTED : Status.PAUSED;
+			if (isShareSafe())
+			{
+				return Status.CONNECTED;
+			}
+			return isWaitingOnSilentMembers() ? Status.CONNECTING : Status.PAUSED;
 		}
 		if (partyService.isInParty())
 		{
@@ -257,6 +266,31 @@ public class GroupSync
 	public List<String> strangers()
 	{
 		List<String> out = new ArrayList<>();
+		for (PartyMember member : unverifiedMembers())
+		{
+			out.add(hasName(member) ? member.getDisplayName() : "someone");
+		}
+		return out;
+	}
+
+	/**
+	 * @return true if everyone holding up sharing has no name and hasn't said anything yet
+	 */
+	private boolean isWaitingOnSilentMembers()
+	{
+		for (PartyMember member : unverifiedMembers())
+		{
+			if (!isSilent(hasName(member), heardFrom.contains(member.getMemberId())))
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
+	private List<PartyMember> unverifiedMembers()
+	{
+		List<PartyMember> out = new ArrayList<>();
 		if (gimGroup == null || !isGroupParty())
 		{
 			return out;
@@ -274,7 +308,7 @@ public class GroupSync
 				listedAt.getOrDefault(member.getMemberId(), now), now);
 			if (!isVerified(member) && !closed)
 			{
-				out.add(named ? member.getDisplayName() : "someone");
+				out.add(member);
 			}
 		}
 		return out;
@@ -286,7 +320,12 @@ public class GroupSync
 	 */
 	static boolean isClosedConnection(boolean named, boolean heard, long listedAt, long now)
 	{
-		return !named && !heard && now - listedAt >= SILENT_CONNECTION_MS;
+		return isSilent(named, heard) && now - listedAt >= SILENT_CONNECTION_MS;
+	}
+
+	static boolean isSilent(boolean named, boolean heard)
+	{
+		return !named && !heard;
 	}
 
 	private static boolean hasName(PartyMember member)

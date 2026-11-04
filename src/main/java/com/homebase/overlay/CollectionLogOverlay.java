@@ -26,9 +26,10 @@ import net.runelite.client.ui.overlay.tooltip.Tooltip;
 import net.runelite.client.ui.overlay.tooltip.TooltipManager;
 
 /**
- * While the collection log is open, a dot on each item in the colour of every other group member who
- * has it, with their names when the mouse is over it. Only what's been shared can be shown, so someone
- * who hasn't opened the log and clicked Search yet may have more than their dots say.
+ * While the collection log is open, on a page or in search results, a dot on each item in the colour
+ * of every other group member who has it, with their names when the mouse is over it. Only what's been
+ * shared can be shown, so someone who hasn't opened the log and clicked Search yet may have more than
+ * their dots say.
  */
 @Singleton
 public class CollectionLogOverlay extends Overlay
@@ -58,14 +59,14 @@ public class CollectionLogOverlay extends Overlay
 	@Override
 	public Dimension render(Graphics2D graphics)
 	{
-		Widget items = config.logOwners() ? client.getWidget(InterfaceID.Collection.ITEMS_CONTENTS) : null;
+		Widget items = config.logOwners() ? itemList() : null;
 		Widget[] children = items == null || items.isHidden() ? null : items.getDynamicChildren();
 		if (children == null || children.length == 0)
 		{
 			return null;
 		}
 		// items scrolled out of view still have positions, so keep the dots inside the visible area
-		Rectangle visible = items.getBounds();
+		Rectangle visible = visibleArea(items);
 		Point mouse = client.getMouseCanvasPosition();
 		Shape clip = graphics.getClip();
 		Object antialiasing = graphics.getRenderingHint(RenderingHints.KEY_ANTIALIASING);
@@ -103,6 +104,21 @@ public class CollectionLogOverlay extends Overlay
 		graphics.setClip(clip);
 		graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, antialiasing);
 		return null;
+	}
+
+	/**
+	 * @return the list of items on show: the results of a search, or else a page
+	 */
+	private Widget itemList()
+	{
+		Widget results = client.getWidget(InterfaceID.Collection.SEARCH_RESULTS);
+		return results != null && !results.isHidden() ? results : client.getWidget(InterfaceID.Collection.ITEMS_CONTENTS);
+	}
+
+	private Rectangle visibleArea(Widget items)
+	{
+		Widget search = client.getWidget(InterfaceID.Collection.SEARCH_CONTAINER);
+		return search != null && !search.isHidden() ? items.getBounds().intersection(search.getBounds()) : items.getBounds();
 	}
 
 	private static void drawDot(Graphics2D g, int x, int y, Color color)

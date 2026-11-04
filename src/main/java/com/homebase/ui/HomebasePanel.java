@@ -651,6 +651,9 @@ public class HomebasePanel extends PluginPanel
 				setStatus(Ui.WARNING, "You're in another party, so syncing is paused", canSwitch ? "Switch to group" : null,
 					canSwitch ? groupSync::joinGroupParty : null, null, null);
 				break;
+			case CONNECTING:
+				setStatus(ColorScheme.MEDIUM_GRAY_COLOR, "Connecting...", null, null, "Disconnect", groupSync::leaveGroupParty);
+				break;
 			case PAUSED:
 			{
 				// they may have left since the status was read

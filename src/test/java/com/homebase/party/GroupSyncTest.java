@@ -31,4 +31,14 @@ public class GroupSyncTest
 		// anyone with a name is judged by the name
 		assertFalse(GroupSync.isClosedConnection(true, false, listed, later));
 	}
+
+	@Test
+	public void onlyNamelessMembersWhoHaveSaidNothingAreSilent()
+	{
+		assertTrue(GroupSync.isSilent(false, false));
+		// said something, so there's someone there
+		assertFalse(GroupSync.isSilent(false, true));
+		// anyone with a name is judged by the name
+		assertFalse(GroupSync.isSilent(true, false));
+	}
 }

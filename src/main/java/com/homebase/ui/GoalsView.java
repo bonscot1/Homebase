@@ -599,7 +599,7 @@ class GoalsView extends JPanel
 	private void submit()
 	{
 		GoalData.Type type = selectedType();
-		Object target = targetBox.isEnabled() ? targetBox.getEditor().getItem() : null;
+		Object target = targetBox.isEnabled() ? chosen(targetBox) : null;
 		int amount = 0;
 		if (amountField.isEnabled())
 		{
@@ -628,6 +628,14 @@ class GoalsView extends JPanel
 		}
 		formHint.setText("");
 		refresh();
+	}
+
+	/**
+	 * @return what the box shows. Only a box you can type in keeps that in its editor.
+	 */
+	static Object chosen(JComboBox<String> box)
+	{
+		return box.isEditable() ? box.getEditor().getItem() : box.getSelectedItem();
 	}
 
 	private GoalData.Type selectedType()
