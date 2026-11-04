@@ -9,20 +9,22 @@ import com.homebase.data.GroupView;
 import com.homebase.data.ItemsData;
 import com.homebase.data.ProfileData;
 import com.homebase.data.Section;
-import com.homebase.data.StorageLogData;
 import com.homebase.goals.GoalService;
 import com.homebase.party.GroupSync;
 import com.homebase.party.PartyMembers;
 import com.homebase.party.Presence;
 import com.homebase.requests.RequestService;
 import com.homebase.storage.ReturnTags;
-import com.homebase.storage.StorageHistory;
 import com.homebase.updates.UpdateTracker;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
-import java.awt.GridLayout;
+import java.awt.Graphics2D;
+import java.awt.Graphics;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.RenderingHints;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumMap;
@@ -49,7 +51,6 @@ import javax.swing.border.EmptyBorder;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import lombok.extern.slf4j.Slf4j;
-import net.runelite.api.Item;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.game.ItemManager;
 import net.runelite.client.game.SkillIconManager;
@@ -97,9 +98,46 @@ public class HomebasePanel extends PluginPanel
 	private static final int SEARCH_DELAY_MS = 200;
 	private static final int SEARCH_BOX_HEIGHT = 30;
 
+	/**
+	 * A tab's name, with room for a dot in its corner that doesn't take any from the name.
+	 */
+	private static final class TabLabel extends JLabel
+	{
+		private static final int DOT_SIZE = 5;
+		private static final int DOT_INSET = 3;
+
+		private boolean dot;
+
+		TabLabel(String name)
+		{
+			super(name, SwingConstants.CENTER);
+		}
+
+		void showDot(boolean dot)
+		{
+			this.dot = dot;
+			repaint();
+		}
+
+		@Override
+		protected void paintComponent(Graphics g)
+		{
+			super.paintComponent(g);
+			if (dot)
+			{
+				Graphics2D g2 = (Graphics2D) g.create();
+				g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+				g2.setColor(ColorScheme.BRAND_ORANGE);
+				g2.fillOval(getWidth() - DOT_SIZE - DOT_INSET, DOT_INSET, DOT_SIZE, DOT_SIZE);
+				g2.dispose();
+			}
+		}
+	}
+
 	private enum Tab
 	{
 		MEMBERS("Members"),
+		STORAGE("Storage"),
 		UPDATES("Updates"),
 		REQUESTS("Requests"),
 		GOALS("Goals");
@@ -125,8 +163,8 @@ public class HomebasePanel extends PluginPanel
 	private final JButton mainButton = Ui.primaryButton("", () -> runAction(true));
 	private final JButton secondButton = Ui.button("", () -> runAction(false));
 	private final JPanel statusButtons = new JPanel(new BorderLayout(0, MAIN_BUTTON_GAP));
-	private final Map<Tab, JLabel> tabLabels = new EnumMap<>(Tab.class);
-	private final JPanel tabBar = new JPanel(new GridLayout(1, 0, 0, 0));
+	private final Map<Tab, TabLabel> tabLabels = new EnumMap<>(Tab.class);
+	private final JPanel tabBar = new JPanel(new GridBagLayout());
 	private final JPanel tabContent = new JPanel();
 	private final RequestsView requestsView;
 	private final UpdatesView updatesView;
@@ -134,7 +172,7 @@ public class HomebasePanel extends PluginPanel
 	private final ItemSearchView itemSearchView;
 	private final IconTextField searchBox = new IconTextField();
 	private final Timer searchTimer = new Timer(SEARCH_DELAY_MS, e -> rebuild());
-	private final ReturnTags returnTags;
+	private final StorageView storageView;
 	private final MemberCard.Context cardContext;
 	private final Map<String, MemberCard> cards = new HashMap<>();
 	private final Set<String> expandedMembers = new HashSet<>();
@@ -144,7 +182,6 @@ public class HomebasePanel extends PluginPanel
 
 	private Tab selectedTab = Tab.MEMBERS;
 	private GroupView view;
-	private boolean storageExpanded;
 	private boolean rebuildWhenShown;
 	private Runnable mainAction;
 	private Runnable secondAction;
@@ -160,7 +197,6 @@ public class HomebasePanel extends PluginPanel
 		this.partyService = partyService;
 		this.presence = presence;
 		this.collector = collector;
-		this.returnTags = returnTags;
 		this.itemSprites = new ItemSprites(itemManager, clientThread);
 		this.requestsView = new RequestsView(requestService);
 		this.updatesView = new UpdatesView(updateTracker);
@@ -175,6 +211,9 @@ public class HomebasePanel extends PluginPanel
 			}
 			rebuild();
 		}, config::cardBars);
+
+		this.storageView = new StorageView(plugin, () -> view, returnTags, bountyService, goalService, requestService,
+			cardContext, this::scheduleRebuild);
 
 		rebuildTimer.setRepeats(false);
 		liveTimer.setRepeats(false);
@@ -204,11 +243,9 @@ public class HomebasePanel extends PluginPanel
 
 		for (Tab tab : Tab.values())
 		{
-			JLabel label = new JLabel(tab.label, SwingConstants.CENTER);
+			TabLabel label = new TabLabel(tab.label);
 			label.setFont(FontManager.getRunescapeSmallFont());
 			label.setOpaque(true);
-			label.setHorizontalTextPosition(SwingConstants.LEFT);
-			label.setIconTextGap(3);
 			Ui.clickable(label, () ->
 			{
 				selectedTab = tab;
@@ -218,7 +255,11 @@ public class HomebasePanel extends PluginPanel
 				rebuild();
 			});
 			tabLabels.put(tab, label);
-			tabBar.add(label);
+			// shared out by the length of their names, since five don't all fit at the same width
+			GridBagConstraints cell = new GridBagConstraints();
+			cell.fill = GridBagConstraints.BOTH;
+			cell.weightx = label.getPreferredSize().width;
+			tabBar.add(label, cell);
 		}
 		tabBar.setBackground(ColorScheme.DARKER_GRAY_COLOR);
 
@@ -300,7 +341,6 @@ public class HomebasePanel extends PluginPanel
 			itemSearchView.dataChanged();
 			expandedMembers.clear();
 			openSections.clear();
-			storageExpanded = false;
 			rebuild();
 		});
 	}
@@ -382,6 +422,10 @@ public class HomebasePanel extends PluginPanel
 			{
 				switch (selectedTab)
 				{
+					case STORAGE:
+						storageView.refresh();
+						showTabView(storageView);
+						break;
 					case REQUESTS:
 						requestsView.refresh();
 						showTabView(requestsView);
@@ -436,7 +480,7 @@ public class HomebasePanel extends PluginPanel
 	private void styleTabs()
 	{
 		int open = requestsView.openCount();
-		for (Map.Entry<Tab, JLabel> e : tabLabels.entrySet())
+		for (Map.Entry<Tab, TabLabel> e : tabLabels.entrySet())
 		{
 			boolean selected = e.getKey() == selectedTab && !isSearching();
 			JLabel label = e.getValue();
@@ -446,14 +490,13 @@ public class HomebasePanel extends PluginPanel
 				BorderFactory.createMatteBorder(0, 0, 2, 0, selected ? ColorScheme.BRAND_ORANGE : ColorScheme.DARKER_GRAY_COLOR),
 				new EmptyBorder(6, 0, 4, 0)));
 		}
-		JLabel requests = tabLabels.get(Tab.REQUESTS);
-		requests.setIcon(open > 0 ? new Ui.Dot(ColorScheme.BRAND_ORANGE) : null);
+		TabLabel requests = tabLabels.get(Tab.REQUESTS);
+		requests.showDot(open > 0);
 		requests.setToolTipText(open == 0 ? null : open == 1 ? "1 open request" : open + " open requests");
 	}
 
 	private void buildMembers()
 	{
-		addGroupStorage();
 
 		String localId = collector.getMemberId();
 		List<MemberCard> members = new ArrayList<>();
@@ -514,81 +557,6 @@ public class HomebasePanel extends PluginPanel
 	private boolean isOnline(ProfileData profile)
 	{
 		return groupSync.isGroupParty() && presence.isOnline(PartyMembers.byName(partyService, profile.getName()));
-	}
-
-	private void addGroupStorage()
-	{
-		ItemsData storage = view.get(null, Section.GROUP_STORAGE, ItemsData.class);
-		if (storage == null)
-		{
-			return;
-		}
-		List<Item> slots = storage.toItems();
-
-		JPanel panel = new JPanel(new BorderLayout());
-		panel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-		panel.setAlignmentX(Component.LEFT_ALIGNMENT);
-
-		JPanel header = new JPanel(new BorderLayout(6, 0));
-		header.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-		header.setBorder(new EmptyBorder(7, 8, 7, 8));
-		Ui.hover(header, ColorScheme.DARKER_GRAY_COLOR, ColorScheme.DARKER_GRAY_HOVER_COLOR);
-		Ui.clickable(header, () ->
-		{
-			storageExpanded = !storageExpanded;
-			rebuild();
-		});
-
-		JLabel title = Ui.title("Group storage");
-		title.setIcon(new Ui.Chevron(storageExpanded));
-		title.setIconTextGap(6);
-		header.add(title, BorderLayout.CENTER);
-		header.add(Ui.small(ItemGrid.countFilled(slots) + " items", ColorScheme.LIGHT_GRAY_COLOR), BorderLayout.EAST);
-
-		String author = view.authorOf(null, Section.GROUP_STORAGE);
-		ProfileData seenBy = author == null ? null : view.get(author, Section.PROFILE, ProfileData.class);
-		JLabel seen = Ui.muted("Seen " + Ago.format(view.updatedAt(null, Section.GROUP_STORAGE))
-			+ (seenBy == null ? "" : " by " + Clean.text(seenBy.getName(), MAX_NAME)));
-		// lines up with the title's text, past the arrow
-		seen.setBorder(new EmptyBorder(2, 14, 0, 0));
-		header.add(seen, BorderLayout.SOUTH);
-		panel.add(header, BorderLayout.NORTH);
-
-		if (storageExpanded)
-		{
-			JPanel body = new JPanel();
-			body.setLayout(new BoxLayout(body, BoxLayout.Y_AXIS));
-			body.setOpaque(false);
-			body.setBorder(new EmptyBorder(0, 8, 8, 8));
-			Map<Integer, Long> marked = returnTags.marked();
-			boolean canMark = returnTags.canEdit();
-			body.add(new ItemGrid(slots, itemSprites,
-				new ItemGrid.Marks(marked.keySet(), canMark ? returnTags::mark : null, returnTags::unmark)));
-			StorageHistoryView.add(body, storageLogs(), marked, canMark ? returnTags::unmark : null, cardContext, this::scheduleRebuild);
-			Ui.alignChildrenLeft(body);
-			panel.add(body, BorderLayout.CENTER);
-		}
-
-		tabContent.add(panel);
-		tabContent.add(Box.createVerticalStrut(Ui.GAP));
-	}
-
-	/**
-	 * @return the group storage log of each member, leaving out accounts that aren't in the group
-	 */
-	private List<StorageHistory.MemberLog> storageLogs()
-	{
-		List<StorageHistory.MemberLog> logs = new ArrayList<>();
-		for (String id : view.memberIds())
-		{
-			ProfileData profile = view.get(id, Section.PROFILE, ProfileData.class);
-			StorageLogData log = view.get(id, Section.STORAGE_LOG, StorageLogData.class);
-			if (profile != null && log != null && plugin.belongsToGroup(profile))
-			{
-				logs.add(new StorageHistory.MemberLog(profile.getName(), log, view.updatedAt(id, Section.STORAGE_LOG)));
-			}
-		}
-		return logs;
 	}
 
 	private void toggleMember(String memberId)

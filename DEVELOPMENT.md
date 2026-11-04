@@ -50,7 +50,7 @@ With one account:
 - [ ] Connecting again soon after closing RuneLite can say "Connecting..." for up to 10 seconds while the party still lists the old connection. It doesn't warn about someone outside the group, and it then changes to "Connected".
 - [ ] Your card appears on the **Members** tab with a green world number. Clicking your name shows your skills, inventory and equipment.
 - [ ] Opening your bank adds a **Bank** line to your card. Clicking it shows the items. The seed vault and looting bag work the same way.
-- [ ] Opening the group storage adds a **Group storage** section at the top, saying who saw it last.
+- [ ] Opening the group storage fills the **Storage** tab, saying who saw it last. The tab sums up what's owed back, the bounties and what's held for requests, and each of those lists is folded away when there's nothing in it or you fold it. Group storage is no longer on the **Members** tab.
 - [ ] On the **Requests** tab, requesting an item adds it to the list. **Cancel** removes it. There's no button to mark it done.
 - [ ] After closing and reopening RuneLite, everything is still there before you log in.
 - [ ] The **Group HUD** box shows your hitpoints, prayer, run energy, combat level and area (for example "Lumbridge"). Its settings change what it shows, compact mode and size, and **Include yourself** hides your own line.
@@ -66,10 +66,10 @@ With one account:
 - [ ] **Add bounty** on a goal you haven't reached, pick an item from group storage and tick yourself. In group storage that item gets a red padlock with the goal in its tooltip, and its Withdraw options are gone. Deleting the bounty brings them back.
 - [ ] With **Hold items in group storage** turned off, the padlock stays but no Withdraw options are hidden.
 - [ ] A few seconds after logging in, **Kill counts** on your card fills in bosses from the hiscores, with none at 0. A boss already listed from chat (for example "Gauntlet") isn't listed twice.
-- [ ] Open group storage and close it without changing anything. No new line appears under **History** in the **Group storage** section, and the opening doesn't list everything as put in or taken out.
+- [ ] Open group storage and close it without changing anything. No new line appears under **History** on the **Storage** tab, and the opening doesn't list everything as put in or taken out.
 - [ ] Move items between slots, or put something in and take it back out, then save. No new line appears.
 - [ ] Take out 5 of something and save, using each of the **Save** button, the cross and Esc in turn. A line such as "bonscott1 took out Shark ×5" appears under **History** after each one (one line each), and nothing is added under **Owed back**, because the item isn't marked.
-- [ ] Right-click an item under **Group storage** on the **Members** tab and choose **Needs returning**. It gets an orange dot, and its tooltip says so. Take out 5 and save: you're listed under **Owed back**. Taking it out before it was marked doesn't count.
+- [ ] Right-click an item on the **Storage** tab and choose **Needs returning**. It gets an orange dot, and its tooltip says so. Take out 5 and save: you're listed under **Owed back**. Taking it out before it was marked doesn't count.
 - [ ] Put 3 of it back and save. **History** gains a line, and **Owed back** drops to 2. Putting the rest back removes it from the list.
 - [ ] Take out all of a marked item, right-click your line under **Owed back** and choose **Doesn't need returning**. The line goes, and the item is no longer marked.
 - [ ] With an item marked, put more of it in and save, then take that back out and save. **History** shows both, and **Owed back** doesn't list it.
@@ -200,7 +200,7 @@ Items are ticked when they're built. Each stage's last box is ticked once it has
 ### Stage 6: Group storage history
 
 - [x] A log per member of what they put in and took out of group storage, how many and when, added each time the game saves storage and shared through the normal sync
-- [x] **History** and **Owed back** lists under **Group storage** on the **Members** tab
+- [x] A **Storage** tab with the items, **Owed back**, bounties, what's held for requests and **History**
 - [x] Right-click an item to mark it as needing to be returned; only marked items are owed back
 - [x] Opening and closing storage, moving items around, and changes that cancel out or are never saved add nothing
 - [ ] Tested in game
