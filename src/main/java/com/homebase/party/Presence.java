@@ -1,8 +1,10 @@
 package com.homebase.party;
 
+import com.homebase.HomebaseConfig;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -51,6 +53,7 @@ public class Presence
 	private final Client client;
 	private final PartyService party;
 	private final WSClient wsClient;
+	private final HomebaseConfig config;
 
 	private final Map<Long, Long> lastHeard = new ConcurrentHashMap<>();
 
@@ -63,6 +66,11 @@ public class Presence
 	 * Where members last said they were.
 	 */
 	private final Map<Long, WorldPoint> positions = new ConcurrentHashMap<>();
+
+	/**
+	 * Members who have chosen not to share their position.
+	 */
+	private final Set<Long> hiddenPositions = ConcurrentHashMap.newKeySet();
 	private final List<Runnable> listeners = new CopyOnWriteArrayList<>();
 	private volatile long lastSent;
 	private volatile WorldPoint lastSentPosition;
@@ -74,11 +82,12 @@ public class Presence
 	private volatile LongPredicate trusted = memberId -> true;
 
 	@Inject
-	Presence(Client client, PartyService party, WSClient wsClient)
+	Presence(Client client, PartyService party, WSClient wsClient, HomebaseConfig config)
 	{
 		this.client = client;
 		this.party = party;
 		this.wsClient = wsClient;
+		this.config = config;
 	}
 
 	public void start()
@@ -92,6 +101,7 @@ public class Presence
 		lastHeard.clear();
 		gone.clear();
 		positions.clear();
+		hiddenPositions.clear();
 		listeners.clear();
 		lastSent = 0;
 		lastSentPosition = null;
@@ -125,10 +135,7 @@ public class Presence
 		if (message.isOnline())
 		{
 			heard(message.getMemberId());
-			if (message.getCoord() != null)
-			{
-				positions.put(message.getMemberId(), WorldPoint.fromCoord(message.getCoord()));
-			}
+			notePosition(message.getMemberId(), message.getCoord());
 		}
 		else
 		{
@@ -153,6 +160,25 @@ public class Presence
 		lastHeard.remove(event.getMemberId());
 		gone.remove(event.getMemberId());
 		positions.remove(event.getMemberId());
+		hiddenPositions.remove(event.getMemberId());
+	}
+
+	private void notePosition(long memberId, Integer coord)
+	{
+		if (coord == null)
+		{
+			return;
+		}
+		if (coord == HomebasePresence.NO_POSITION)
+		{
+			hiddenPositions.add(memberId);
+			positions.remove(memberId);
+		}
+		else
+		{
+			hiddenPositions.remove(memberId);
+			positions.put(memberId, WorldPoint.fromCoord(coord));
+		}
 	}
 
 	/**
@@ -166,10 +192,11 @@ public class Presence
 		long now = System.currentTimeMillis();
 		if (sharing && client.getGameState() == GameState.LOGGED_IN)
 		{
-			WorldPoint here = localPosition();
-			if (isSendDue(now - lastSent, here != null && !here.equals(lastSentPosition)))
+			WorldPoint here = config.sharePosition() ? localPosition() : null;
+			if (isSendDue(now - lastSent, !Objects.equals(here, lastSentPosition)))
 			{
-				send(true, here);
+				send(true, here == null ? Integer.valueOf(HomebasePresence.NO_POSITION) : Integer.valueOf(HomebasePresence.packCoord(here)));
+				lastSentPosition = here;
 			}
 		}
 		Set<Long> online = new HashSet<>();
@@ -196,6 +223,7 @@ public class Presence
 	public void sendOffline()
 	{
 		send(false, null);
+		lastSentPosition = null;
 		// so the next login says "still here" straight away
 		lastSent = 0;
 	}
@@ -212,6 +240,10 @@ public class Presence
 
 	WorldPoint position(long memberId, WorldPoint fromParty)
 	{
+		if (hiddenPositions.contains(memberId))
+		{
+			return null;
+		}
 		WorldPoint told = positions.get(memberId);
 		return told != null ? told : fromParty;
 	}
@@ -278,18 +310,17 @@ public class Presence
 		return heard != null && now - heard < TIMEOUT_MS;
 	}
 
-	private void send(boolean online, WorldPoint position)
+	private void send(boolean online, Integer coord)
 	{
 		PartyMember local = party.getLocalMember();
 		if (local == null)
 		{
 			return;
 		}
-		HomebasePresence message = new HomebasePresence(online, position == null ? null : HomebasePresence.packCoord(position));
+		HomebasePresence message = new HomebasePresence(online, coord);
 		message.setMemberId(local.getMemberId());
 		party.send(message);
 		lastSent = System.currentTimeMillis();
-		lastSentPosition = position;
 	}
 
 	private void notifyListeners()

@@ -45,9 +45,10 @@ public class ItemGridTest
 		}
 
 		@Override
-		void lookUpNames(Collection<Integer> itemIds)
+		void lookUpNames(Collection<Integer> itemIds, Runnable done)
 		{
 			namedIds.addAll(itemIds);
+			done.run();
 		}
 	}
 

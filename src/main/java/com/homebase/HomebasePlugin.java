@@ -10,6 +10,7 @@ import com.homebase.bounties.BountyOverlay;
 import com.homebase.bounties.BountyService;
 import com.homebase.collect.ActivityCollector;
 import com.homebase.collect.CollectionLogSearch;
+import com.homebase.collect.FeedCollector;
 import com.homebase.collect.LocalCollector;
 import com.homebase.data.GroupIndex;
 import com.homebase.data.GroupView;
@@ -18,6 +19,8 @@ import com.homebase.data.ProfileData;
 import com.homebase.data.UpdateEntry;
 import com.homebase.goals.GoalService;
 import com.homebase.map.GroupWorldMap;
+import com.homebase.map.MapPins;
+import com.homebase.overlay.CollectionLogOverlay;
 import com.homebase.overlay.GroupHudOverlay;
 import com.homebase.overlay.GroupTileOverlay;
 import com.homebase.party.GroupSync;
@@ -87,7 +90,7 @@ import net.runelite.client.util.ImageUtil;
 @PluginDescriptor(
 	name = "The Group Ironman Homebase",
 	description = "One home for your group: see each other's stats, gear and banks, ping and highlight together, and share requests, goals and bank bounties",
-	tags = {"group", "ironman", "gim", "party", "bank", "storage", "sync", "goals", "requests", "ping", "highlight", "hud"},
+	tags = {"group", "ironman", "gim", "party", "bank", "storage", "sync", "goals", "requests", "ping", "highlight", "hud", "map", "pin", "search", "drops"},
 	internalName = "group-ironman-homebase"
 )
 public class HomebasePlugin extends Plugin
@@ -189,6 +192,15 @@ public class HomebasePlugin extends Plugin
 	private CollectionLogSearch collectionLogSearch;
 
 	@Inject
+	private FeedCollector feedCollector;
+
+	@Inject
+	private MapPins mapPins;
+
+	@Inject
+	private CollectionLogOverlay collectionLogOverlay;
+
+	@Inject
 	private GoalService goalService;
 
 	@Inject
@@ -237,9 +249,14 @@ public class HomebasePlugin extends Plugin
 	private volatile boolean updatesToAnnounce;
 
 	/**
-	 * Whether position, run energy, hitpoints and prayer are being shared through the party service.
+	 * Whether run energy, special attack, hitpoints and prayer are being shared through the party service.
 	 */
 	private boolean liveShared;
+
+	/**
+	 * Whether position is too, which the player can turn off by itself.
+	 */
+	private boolean positionShared;
 
 	/**
 	 * When the latest request messages went to chat.
@@ -282,6 +299,8 @@ public class HomebasePlugin extends Plugin
 		eventBus.register(groupSync);
 		eventBus.register(presence);
 		eventBus.register(collector);
+		eventBus.register(feedCollector);
+		eventBus.register(mapPins);
 		eventBus.register(groupTiles);
 		eventBus.register(activityCollector);
 		eventBus.register(collectionLogSearch);
@@ -303,7 +322,7 @@ public class HomebasePlugin extends Plugin
 		updateTracker.addListener(updateListener);
 		panel = injector.getInstance(HomebasePanel.class);
 		groupSync.addStatusListener(panel::scheduleLiveRefresh);
-		presence.addListener(panel::scheduleLiveRefresh);
+		presence.addListener(panel::onlineChanged);
 		navButton = NavigationButton.builder()
 			.tooltip("Group Homebase")
 			.icon(ImageUtil.loadImageResource(HomebasePlugin.class, "icon.png"))
@@ -317,6 +336,7 @@ public class HomebasePlugin extends Plugin
 		overlayManager.add(highlightOverlay);
 		overlayManager.add(pingOverlay);
 		overlayManager.add(pingMinimapOverlay);
+		overlayManager.add(collectionLogOverlay);
 
 		selectGroup();
 
@@ -358,6 +378,8 @@ public class HomebasePlugin extends Plugin
 			collectionLogSearch.reset();
 		});
 		eventBus.unregister(groupTiles);
+		eventBus.unregister(mapPins);
+		eventBus.unregister(feedCollector);
 		eventBus.unregister(collector);
 		eventBus.unregister(presence);
 		eventBus.unregister(groupSync);
@@ -367,7 +389,9 @@ public class HomebasePlugin extends Plugin
 		partyDataService.unsubscribe(this, PartyDataType.values());
 		partyDataService.unsubscribe(this, Skill.values());
 		liveShared = false;
+		positionShared = false;
 
+		overlayManager.remove(collectionLogOverlay);
 		overlayManager.remove(hudOverlay);
 		overlayManager.remove(tileOverlay);
 		overlayManager.remove(bountyOverlay);
@@ -402,8 +426,22 @@ public class HomebasePlugin extends Plugin
 				{
 					groupTiles.colorChanged();
 					groupHighlights.colorChanged();
+					collector.colorChanged();
+					mapPins.colorChanged();
 				});
 				break;
+			default:
+				if (event.getKey().startsWith(HomebaseConfig.SHARE_KEY_PREFIX))
+				{
+					clientThread.invokeLater(collector::sharingChanged);
+				}
+		}
+		// plenty of options change what the panel shows
+		groupIndex.invalidate();
+		HomebasePanel panel = this.panel;
+		if (panel != null)
+		{
+			panel.scheduleRebuild();
 		}
 	}
 
@@ -630,19 +668,19 @@ public class HomebasePlugin extends Plugin
 	}
 
 	/**
-	 * Tell the player in chat when someone else changes a request. Only recent changes count, so
-	 * catching up on old requests after logging in stays quiet.
+	 * Tell the player in chat when someone else changes a request or pins a spot. Only recent changes
+	 * count, so catching up on old ones after logging in stays quiet.
 	 */
 	private void announce(SyncRecord record)
 	{
 		String me = collector.getMemberId();
 		long now = System.currentTimeMillis();
-		if (!config.requestMessages() || me == null || me.equals(record.getAuthor())
-			|| record.getVersion() < now - ANNOUNCE_WINDOW_MS)
+		if (me == null || me.equals(record.getAuthor()) || record.getVersion() < now - ANNOUNCE_WINDOW_MS)
 		{
 			return;
 		}
-		String message = requestService.describeChange(record);
+		String request = config.requestMessages() ? requestService.describeChange(record) : null;
+		String message = request == null && config.pinMessages() ? mapPins.describeChange(record) : request;
 		if (message == null || !takeAnnouncementSlot(now))
 		{
 			return;
@@ -683,12 +721,25 @@ public class HomebasePlugin extends Plugin
 	}
 
 	/**
-	 * Share position, run energy, hitpoints and prayer through RuneLite's party service only while
-	 * connected to the group with nobody else in the party. Runs on the client thread.
+	 * Share position, run energy, special attack, hitpoints and prayer through RuneLite's party service
+	 * only while connected to the group with nobody else in the party. Runs on the client thread.
 	 */
 	private void updateLiveSharing()
 	{
 		boolean share = groupSync.isGroupParty() && groupSync.isShareSafe();
+		boolean sharePosition = share && config.sharePosition();
+		if (sharePosition != positionShared)
+		{
+			positionShared = sharePosition;
+			if (sharePosition)
+			{
+				partyDataService.subscribe(this, PartyDataType.COORD);
+			}
+			else
+			{
+				partyDataService.unsubscribe(this, PartyDataType.COORD);
+			}
+		}
 		if (share == liveShared)
 		{
 			return;
@@ -696,7 +747,7 @@ public class HomebasePlugin extends Plugin
 		liveShared = share;
 		if (share)
 		{
-			partyDataService.subscribe(this, PartyDataType.COORD, PartyDataType.ENERGY);
+			partyDataService.subscribe(this, PartyDataType.ENERGY, PartyDataType.SPEC);
 			partyDataService.subscribe(this, Skill.HITPOINTS, Skill.PRAYER);
 			// the party only sends stats when they change, so ask everyone, us included, to send theirs now
 			PartyMember local = partyService.getLocalMember();
@@ -709,7 +760,7 @@ public class HomebasePlugin extends Plugin
 		}
 		else
 		{
-			partyDataService.unsubscribe(this, PartyDataType.COORD, PartyDataType.ENERGY);
+			partyDataService.unsubscribe(this, PartyDataType.ENERGY, PartyDataType.SPEC);
 			partyDataService.unsubscribe(this, Skill.HITPOINTS, Skill.PRAYER);
 		}
 	}

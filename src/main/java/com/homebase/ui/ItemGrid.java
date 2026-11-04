@@ -163,7 +163,9 @@ class ItemGrid extends JPanel
 			}
 			if (!unnamed.isEmpty())
 			{
-				sprites.lookUpNames(unnamed);
+				sprites.lookUpNames(unnamed, () ->
+				{
+				});
 			}
 		}
 

@@ -11,11 +11,14 @@ It's made for Group Ironman groups, and works for any group of friends too.
 - Their skills, laid out like the in-game skills tab, plus quests, achievement diaries, combat achievements, collection log pages and boss kill counts (read from the hiscores when you log in, and kept up to date as you play).
 - Their inventory, equipment, bank, seed vault and looting bag, as they were last time they opened them, and your group storage, with who saw it last.
 - Useful furniture built in their house, and what's in their costume room.
-- An **Updates** tab, plus a chat line when you log in, saying what everyone did while you were away: "Magic 15 → 32, completed The Restless Ghost".
+- An **Updates** tab, plus a chat line when you log in, saying what everyone did while you were away: "Magic 15 → 32, completed The Restless Ghost, got Dragon warhammer from Lizardman shaman (41.2M)". It covers levels, quests, diaries, combat achievements, the collection log, kill counts, valuable drops, pets and deaths.
+- **Item search:** type in the box above the tabs to find who has an item, and how many, across everyone's inventory, equipment, bank, seed vault and looting bag, and the group storage.
+- **Who has what in the collection log:** while you browse your collection log, each item shows a dot in the colour of every other member who has it, with their names when you hover over it.
 
 **Play together**
-- A **Group HUD** in the corner of the screen with each member's hitpoints, prayer, run energy, combat level and where they are ("Varrock", "near Catherby", "Wilderness (level 11)").
+- A **Group HUD** in the corner of the screen with each member's hitpoints, prayer, run energy, special attack, combat level and where they are ("Varrock", "near Catherby", "Wilderness (level 11)").
 - Group members on the world map, each as an arrow in their colour with their name. Anyone off the part of the map you're looking at waits at the edge, with their arrow pointing the way.
+- **Map pins:** right-click the world map and choose **Pin for group** to show everyone a spot.
 - **Pings:** middle-click the ground or a monster, and everyone sees it flash in your colour with your name for a few seconds.
 - **Group highlights:** outline a monster for the whole group until it dies.
 - **Group tiles:** mark tiles that the whole group sees, including inside raids.
@@ -42,13 +45,25 @@ The house icon in the sidebar opens the panel, with four tabs: **Members**, **Up
 | Ping a spot or a monster | Middle-click it (a quick click; dragging still turns the camera) |
 | Highlight a monster for the group | Shift + right-click it, **Group highlight** |
 | Mark a tile for the group | Shift + right-click the tile, **Group mark** |
+| Pin a spot on the world map | Right-click the world map, **Pin for group** (or **Remove your pin**) |
 | Put a bounty on a group storage item | **Goals** tab, **Add bounty** on a goal |
 
-Under **Pings and highlights** in the settings you can switch pings to a key + left-click, change how long they last, or turn off the sound. **Your colour** sets the colour of your pings, highlights and tiles.
+Under **Pings and highlights** in the settings you can switch pings to a key + left-click, change how long they last, or turn off the sound. **Your colour** sets the colour of your arrow, pin, pings, highlights and tiles.
+
+## Settings
+
+Open the plugin's settings to choose:
+
+- **Group HUD:** which bars and details show, whether it lists only your world, the order (by name, or lowest hitpoints first) and its size.
+- **Map and tiles:** names on markers, marker size, whether off-screen members wait at the edge, map pins and how long they last.
+- **Pings and highlights:** the ping button, length and sound, and whether pings show on the minimap.
+- **Sidebar panel:** the item search box, whether offline members are listed and in what order, live bars on cards, and the collection log dots.
+- **Updates and chat:** which chat messages you get, and what your group's updates include: levels (from a level you choose), quests and achievements, the collection log, kill counts, deaths, and drops worth at least an amount you choose.
+- **What you share:** your position, inventory, equipment, bank, seed vault, looting bag, drops and pets, and deaths. Turning one off keeps it from your group.
 
 ## Privacy and how sharing works
 
-- You share only your own character's details, and only with your group.
+- You share only your own character's details, and only with your group. **What you share** in the settings turns off your position, your containers, or news of your drops and deaths.
 - Data goes through RuneLite's own party service, and only after you click **Connect**. Nothing is sent to any other server.
 - Each member keeps a copy of the group's data on their own computer. When two members are online together, they fill in each other's gaps, so news reaches members who are never online at the same time.
 - Group Ironman group names are public on the hiscores, so someone else could join your group's party. The plugin checks everyone in the party against your group's member list in the game. While anyone else is there, it shares nothing, ignores whatever they send, and the panel says who it is. A modified client could still pretend to be one of your group, so for complete peace of mind, everyone in the group can enter the same word in **Group Ironman secret**.
@@ -62,6 +77,8 @@ Under **Pings and highlights** in the settings you can switch pings to a key + l
 - Bank bounties and items kept for requests only stop withdrawals for members using RuneLite with this plugin turned on, and only count when someone in your group set them up. To see the padlocks without the plugin hiding any Withdraw options, turn off **Hold items in group storage**.
 - Only the amount asked for is held back. If 5 are kept for someone and there are 8 in group storage, anyone can take the other 3, with Withdraw-1, -5 or -10 when the amount fits. Withdraw-X is hidden while any of an item is held back, because the plugin can't see the number you type.
 - On the world map, someone in a dungeon is shown above it, and someone somewhere the map doesn't cover, such as a player-owned house, stays where they were last on it. If you have a dungeon's own map open, members on the surface don't appear until you switch back to the surface map.
+- Drops are valued at Grand Exchange prices, so untradeable drops don't count as valuable; new collection log slots are reported separately. Loot from chests and clue caskets relies on RuneLite's Loot Tracker plugin being on, which it is by default.
+- Item search and the collection log dots only know what members have shared, as it was when they last opened it.
 - Banks, the seed vault, the looting bag and group storage update when someone opens them. To share your whole collection log, open it and click **Search** once; browsing a page also updates that page.
 
 ## Feedback

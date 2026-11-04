@@ -1,12 +1,14 @@
 package com.homebase.updates;
 
 import com.google.gson.Gson;
+import com.homebase.HomebaseConfig;
 import com.homebase.collect.LocalCollector;
 import com.homebase.data.Checkable;
 import com.homebase.data.Clean;
 import com.homebase.data.CollectionLogData;
 import com.homebase.data.CombatAchievementsData;
 import com.homebase.data.DiariesData;
+import com.homebase.data.FeedData;
 import com.homebase.data.KillCountsData;
 import com.homebase.data.ProfileData;
 import com.homebase.data.QuestsData;
@@ -58,6 +60,7 @@ public class UpdateTracker
 	private final ScheduledExecutorService executor;
 	private final LocalCollector collector;
 	private final Gson gson;
+	private final HomebaseConfig config;
 
 	/**
 	 * Newest first.
@@ -78,11 +81,12 @@ public class UpdateTracker
 	}
 
 	@Inject
-	private UpdateTracker(ScheduledExecutorService executor, LocalCollector collector, Gson gson)
+	private UpdateTracker(ScheduledExecutorService executor, LocalCollector collector, Gson gson, HomebaseConfig config)
 	{
 		this.executor = executor;
 		this.collector = collector;
 		this.gson = gson;
+		this.config = config;
 	}
 
 	public void addListener(Consumer<UpdateEntry> listener)
@@ -226,21 +230,22 @@ public class UpdateTracker
 	{
 		List<String> changes = new ArrayList<>();
 		SyncRecord skillsBefore = before.get(Section.SKILLS.getKey());
-		if (skillsBefore != null)
+		if (skillsBefore != null && config.updateLevels())
 		{
 			changes.addAll(UpdateDiff.skills(
 				levels(decode(skillsBefore, SkillsData.class)),
-				levels(decodeCurrent(store, memberId, Section.SKILLS, SkillsData.class))));
+				levels(decodeCurrent(store, memberId, Section.SKILLS, SkillsData.class)),
+				config.updateMinLevel()));
 		}
 		SyncRecord questsBefore = before.get(Section.QUESTS.getKey());
-		if (questsBefore != null)
+		if (questsBefore != null && config.updateQuests())
 		{
 			changes.addAll(UpdateDiff.quests(
 				quests(decode(questsBefore, QuestsData.class)),
 				quests(decodeCurrent(store, memberId, Section.QUESTS, QuestsData.class))));
 		}
 		SyncRecord diariesBefore = before.get(Section.DIARIES.getKey());
-		if (diariesBefore != null)
+		if (diariesBefore != null && config.updateQuests())
 		{
 			changes.addAll(UpdateDiff.diaries(
 				diaries(decode(diariesBefore, DiariesData.class)),
@@ -248,7 +253,7 @@ public class UpdateTracker
 				DiariesData.REGIONS, DiariesData.TIERS));
 		}
 		SyncRecord caBefore = before.get(Section.COMBAT_ACHIEVEMENTS.getKey());
-		if (caBefore != null)
+		if (caBefore != null && config.updateQuests())
 		{
 			CombatAchievementsData was = decode(caBefore, CombatAchievementsData.class);
 			CombatAchievementsData now = decodeCurrent(store, memberId, Section.COMBAT_ACHIEVEMENTS, CombatAchievementsData.class);
@@ -259,7 +264,7 @@ public class UpdateTracker
 			}
 		}
 		SyncRecord logBefore = before.get(Section.COLLECTION_LOG.getKey());
-		if (logBefore != null)
+		if (logBefore != null && config.updateCollectionLog())
 		{
 			CollectionLogData was = decode(logBefore, CollectionLogData.class);
 			CollectionLogData now = decodeCurrent(store, memberId, Section.COLLECTION_LOG, CollectionLogData.class);
@@ -270,11 +275,19 @@ public class UpdateTracker
 			}
 		}
 		SyncRecord killsBefore = before.get(Section.KILL_COUNTS.getKey());
-		if (killsBefore != null)
+		if (killsBefore != null && config.updateKillCounts())
 		{
 			changes.addAll(UpdateDiff.killCounts(
 				kills(decode(killsBefore, KillCountsData.class)),
 				kills(decodeCurrent(store, memberId, Section.KILL_COUNTS, KillCountsData.class))));
+		}
+		SyncRecord feedBefore = before.get(Section.FEED.getKey());
+		if (feedBefore != null)
+		{
+			changes.addAll(UpdateDiff.feed(
+				feed(decode(feedBefore, FeedData.class)),
+				feed(decodeCurrent(store, memberId, Section.FEED, FeedData.class)),
+				config.updateDrops(), config.dropMinValue(), config.updateDeaths()));
 		}
 		return changes;
 	}
@@ -283,7 +296,8 @@ public class UpdateTracker
 	{
 		return Section.SKILLS.getKey().equals(section) || Section.QUESTS.getKey().equals(section)
 			|| Section.DIARIES.getKey().equals(section) || Section.COMBAT_ACHIEVEMENTS.getKey().equals(section)
-			|| Section.COLLECTION_LOG.getKey().equals(section) || Section.KILL_COUNTS.getKey().equals(section);
+			|| Section.COLLECTION_LOG.getKey().equals(section) || Section.KILL_COUNTS.getKey().equals(section)
+			|| Section.FEED.getKey().equals(section);
 	}
 
 	private <T> T decodeCurrent(GroupStore store, String memberId, Section section, Class<T> type)
@@ -375,6 +389,11 @@ public class UpdateTracker
 			}
 		}
 		return out;
+	}
+
+	private static List<FeedData.Entry> feed(FeedData feed)
+	{
+		return feed == null ? Collections.emptyList() : feed.getEntries();
 	}
 
 	private static Map<String, Integer> diaries(DiariesData diaries)

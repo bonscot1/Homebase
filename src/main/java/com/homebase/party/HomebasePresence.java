@@ -16,8 +16,13 @@ public class HomebasePresence extends PartyMemberMessage
 	private final boolean online;
 
 	/**
-	 * Where the member is, in the form {@link WorldPoint#fromCoord} reads. Null when going offline, and
-	 * from members on a version of the plugin that didn't send it.
+	 * Sent in place of a position by a member who has chosen not to share theirs.
+	 */
+	static final int NO_POSITION = -1;
+
+	/**
+	 * Where the member is, in the form {@link WorldPoint#fromCoord} reads, or {@link #NO_POSITION}. Null
+	 * when going offline, and from members on a version of the plugin that didn't send it.
 	 */
 	private final Integer coord;
 

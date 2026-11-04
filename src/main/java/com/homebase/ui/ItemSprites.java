@@ -60,12 +60,10 @@ class ItemSprites
 	}
 
 	/**
-	 * Have these items' names ready for {@link ItemNames#get}.
+	 * Have these items' names ready for {@link ItemNames#get}, then run {@code done} on the Swing thread.
 	 */
-	void lookUpNames(Collection<Integer> itemIds)
+	void lookUpNames(Collection<Integer> itemIds, Runnable done)
 	{
-		ItemNames.resolve(itemIds, itemManager, clientThread, () ->
-		{
-		});
+		ItemNames.resolve(itemIds, itemManager, clientThread, done);
 	}
 }

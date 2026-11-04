@@ -12,6 +12,7 @@ import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.Graphics2D;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -19,6 +20,7 @@ import net.runelite.api.Client;
 import net.runelite.api.GameState;
 import net.runelite.api.Skill;
 import net.runelite.api.coords.WorldPoint;
+import net.runelite.api.gameval.VarPlayerID;
 import net.runelite.client.party.PartyMember;
 import net.runelite.client.party.PartyService;
 import net.runelite.client.ui.FontManager;
@@ -48,7 +50,14 @@ public class GroupHudOverlay extends OverlayPanel
 	private static final Color PRAY_BG = Color.BLACK;
 	private static final Color RUN_FG = new Color(0xC8A01E);
 	private static final Color RUN_BG = new Color(0x3A3220);
+	private static final Color SPEC_FG = new Color(0x8E5CC8);
+	private static final Color SPEC_BG = new Color(0x2B2140);
 	private static final int BAR_GAP = 3;
+
+	/**
+	 * How much wider the box gets when all four bars are showing, to keep their numbers readable.
+	 */
+	private static final int FOURTH_BAR_WIDTH = 30;
 
 	private static final int MAX_NAME = 20;
 
@@ -89,7 +98,7 @@ public class GroupHudOverlay extends OverlayPanel
 		HomebaseConfig.HudSize size = config.hudSize();
 		Font font = fontFor(size);
 		boolean compact = config.hudCompact();
-		panelComponent.setPreferredSize(new Dimension(widthFor(size), 0));
+		panelComponent.setPreferredSize(new Dimension(boxWidth(size), 0));
 
 		for (PartyMember member : members)
 		{
@@ -109,6 +118,7 @@ public class GroupHudOverlay extends OverlayPanel
 	{
 		PartyMember local = partyService.getLocalMember();
 		boolean includeSelf = config.hudIncludeSelf();
+		boolean sameWorldOnly = config.hudSameWorld();
 		List<PartyMember> out = new ArrayList<>();
 		for (PartyMember member : PartyMembers.current(partyService))
 		{
@@ -117,14 +127,34 @@ public class GroupHudOverlay extends OverlayPanel
 			{
 				continue;
 			}
-			if (!includeSelf && local != null && local.getMemberId() == member.getMemberId())
+			boolean self = local != null && local.getMemberId() == member.getMemberId();
+			if (!includeSelf && self)
+			{
+				continue;
+			}
+			if (sameWorldOnly && !self && index.world(member.getDisplayName()) != client.getWorld())
 			{
 				continue;
 			}
 			out.add(member);
 		}
-		out.sort((a, b) -> String.CASE_INSENSITIVE_ORDER.compare(a.getDisplayName(), b.getDisplayName()));
+		Comparator<PartyMember> byName = Comparator.comparing(PartyMember::getDisplayName, String.CASE_INSENSITIVE_ORDER);
+		out.sort(config.hudOrder() == HomebaseConfig.HudOrder.LOWEST_HITPOINTS
+			? Comparator.comparingDouble(this::hitpointsLeft).thenComparing(byName)
+			: byName);
 		return out;
+	}
+
+	/**
+	 * @return how much of a member's hitpoints they have left, from 0 to 1
+	 */
+	private double hitpointsLeft(PartyMember member)
+	{
+		PartyMember local = partyService.getLocalMember();
+		boolean self = local != null && local.getMemberId() == member.getMemberId();
+		int max = self ? client.getRealSkillLevel(Skill.HITPOINTS) : member.getStatBase(Skill.HITPOINTS);
+		int hp = self ? client.getBoostedSkillLevel(Skill.HITPOINTS) : member.getStatBoost(Skill.HITPOINTS);
+		return max <= 0 ? 1 : (double) hp / max;
 	}
 
 	private void addFull(PartyMember member, Font font, HomebaseConfig.HudSize size)
@@ -189,11 +219,17 @@ public class GroupHudOverlay extends OverlayPanel
 			int run = self ? client.getEnergy() / 100 : member.getRunEnergy();
 			bars.add(bar(run, 100, run + "%", RUN_FG, RUN_BG));
 		}
+		if (config.hudSpecEnergy())
+		{
+			// the game counts special attack energy in tenths of a percent
+			int spec = self ? client.getVarpValue(VarPlayerID.SA_ENERGY) / 10 : member.getSpecEnergy();
+			bars.add(bar(spec, 100, spec + "%", SPEC_FG, SPEC_BG));
+		}
 		if (bars.isEmpty())
 		{
 			return;
 		}
-		int width = widthFor(size) - 2 * ComponentConstants.STANDARD_BORDER;
+		int width = boxWidth(size) - 2 * ComponentConstants.STANDARD_BORDER;
 		int each = (width - BAR_GAP * (bars.size() - 1)) / bars.size();
 		panelComponent.getChildren().add(new BarRow(bars, each, barHeight(size), BAR_GAP, 1, 3));
 	}
@@ -246,6 +282,12 @@ public class GroupHudOverlay extends OverlayPanel
 			default:
 				return FontManager.getRunescapeFont();
 		}
+	}
+
+	private int boxWidth(HomebaseConfig.HudSize size)
+	{
+		boolean allFourBars = config.hudHitpoints() && config.hudPrayer() && config.hudRunEnergy() && config.hudSpecEnergy();
+		return widthFor(size) + (allFourBars ? FOURTH_BAR_WIDTH : 0);
 	}
 
 	private static int widthFor(HomebaseConfig.HudSize size)

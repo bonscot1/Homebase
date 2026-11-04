@@ -1,5 +1,6 @@
 package com.homebase.pings;
 
+import com.homebase.HomebaseConfig;
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Dimension;
@@ -26,12 +27,14 @@ public class PingMinimapOverlay extends Overlay
 {
 	private final Client client;
 	private final PingService pings;
+	private final HomebaseConfig config;
 
 	@Inject
-	private PingMinimapOverlay(Client client, PingService pings)
+	private PingMinimapOverlay(Client client, PingService pings, HomebaseConfig config)
 	{
 		this.client = client;
 		this.pings = pings;
+		this.config = config;
 		setPosition(OverlayPosition.DYNAMIC);
 		setLayer(OverlayLayer.ABOVE_WIDGETS);
 	}
@@ -40,7 +43,7 @@ public class PingMinimapOverlay extends Overlay
 	public Dimension render(Graphics2D graphics)
 	{
 		WorldView view = client.getTopLevelWorldView();
-		if (client.getGameState() != GameState.LOGGED_IN || view == null)
+		if (!config.pingMinimap() || client.getGameState() != GameState.LOGGED_IN || view == null)
 		{
 			return null;
 		}

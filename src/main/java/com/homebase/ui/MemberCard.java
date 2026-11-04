@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
@@ -101,9 +102,15 @@ class MemberCard extends JPanel
 		final Set<String> openSections;
 		final Consumer<String> toggleSection;
 
+		/**
+		 * Whether cards show live bars, which the player can turn off.
+		 */
+		final BooleanSupplier showBars;
+
 		Context(ItemSprites itemSprites, SkillIconManager skillIconManager, Set<String> openSections,
-			Consumer<String> toggleSection)
+			Consumer<String> toggleSection, BooleanSupplier showBars)
 		{
+			this.showBars = showBars;
 			this.itemSprites = itemSprites;
 			this.skillIconManager = skillIconManager;
 			this.openSections = openSections;
@@ -113,10 +120,12 @@ class MemberCard extends JPanel
 
 	private final JLabel nameLabel;
 	private final JLabel statusLabel = Ui.small("", ColorScheme.MEDIUM_GRAY_COLOR);
-	private final JPanel bars = new JPanel(new GridLayout(1, 3, 3, 0));
+	private final JPanel bars = new JPanel(new GridLayout(1, 4, 3, 0));
 	private final Ui.Meter hpBar = Ui.bar(Ui.HP_FG, Ui.HP_BG);
 	private final Ui.Meter prayerBar = Ui.bar(Ui.PRAY_FG, Ui.PRAY_BG);
 	private final Ui.Meter runBar = Ui.bar(Ui.RUN_FG, Ui.RUN_BG);
+	private final Ui.Meter specBar = Ui.bar(Ui.SPEC_FG, Ui.SPEC_BG);
+	private final BooleanSupplier showBars;
 	private final ProfileData profile;
 	private final long profileUpdatedAt;
 
@@ -125,6 +134,7 @@ class MemberCard extends JPanel
 		setLayout(new BorderLayout());
 		setBackground(ColorScheme.DARKER_GRAY_COLOR);
 		setAlignmentX(Component.LEFT_ALIGNMENT);
+		showBars = context.showBars;
 
 		profile = view.get(memberId, Section.PROFILE, ProfileData.class);
 		profileUpdatedAt = view.updatedAt(memberId, Section.PROFILE);
@@ -163,9 +173,11 @@ class MemberCard extends JPanel
 		hpBar.setToolTipText("Hitpoints");
 		prayerBar.setToolTipText("Prayer");
 		runBar.setToolTipText("Run energy");
+		specBar.setToolTipText("Special attack");
 		bars.add(hpBar);
 		bars.add(prayerBar);
 		bars.add(runBar);
+		bars.add(specBar);
 		top.add(align(bars));
 		add(top, BorderLayout.NORTH);
 
@@ -204,7 +216,7 @@ class MemberCard extends JPanel
 			statusLabel.setForeground(ColorScheme.MEDIUM_GRAY_COLOR);
 		}
 
-		if (live != null && live.isLoggedIn() && live.getStatBase(Skill.HITPOINTS) > 0)
+		if (showBars.getAsBoolean() && live != null && live.isLoggedIn() && live.getStatBase(Skill.HITPOINTS) > 0)
 		{
 			int hp = live.getStatBoost(Skill.HITPOINTS);
 			int maxHp = live.getStatBase(Skill.HITPOINTS);
@@ -213,6 +225,7 @@ class MemberCard extends JPanel
 			hpBar.set(hp, maxHp, hp + "/" + maxHp);
 			prayerBar.set(prayer, maxPrayer, prayer + "/" + maxPrayer);
 			runBar.set(live.getRunEnergy(), 100, live.getRunEnergy() + "%");
+			specBar.set(live.getSpecEnergy(), 100, live.getSpecEnergy() + "%");
 			bars.setVisible(true);
 		}
 		else

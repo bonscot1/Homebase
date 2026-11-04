@@ -3,6 +3,7 @@ package com.homebase.party;
 import com.google.gson.Gson;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import net.runelite.api.coords.WorldPoint;
@@ -10,7 +11,36 @@ import org.junit.Test;
 
 public class PresenceTest
 {
-	private final Presence presence = new Presence(null, null, null);
+	private final Presence presence = new Presence(null, null, null, null);
+
+	@Test
+	public void aMemberCanChooseToHideTheirPosition()
+	{
+		WorldPoint where = new WorldPoint(3222, 3218, 0);
+		WorldPoint fromParty = new WorldPoint(3000, 3000, 0);
+		HomebasePresence shown = new HomebasePresence(true, HomebasePresence.packCoord(where));
+		shown.setMemberId(7);
+		presence.onHomebasePresence(shown);
+		assertEquals(where, presence.position(7, fromParty));
+
+		// hiding also ignores whatever RuneLite's party last had for them
+		HomebasePresence hidden = new HomebasePresence(true, HomebasePresence.NO_POSITION);
+		hidden.setMemberId(7);
+		presence.onHomebasePresence(hidden);
+		assertNull(presence.position(7, fromParty));
+
+		// and showing it again brings it back
+		presence.onHomebasePresence(shown);
+		assertEquals(where, presence.position(7, fromParty));
+	}
+
+	@Test
+	public void noRealPositionLooksLikeHidingOne()
+	{
+		// the top corner of the map, on the top floor, is as big as a position gets
+		WorldPoint furthest = new WorldPoint(16_383, 16_383, 3);
+		assertNotEquals(HomebasePresence.NO_POSITION, HomebasePresence.packCoord(furthest));
+	}
 
 	@Test
 	public void quietMembersGoOffline()
