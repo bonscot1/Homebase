@@ -103,8 +103,7 @@ public class HomebasePanel extends PluginPanel
 	private final PartyService partyService;
 	private final Presence presence;
 	private final LocalCollector collector;
-	private final ItemManager itemManager;
-	private final ClientThread clientThread;
+	private final ItemSprites itemSprites;
 
 	private final JLabel groupLabel = new JLabel();
 	private final JLabel statusLabel = new JLabel();
@@ -141,13 +140,12 @@ public class HomebasePanel extends PluginPanel
 		this.partyService = partyService;
 		this.presence = presence;
 		this.collector = collector;
-		this.itemManager = itemManager;
-		this.clientThread = clientThread;
+		this.itemSprites = new ItemSprites(itemManager, clientThread);
 		this.requestsView = new RequestsView(requestService);
 		this.updatesView = new UpdatesView(updateTracker);
 		this.goalsView = new GoalsView(goalService, bountyService, itemManager, clientThread,
 			() -> view == null ? null : view.get(null, Section.GROUP_STORAGE, ItemsData.class));
-		this.cardContext = new MemberCard.Context(itemManager, skillIconManager, clientThread, openSections, id ->
+		this.cardContext = new MemberCard.Context(itemSprites, skillIconManager, openSections, id ->
 		{
 			if (!openSections.remove(id))
 			{
@@ -445,7 +443,7 @@ public class HomebasePanel extends PluginPanel
 
 		if (storageExpanded)
 		{
-			ItemGrid grid = new ItemGrid(slots, itemManager, clientThread);
+			ItemGrid grid = new ItemGrid(slots, itemSprites);
 			grid.setBorder(new EmptyBorder(0, 8, 8, 8));
 			panel.add(grid, BorderLayout.CENTER);
 		}

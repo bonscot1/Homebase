@@ -37,8 +37,6 @@ import javax.swing.border.EmptyBorder;
 import net.runelite.api.Experience;
 import net.runelite.api.Item;
 import net.runelite.api.Skill;
-import net.runelite.client.callback.ClientThread;
-import net.runelite.client.game.ItemManager;
 import net.runelite.client.game.SkillIconManager;
 import net.runelite.client.party.PartyMember;
 import net.runelite.client.ui.ColorScheme;
@@ -98,18 +96,16 @@ class MemberCard extends JPanel
 	 */
 	static class Context
 	{
-		final ItemManager itemManager;
+		final ItemSprites itemSprites;
 		final SkillIconManager skillIconManager;
-		final ClientThread clientThread;
 		final Set<String> openSections;
 		final Consumer<String> toggleSection;
 
-		Context(ItemManager itemManager, SkillIconManager skillIconManager, ClientThread clientThread,
-			Set<String> openSections, Consumer<String> toggleSection)
+		Context(ItemSprites itemSprites, SkillIconManager skillIconManager, Set<String> openSections,
+			Consumer<String> toggleSection)
 		{
-			this.itemManager = itemManager;
+			this.itemSprites = itemSprites;
 			this.skillIconManager = skillIconManager;
-			this.clientThread = clientThread;
 			this.openSections = openSections;
 			this.toggleSection = toggleSection;
 		}
@@ -307,7 +303,7 @@ class MemberCard extends JPanel
 		if (addFoldRow(parent, title, count + noun + "  ·  " + Ago.format(view.updatedAt(memberId, section)),
 			memberId + ":" + section.getKey(), context) && count > 0)
 		{
-			parent.add(new ItemGrid(slots, context.itemManager, context.clientThread));
+			parent.add(new ItemGrid(slots, context.itemSprites));
 			parent.add(Box.createVerticalStrut(4));
 		}
 	}
@@ -328,7 +324,7 @@ class MemberCard extends JPanel
 		addSectionRow(parent, title, ItemGrid.countFilled(slots) + " items · " + Ago.format(view.updatedAt(memberId, section)), id, context);
 		if (context.openSections.contains(id))
 		{
-			parent.add(new ItemGrid(slots, context.itemManager, context.clientThread));
+			parent.add(new ItemGrid(slots, context.itemSprites));
 			parent.add(Box.createVerticalStrut(4));
 		}
 	}
@@ -560,7 +556,7 @@ class MemberCard extends JPanel
 				}
 			}
 			content.add(align(caption("Costume room")));
-			content.add(align(new ItemGrid(items, context.itemManager, context.clientThread)));
+			content.add(align(new ItemGrid(items, context.itemSprites)));
 		}
 		addContent(parent, content);
 	}
