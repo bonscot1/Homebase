@@ -20,4 +20,14 @@ public class ProfileData
 	 * Name of their in-game Group Ironman group, if they are in one.
 	 */
 	private String groupName;
+
+	/**
+	 * The colour they chose, as 0xRRGGBB, or null from a version of the plugin that didn't send it.
+	 */
+	private Integer color;
+
+	public ProfileData(String name, int world, String groupName)
+	{
+		this(name, world, groupName, null);
+	}
 }

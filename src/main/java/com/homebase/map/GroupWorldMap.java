@@ -13,6 +13,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import net.runelite.api.Client;
@@ -27,7 +28,7 @@ import net.runelite.client.ui.overlay.worldmap.WorldMapPoint;
 import net.runelite.client.ui.overlay.worldmap.WorldMapPointManager;
 
 /**
- * Online group members on the world map, moved as their positions arrive through the party.
+ * Online group members and everyone's pins on the world map, moved as new positions arrive.
  * <p>
  * RuneLite only draws a marker that's on the map being looked at, which on its own would make anyone in
  * a dungeon or an instance vanish. So someone in a dungeon is shown above it, and someone somewhere the
@@ -44,6 +45,11 @@ public class GroupWorldMap
 	 */
 	private static final int MAX_KEPT_IMAGES = 256;
 
+	/**
+	 * Stands in for an angle in a picture's name, since a pin doesn't turn.
+	 */
+	private static final int NO_ANGLE = -1;
+
 	private final Client client;
 	private final WorldMapPointManager worldMapPointManager;
 	private final PartyService partyService;
@@ -53,9 +59,14 @@ public class GroupWorldMap
 	private final Presence presence;
 
 	/**
-	 * Markers we added, by party member id.
+	 * Markers we added for members, by party member id.
 	 */
-	private final Map<Long, MemberPoint> points = new HashMap<>();
+	private final Map<Long, Marker> memberMarkers = new HashMap<>();
+
+	/**
+	 * Markers we added for pins, by the id of the member who placed them.
+	 */
+	private final Map<String, Marker> pinMarkers = new HashMap<>();
 
 	/**
 	 * The last place each member could be shown, by party member id.
@@ -86,7 +97,21 @@ public class GroupWorldMap
 			clear();
 			return;
 		}
+		updateMembers();
+		updatePins();
+	}
 
+	public void clear()
+	{
+		memberMarkers.values().forEach(worldMapPointManager::remove);
+		memberMarkers.clear();
+		pinMarkers.values().forEach(worldMapPointManager::remove);
+		pinMarkers.clear();
+		lastOnMap.clear();
+	}
+
+	private void updateMembers()
+	{
 		PartyMember local = partyService.getLocalMember();
 		Set<Long> seen = new HashSet<>();
 		for (PartyMember member : PartyMembers.current(partyService))
@@ -105,25 +130,23 @@ public class GroupWorldMap
 				continue;
 			}
 			seen.add(member.getMemberId());
-
-			String tooltip = name + " - " + AreaNames.describe(coord);
-			MemberPoint point = points.get(member.getMemberId());
-			if (point == null)
+			Marker marker = memberMarkers.get(member.getMemberId());
+			boolean isNew = marker == null;
+			if (isNew)
 			{
-				point = new MemberPoint(shown);
-				point.show(shown, name, index.color(name), tooltip);
-				points.put(member.getMemberId(), point);
-				worldMapPointManager.add(point);
+				marker = new Marker(shown, false);
+				memberMarkers.put(member.getMemberId(), marker);
 			}
-			else
+			marker.show(shown, name, name, index.color(name), name + " - " + AreaNames.describe(coord));
+			if (isNew)
 			{
-				point.show(shown, name, index.color(name), tooltip);
+				worldMapPointManager.add(marker);
 			}
 		}
 
-		for (Iterator<Map.Entry<Long, MemberPoint>> it = points.entrySet().iterator(); it.hasNext(); )
+		for (Iterator<Map.Entry<Long, Marker>> it = memberMarkers.entrySet().iterator(); it.hasNext(); )
 		{
-			Map.Entry<Long, MemberPoint> entry = it.next();
+			Map.Entry<Long, Marker> entry = it.next();
 			if (!seen.contains(entry.getKey()))
 			{
 				worldMapPointManager.remove(entry.getValue());
@@ -133,14 +156,44 @@ public class GroupWorldMap
 		}
 	}
 
-	public void clear()
+	private void updatePins()
 	{
-		for (WorldMapPoint point : points.values())
+		Set<String> seen = new HashSet<>();
+		long oldest = System.currentTimeMillis() - TimeUnit.HOURS.toMillis(config.mapPinHours());
+		if (config.mapPins())
 		{
-			worldMapPointManager.remove(point);
+			for (GroupIndex.Pin pin : index.pins())
+			{
+				if (pin.getAt() < oldest)
+				{
+					continue;
+				}
+				seen.add(pin.getMemberId());
+				Marker marker = pinMarkers.get(pin.getMemberId());
+				boolean isNew = marker == null;
+				if (isNew)
+				{
+					marker = new Marker(pin.getPoint(), true);
+					pinMarkers.put(pin.getMemberId(), marker);
+				}
+				String title = pin.getName() + "'s pin";
+				marker.show(pin.getPoint(), title, pin.getName(), pin.getColor(), title + " - " + AreaNames.describe(pin.getPoint()));
+				if (isNew)
+				{
+					worldMapPointManager.add(marker);
+				}
+			}
 		}
-		points.clear();
-		lastOnMap.clear();
+
+		for (Iterator<Map.Entry<String, Marker>> it = pinMarkers.entrySet().iterator(); it.hasNext(); )
+		{
+			Map.Entry<String, Marker> entry = it.next();
+			if (!seen.contains(entry.getKey()))
+			{
+				worldMapPointManager.remove(entry.getValue());
+				it.remove();
+			}
+		}
 	}
 
 	/**
@@ -186,64 +239,79 @@ public class GroupWorldMap
 		return map == null ? null : map.getWorldMapData();
 	}
 
-	private BufferedImage image(String name, Color color, int angle)
+	private BufferedImage image(boolean pin, String label, Color color, int angle, double scale)
 	{
 		if (images.size() >= MAX_KEPT_IMAGES)
 		{
 			images.clear();
 		}
-		return images.computeIfAbsent(name + '|' + color.getRGB() + '|' + angle, key -> MapMarker.draw(name, color, angle));
+		String key = label + '|' + color.getRGB() + '|' + angle + '|' + scale + '|' + pin;
+		return images.computeIfAbsent(key, k -> pin ? MapMarker.pin(label, color, scale) : MapMarker.arrow(label, color, angle, scale));
 	}
 
 	/**
-	 * One member's marker. On the part of the map being looked at, its arrow points down at them. When
-	 * they're off the edge it waits at the edge instead, and points the way to go.
+	 * One marker. On the part of the map being looked at, its tip is on the spot it marks. When that's
+	 * off the edge it waits at the edge instead, and a member's arrow points the way to go.
 	 */
-	private final class MemberPoint extends WorldMapPoint
+	private final class Marker extends WorldMapPoint
 	{
+		private final boolean pin;
+		private String label;
 		private Color color;
 
-		private MemberPoint(WorldPoint point)
+		private Marker(WorldPoint point, boolean pin)
 		{
 			super(point, null);
-			setSnapToEdge(true);
+			this.pin = pin;
 			setJumpOnClick(true);
 		}
 
-		private void show(WorldPoint point, String name, Color color, String tooltip)
+		/**
+		 * @param title what RuneLite's Focus on menu option calls it
+		 * @param name the name to show on it, if names are turned on
+		 */
+		private void show(WorldPoint point, String title, String name, Color color, String tooltip)
 		{
 			setWorldPoint(point);
-			setName(name);
+			setName(title);
 			setTooltip(tooltip);
+			boolean keepAtEdge = config.mapEdge();
+			setSnapToEdge(keepAtEdge);
+			if (!keepAtEdge)
+			{
+				setCurrentlyEdgeSnapped(false);
+			}
+			label = config.mapNames() ? name : null;
 			this.color = color;
-			drawArrow();
+			redraw();
 		}
 
 		@Override
 		public void onEdgeSnap()
 		{
-			drawArrow();
+			redraw();
 		}
 
 		@Override
 		public void onEdgeUnsnap()
 		{
-			drawArrow();
+			redraw();
 		}
 
-		private void drawArrow()
+		private void redraw()
 		{
+			double scale = config.mapMarkerSize().getScale();
 			if (isCurrentlyEdgeSnapped())
 			{
-				setImage(image(getName(), color, angleFromMapCentre()));
+				setImage(image(pin, label, color, pin ? NO_ANGLE : angleFromMapCentre(), scale));
 				// RuneLite keeps a snapped picture on screen around its middle
 				setImagePoint(null);
 			}
 			else
 			{
-				BufferedImage picture = image(getName(), color, MapMarker.DOWN);
+				BufferedImage picture = image(pin, label, color, pin ? NO_ANGLE : MapMarker.DOWN, scale);
 				setImage(picture);
-				setImagePoint(MapMarker.tip(picture));
+				setImagePoint(MapMarker.tip(picture, scale));
 			}
 		}
 

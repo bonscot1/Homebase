@@ -1,12 +1,11 @@
 package com.homebase.ui;
 
-import java.util.ArrayList;
+import java.util.ArrayDeque;
 import java.util.Collection;
-import java.util.List;
+import java.util.Deque;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.swing.SwingUtilities;
-import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.game.ItemManager;
 
@@ -14,9 +13,13 @@ import net.runelite.client.game.ItemManager;
  * Item names for tooltips and lists, shared by the whole panel. Names come from the game's cache,
  * which can only be read on the client thread, so they're looked up once and kept.
  */
-@Slf4j
 final class ItemNames
 {
+	/**
+	 * Most names looked up in one go, so searching everyone's banks can't stall a game frame.
+	 */
+	private static final int NAMES_AT_A_TIME = 200;
+
 	private static final Map<Integer, String> NAMES = new ConcurrentHashMap<>();
 
 	private ItemNames()
@@ -32,11 +35,11 @@ final class ItemNames
 	}
 
 	/**
-	 * @return true if the item's name has been looked up
+	 * @return the item's name, or null if it hasn't been looked up yet
 	 */
-	static boolean known(int itemId)
+	static String known(int itemId)
 	{
-		return NAMES.containsKey(itemId);
+		return NAMES.get(itemId);
 	}
 
 	/**
@@ -45,7 +48,7 @@ final class ItemNames
 	 */
 	static void resolve(Collection<Integer> itemIds, ItemManager itemManager, ClientThread clientThread, Runnable done)
 	{
-		List<Integer> missing = new ArrayList<>();
+		Deque<Integer> missing = new ArrayDeque<>();
 		for (Integer id : itemIds)
 		{
 			if (id != null && id > 0 && !NAMES.containsKey(id))
@@ -60,29 +63,26 @@ final class ItemNames
 		}
 		clientThread.invokeLater(() ->
 		{
-			for (int id : missing)
+			for (int i = 0; i < NAMES_AT_A_TIME && !missing.isEmpty(); i++)
 			{
-				NAMES.put(id, lookUp(id, itemManager));
+				int id = missing.remove();
+				try
+				{
+					NAMES.put(id, itemManager.getItemComposition(id).getName());
+				}
+				catch (RuntimeException e)
+				{
+					// an id from another member's client that the game doesn't know shouldn't stop the rest
+					NAMES.put(id, "item " + id);
+				}
+			}
+			if (!missing.isEmpty())
+			{
+				// not finished, so this runs again on the game's next cycle
+				return false;
 			}
 			SwingUtilities.invokeLater(done);
+			return true;
 		});
-	}
-
-	/**
-	 * @return the item's name. Ids can come from other players, so one the game doesn't know just keeps
-	 * the stand-in name, rather than stopping the names after it from being looked up.
-	 */
-	private static String lookUp(int itemId, ItemManager itemManager)
-	{
-		String name = null;
-		try
-		{
-			name = itemManager.getItemComposition(itemId).getName();
-		}
-		catch (RuntimeException e)
-		{
-			log.debug("No name for item {}", itemId, e);
-		}
-		return name == null ? "item " + itemId : name;
 	}
 }

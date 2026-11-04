@@ -7,12 +7,14 @@ import static org.junit.Assert.assertTrue;
 import com.google.gson.Gson;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
+import com.homebase.HomebaseConfig;
 import com.homebase.collect.LocalCollector;
 import com.homebase.data.GroupView;
 import com.homebase.data.Section;
 import com.homebase.data.StorageLogData;
 import com.homebase.sync.GroupStore;
 import com.homebase.sync.SyncEngine;
+import java.awt.Color;
 import java.lang.reflect.Proxy;
 import java.util.HashMap;
 import java.util.List;
@@ -114,10 +116,15 @@ public class StorageWatcherTest
 		answers.put("getItemContainer", args -> containers.get(args[0]));
 		Client client = fake(Client.class, answers);
 
+		Map<String, Function<Object[], Object>> settings = new HashMap<>();
+		settings.put("tileColor", args -> Color.WHITE);
+		HomebaseConfig config = fake(HomebaseConfig.class, settings);
+
 		Injector injector = Guice.createInjector(binder ->
 		{
 			binder.bind(Client.class).toInstance(client);
 			binder.bind(Gson.class).toInstance(new Gson());
+			binder.bind(HomebaseConfig.class).toInstance(config);
 		});
 		collector = injector.getInstance(LocalCollector.class);
 		watcher = injector.getInstance(StorageWatcher.class);

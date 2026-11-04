@@ -1,5 +1,6 @@
 package com.homebase.ui;
 
+import com.homebase.HomebaseConfig;
 import com.homebase.HomebasePlugin;
 import com.homebase.bounties.BountyService;
 import com.homebase.collect.LocalCollector;
@@ -19,6 +20,7 @@ import com.homebase.updates.UpdateTracker;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
+import java.awt.Dimension;
 import java.awt.GridLayout;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -43,6 +45,8 @@ import javax.swing.SwingUtilities;
 import javax.swing.Timer;
 import javax.swing.border.CompoundBorder;
 import javax.swing.border.EmptyBorder;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Item;
 import net.runelite.client.callback.ClientThread;
@@ -53,6 +57,7 @@ import net.runelite.client.party.PartyService;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.FontManager;
 import net.runelite.client.ui.PluginPanel;
+import net.runelite.client.ui.components.IconTextField;
 import net.runelite.client.util.ImageUtil;
 
 /**
@@ -85,6 +90,12 @@ public class HomebasePanel extends PluginPanel
 	private static final int MAIN_BUTTON_PADDING = 11;
 	private static final int MAIN_BUTTON_GAP = 6;
 
+	/**
+	 * How long after the last key press to search, so typing a word searches once, and the box's height.
+	 */
+	private static final int SEARCH_DELAY_MS = 200;
+	private static final int SEARCH_BOX_HEIGHT = 30;
+
 	private enum Tab
 	{
 		MEMBERS("Members"),
@@ -101,6 +112,7 @@ public class HomebasePanel extends PluginPanel
 	}
 
 	private final HomebasePlugin plugin;
+	private final HomebaseConfig config;
 	private final GroupSync groupSync;
 	private final PartyService partyService;
 	private final Presence presence;
@@ -118,6 +130,9 @@ public class HomebasePanel extends PluginPanel
 	private final RequestsView requestsView;
 	private final UpdatesView updatesView;
 	private final GoalsView goalsView;
+	private final ItemSearchView itemSearchView;
+	private final IconTextField searchBox = new IconTextField();
+	private final Timer searchTimer = new Timer(SEARCH_DELAY_MS, e -> rebuild());
 	private final MemberCard.Context cardContext;
 	private final Map<String, MemberCard> cards = new HashMap<>();
 	private final Set<String> expandedMembers = new HashSet<>();
@@ -133,11 +148,12 @@ public class HomebasePanel extends PluginPanel
 	private Runnable secondAction;
 
 	@Inject
-	private HomebasePanel(HomebasePlugin plugin, GroupSync groupSync, PartyService partyService, Presence presence, LocalCollector collector,
+	private HomebasePanel(HomebasePlugin plugin, HomebaseConfig config, GroupSync groupSync, PartyService partyService, Presence presence, LocalCollector collector,
 		RequestService requestService, UpdateTracker updateTracker, GoalService goalService, BountyService bountyService,
 		ItemManager itemManager, SkillIconManager skillIconManager, ClientThread clientThread)
 	{
 		this.plugin = plugin;
+		this.config = config;
 		this.groupSync = groupSync;
 		this.partyService = partyService;
 		this.presence = presence;
@@ -147,6 +163,7 @@ public class HomebasePanel extends PluginPanel
 		this.updatesView = new UpdatesView(updateTracker);
 		this.goalsView = new GoalsView(goalService, bountyService, itemManager, clientThread,
 			() -> view == null ? null : view.get(null, Section.GROUP_STORAGE, ItemsData.class));
+		this.itemSearchView = new ItemSearchView(itemSprites, () -> view, plugin::belongsToGroup);
 		this.cardContext = new MemberCard.Context(itemSprites, skillIconManager, openSections, id ->
 		{
 			if (!openSections.remove(id))
@@ -154,10 +171,11 @@ public class HomebasePanel extends PluginPanel
 				openSections.add(id);
 			}
 			rebuild();
-		});
+		}, config::cardBars);
 
 		rebuildTimer.setRepeats(false);
 		liveTimer.setRepeats(false);
+		searchTimer.setRepeats(false);
 
 		setLayout(new BorderLayout());
 		setBorder(new EmptyBorder(10, 10, 10, 10));
@@ -191,12 +209,41 @@ public class HomebasePanel extends PluginPanel
 			Ui.clickable(label, () ->
 			{
 				selectedTab = tab;
+				// choosing a tab leaves the search, and needs no second rebuild for doing so
+				searchBox.setText("");
+				searchTimer.stop();
 				rebuild();
 			});
 			tabLabels.put(tab, label);
 			tabBar.add(label);
 		}
 		tabBar.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+
+		searchBox.setIcon(IconTextField.Icon.SEARCH);
+		searchBox.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+		searchBox.setHoverBackgroundColor(ColorScheme.DARKER_GRAY_HOVER_COLOR);
+		searchBox.setPreferredSize(new Dimension(0, SEARCH_BOX_HEIGHT));
+		searchBox.setToolTipText("Find who has an item");
+		searchBox.getDocument().addDocumentListener(new DocumentListener()
+		{
+			@Override
+			public void insertUpdate(DocumentEvent e)
+			{
+				searchTimer.restart();
+			}
+
+			@Override
+			public void removeUpdate(DocumentEvent e)
+			{
+				searchTimer.restart();
+			}
+
+			@Override
+			public void changedUpdate(DocumentEvent e)
+			{
+				searchTimer.restart();
+			}
+		});
 
 		JPanel titles = new JPanel();
 		titles.setLayout(new BoxLayout(titles, BoxLayout.Y_AXIS));
@@ -214,11 +261,17 @@ public class HomebasePanel extends PluginPanel
 		statusButtons.add(secondButton, BorderLayout.SOUTH);
 		statusButtons.setVisible(false);
 
+		JPanel searchAndTabs = new JPanel(new BorderLayout(0, MAIN_BUTTON_GAP));
+		searchAndTabs.setOpaque(false);
+		searchAndTabs.setBorder(new EmptyBorder(8, 0, 0, 0));
+		searchAndTabs.add(searchBox, BorderLayout.NORTH);
+		searchAndTabs.add(tabBar, BorderLayout.SOUTH);
+
 		JPanel header = new JPanel(new BorderLayout());
 		header.setOpaque(false);
 		header.add(titles, BorderLayout.NORTH);
 		header.add(statusButtons, BorderLayout.CENTER);
-		header.add(tabBar, BorderLayout.SOUTH);
+		header.add(searchAndTabs, BorderLayout.SOUTH);
 		header.setBorder(new EmptyBorder(0, 0, 8, 0));
 
 		tabContent.setLayout(new BoxLayout(tabContent, BoxLayout.Y_AXIS));
@@ -241,6 +294,7 @@ public class HomebasePanel extends PluginPanel
 		SwingUtilities.invokeLater(() ->
 		{
 			this.view = view;
+			itemSearchView.dataChanged();
 			expandedMembers.clear();
 			openSections.clear();
 			storageExpanded = false;
@@ -253,7 +307,24 @@ public class HomebasePanel extends PluginPanel
 	 */
 	public void scheduleRebuild()
 	{
-		SwingUtilities.invokeLater(rebuildTimer::restart);
+		SwingUtilities.invokeLater(() ->
+		{
+			itemSearchView.dataChanged();
+			rebuildTimer.restart();
+		});
+	}
+
+	/**
+	 * Someone came online or went offline. Safe to call from any thread.
+	 */
+	public void onlineChanged()
+	{
+		scheduleLiveRefresh();
+		// who's listed, or in what order, can depend on it
+		if (config.onlineFirst() || !config.showOfflineMembers())
+		{
+			scheduleRebuild();
+		}
 	}
 
 	/**
@@ -290,6 +361,7 @@ public class HomebasePanel extends PluginPanel
 		rebuildWhenShown = false;
 		cards.clear();
 		tabBar.setVisible(view != null);
+		searchBox.setVisible(view != null && config.itemSearch());
 
 		if (view == null)
 		{
@@ -298,29 +370,45 @@ public class HomebasePanel extends PluginPanel
 		else
 		{
 			styleTabs();
-			switch (selectedTab)
+			if (isSearching())
 			{
-				case REQUESTS:
-					requestsView.refresh();
-					showTabView(requestsView);
-					break;
-				case UPDATES:
-					updatesView.refresh();
-					showTabView(updatesView);
-					break;
-				case GOALS:
-					goalsView.refresh();
-					showTabView(goalsView);
-					break;
-				default:
-					tabContent.removeAll();
-					buildMembers();
+				itemSearchView.search(searchBox.getText());
+				showTabView(itemSearchView);
+			}
+			else
+			{
+				switch (selectedTab)
+				{
+					case REQUESTS:
+						requestsView.refresh();
+						showTabView(requestsView);
+						break;
+					case UPDATES:
+						updatesView.refresh();
+						showTabView(updatesView);
+						break;
+					case GOALS:
+						goalsView.refresh();
+						showTabView(goalsView);
+						break;
+					default:
+						tabContent.removeAll();
+						buildMembers();
+				}
 			}
 		}
 
 		refreshLive();
 		tabContent.revalidate();
 		tabContent.repaint();
+	}
+
+	/**
+	 * @return true if the search box has something in it, so its results show in place of a tab
+	 */
+	private boolean isSearching()
+	{
+		return searchBox.isVisible() && !searchBox.getText().trim().isEmpty();
 	}
 
 	/**
@@ -347,7 +435,7 @@ public class HomebasePanel extends PluginPanel
 		int open = requestsView.openCount();
 		for (Map.Entry<Tab, JLabel> e : tabLabels.entrySet())
 		{
-			boolean selected = e.getKey() == selectedTab;
+			boolean selected = e.getKey() == selectedTab && !isSearching();
 			JLabel label = e.getValue();
 			label.setForeground(selected ? Color.WHITE : ColorScheme.LIGHT_GRAY_COLOR);
 			label.setBackground(selected ? ColorScheme.DARKER_GRAY_HOVER_COLOR : ColorScheme.DARKER_GRAY_COLOR);
@@ -366,12 +454,20 @@ public class HomebasePanel extends PluginPanel
 
 		String localId = collector.getMemberId();
 		List<MemberCard> members = new ArrayList<>();
+		Set<MemberCard> online = new HashSet<>();
+		boolean anyHidden = false;
 		for (String id : view.memberIds())
 		{
 			ProfileData profile = view.get(id, Section.PROFILE, ProfileData.class);
 			if (profile == null || !plugin.belongsToGroup(profile))
 			{
 				// an account that isn't in this Group Ironman group
+				continue;
+			}
+			boolean isOnline = id.equals(localId) || isOnline(profile);
+			if (!isOnline && !config.showOfflineMembers())
+			{
+				anyHidden = true;
 				continue;
 			}
 			MemberCard card;
@@ -386,16 +482,23 @@ public class HomebasePanel extends PluginPanel
 			}
 			cards.put(id, card);
 			members.add(card);
+			if (isOnline)
+			{
+				online.add(card);
+			}
 		}
-		// you first, then everyone else by name
+		// you first, then online members if that's what the player wants, then everyone else by name
 		MemberCard localCard = localId == null ? null : cards.get(localId);
+		boolean onlineFirst = config.onlineFirst();
 		members.sort(Comparator
-			.comparingInt((MemberCard c) -> c == localCard ? 0 : 1)
+			.comparingInt((MemberCard c) -> c == localCard ? 0 : onlineFirst && online.contains(c) ? 1 : 2)
 			.thenComparing(c -> c.getMemberName() == null ? "" : c.getMemberName(), String.CASE_INSENSITIVE_ORDER));
 
 		if (members.isEmpty())
 		{
-			tabContent.add(Ui.empty("No group data yet", "Log in and your details will be shared with your group."));
+			tabContent.add(anyHidden
+				? Ui.empty("Nobody's online", "Turn on Show offline members in this plugin's settings to see everyone.")
+				: Ui.empty("No group data yet", "Log in and your details will be shared with your group."));
 		}
 		for (MemberCard card : members)
 		{
@@ -403,6 +506,11 @@ public class HomebasePanel extends PluginPanel
 			tabContent.add(card);
 			tabContent.add(Box.createVerticalStrut(Ui.GAP));
 		}
+	}
+
+	private boolean isOnline(ProfileData profile)
+	{
+		return groupSync.isGroupParty() && presence.isOnline(PartyMembers.byName(partyService, profile.getName()));
 	}
 
 	private void addGroupStorage()

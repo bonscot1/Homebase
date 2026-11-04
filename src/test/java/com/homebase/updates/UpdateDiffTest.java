@@ -3,6 +3,7 @@ package com.homebase.updates;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import com.homebase.data.CombatAchievementsData;
+import com.homebase.data.FeedData;
 import com.homebase.data.QuestsData;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -17,6 +18,92 @@ public class UpdateDiffTest
 {
 	private static final List<String> REGIONS = Arrays.asList("Varrock", "Wilderness");
 	private static final List<String> TIERS = Arrays.asList("Easy", "Medium", "Hard", "Elite");
+
+	private static FeedData.Entry drop(long at, String item, int quantity, long value, String source)
+	{
+		return new FeedData.Entry(at, FeedData.DROP, item, quantity, value, source);
+	}
+
+	@Test
+	public void lowLevelsCanBeLeftOut()
+	{
+		Map<String, Integer> before = new LinkedHashMap<>();
+		before.put("Attack", 40);
+		before.put("Magic", 89);
+		Map<String, Integer> after = new LinkedHashMap<>();
+		after.put("Attack", 41);
+		after.put("Magic", 90);
+
+		assertEquals(Arrays.asList("Attack 40 → 41", "Magic 89 → 90"), UpdateDiff.skills(before, after));
+		assertEquals(Collections.singletonList("Magic 89 → 90"), UpdateDiff.skills(before, after, 50));
+	}
+
+	@Test
+	public void onlyNewFeedEntriesAreReported()
+	{
+		List<FeedData.Entry> before = Collections.singletonList(drop(100, "Old thing", 1, 500_000, "Goblin"));
+		List<FeedData.Entry> after = Arrays.asList(
+			before.get(0),
+			drop(200, "Dragon warhammer", 1, 41_200_000, "Lizardman shaman"),
+			new FeedData.Entry(300, FeedData.PET, null, 0, 0, null),
+			new FeedData.Entry(400, FeedData.DEATH, "Wilderness (level 11)", 0, 0, null));
+
+		assertEquals(Arrays.asList("got Dragon warhammer from Lizardman shaman (41.2M)", "got a pet!", "died: Wilderness (level 11)"),
+			UpdateDiff.feed(before, after, true, 100_000, true));
+	}
+
+	@Test
+	public void dropsBelowTheChosenValueAreLeftOut()
+	{
+		List<FeedData.Entry> after = Arrays.asList(
+			drop(100, "Coal", 200, 30_000, "Mining"),
+			drop(200, "Runite ore", 10, 110_000, "Rune dragon"));
+
+		assertEquals(Collections.singletonList("got 10 x Runite ore from Rune dragon (110K)"),
+			UpdateDiff.feed(Collections.emptyList(), after, true, 100_000, true));
+	}
+
+	@Test
+	public void dropsAndDeathsCanEachBeTurnedOff()
+	{
+		List<FeedData.Entry> after = Arrays.asList(
+			drop(100, "Abyssal whip", 1, 2_000_000, "Abyssal demon"),
+			new FeedData.Entry(200, FeedData.PET, null, 0, 0, null),
+			new FeedData.Entry(300, FeedData.DEATH, null, 0, 0, null));
+
+		assertEquals(Collections.singletonList("died"), UpdateDiff.feed(Collections.emptyList(), after, false, 0, true));
+		assertEquals(Arrays.asList("got Abyssal whip from Abyssal demon (2M)", "got a pet!"),
+			UpdateDiff.feed(Collections.emptyList(), after, true, 0, false));
+	}
+
+	@Test
+	public void lotsOfDropsAreSummarised()
+	{
+		List<FeedData.Entry> after = new ArrayList<>();
+		for (int i = 1; i <= 7; i++)
+		{
+			after.add(drop(i, "Item " + i, 1, 200_000, "Boss"));
+		}
+		assertEquals(Collections.singletonList("got 7 valuable drops"),
+			UpdateDiff.feed(Collections.emptyList(), after, true, 100_000, true));
+	}
+
+	@Test
+	public void strangeFeedEntriesAreSafelyIgnored()
+	{
+		List<FeedData.Entry> after = Arrays.asList(
+			// a kind of entry from a newer version
+			new FeedData.Entry(100, "something new", "x", 1, 1, "y"),
+			// no kind at all
+			new FeedData.Entry(200, null, "x", 1, 1, "y"),
+			// nothing left of the name once cleaned
+			drop(300, "<>", 1, 500_000, null),
+			// tags in what another client sent don't reach the chat box
+			drop(400, "<img=1>Sword", 1, 500_000, "<col=ff0000>Boss"));
+
+		assertEquals(Collections.singletonList("got img=1Sword from col=ff0000Boss (500K)"),
+			UpdateDiff.feed(Collections.emptyList(), after, true, 100_000, true));
+	}
 
 	@Test
 	public void skillQuestAndDiaryChangesMakeOneChatLine()

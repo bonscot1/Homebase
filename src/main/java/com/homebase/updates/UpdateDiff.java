@@ -1,11 +1,15 @@
 package com.homebase.updates;
 
+import com.homebase.data.Clean;
+import com.homebase.data.FeedData;
 import com.homebase.data.QuestsData;
+import com.homebase.map.AreaNames;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import net.runelite.client.util.QuantityFormatter;
 
 /**
  * Describes what changed between two copies of a member's data, in the words shown to players:
@@ -19,6 +23,11 @@ public final class UpdateDiff
 	 */
 	private static final int MAX_LISTED = 4;
 
+	/**
+	 * Longest item, monster or place name shown from another member's feed.
+	 */
+	private static final int MAX_FEED_TEXT = 60;
+
 	private UpdateDiff()
 	{
 	}
@@ -31,11 +40,19 @@ public final class UpdateDiff
 	 */
 	public static List<String> skills(Map<String, Integer> before, Map<String, Integer> after)
 	{
+		return skills(before, after, 1);
+	}
+
+	/**
+	 * Skills that went up a level, leaving out any that are still below {@code minLevel}.
+	 */
+	public static List<String> skills(Map<String, Integer> before, Map<String, Integer> after, int minLevel)
+	{
 		List<String> out = new ArrayList<>();
 		for (Map.Entry<String, Integer> entry : after.entrySet())
 		{
 			Integer old = before.get(entry.getKey());
-			if (old != null && entry.getValue() != null && entry.getValue() > old)
+			if (old != null && entry.getValue() != null && entry.getValue() > old && entry.getValue() >= minLevel)
 			{
 				out.add(entry.getKey() + " " + old + " → " + entry.getValue());
 			}
@@ -199,6 +216,92 @@ public final class UpdateDiff
 			return Collections.singletonList("kill counts went up for " + out.size() + " bosses");
 		}
 		return out;
+	}
+
+	/**
+	 * Drops, pets and deaths since before.
+	 *
+	 * @param before the member's feed as we had it
+	 * @param after their feed as it is now
+	 * @param drops whether to include drops and pets
+	 * @param minValue the least a drop must be worth to be included
+	 * @param deaths whether to include deaths
+	 */
+	public static List<String> feed(List<FeedData.Entry> before, List<FeedData.Entry> after, boolean drops, long minValue, boolean deaths)
+	{
+		long newestSeen = 0;
+		for (FeedData.Entry entry : before)
+		{
+			newestSeen = Math.max(newestSeen, entry.getAt());
+		}
+		List<String> gotten = new ArrayList<>();
+		List<String> died = new ArrayList<>();
+		for (FeedData.Entry entry : after)
+		{
+			if (entry.getAt() <= newestSeen || entry.getType() == null)
+			{
+				continue;
+			}
+			switch (entry.getType())
+			{
+				case FeedData.DROP:
+					if (drops && entry.getValue() >= minValue)
+					{
+						String line = dropLine(entry);
+						if (line != null)
+						{
+							gotten.add(line);
+						}
+					}
+					break;
+				case FeedData.PET:
+					if (drops)
+					{
+						gotten.add("got a pet!");
+					}
+					break;
+				case FeedData.DEATH:
+					if (deaths)
+					{
+						String place = Clean.text(entry.getName(), MAX_FEED_TEXT);
+						died.add(place == null || AreaNames.UNKNOWN.equals(place) ? "died" : "died: " + place);
+					}
+					break;
+				default:
+					// a kind of entry from a newer version of the plugin
+			}
+		}
+		List<String> out = new ArrayList<>();
+		if (gotten.size() > MAX_LISTED)
+		{
+			out.add("got " + gotten.size() + " valuable drops");
+		}
+		else
+		{
+			out.addAll(gotten);
+		}
+		if (died.size() > MAX_LISTED)
+		{
+			out.add("died " + died.size() + " times");
+		}
+		else
+		{
+			out.addAll(died);
+		}
+		return out;
+	}
+
+	private static String dropLine(FeedData.Entry entry)
+	{
+		String item = Clean.text(entry.getName(), MAX_FEED_TEXT);
+		if (item == null)
+		{
+			return null;
+		}
+		String source = Clean.text(entry.getSource(), MAX_FEED_TEXT);
+		return "got " + (entry.getQuantity() > 1 ? QuantityFormatter.formatNumber(entry.getQuantity()) + " x " : "") + item
+			+ (source == null ? "" : " from " + source)
+			+ " (" + QuantityFormatter.quantityToStackSize(Math.max(0, entry.getValue())) + ")";
 	}
 
 	/**

@@ -85,7 +85,7 @@ final class StorageHistoryView
 		}
 
 		// asking only when a name is missing, since the panel is drawn again once they're found
-		if (!shownItems.stream().allMatch(ItemNames::known))
+		if (shownItems.stream().anyMatch(item -> ItemNames.known(item) == null))
 		{
 			context.itemSprites.lookUpNames(shownItems, onNamesFound);
 		}

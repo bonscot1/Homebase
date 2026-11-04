@@ -4,9 +4,11 @@ import java.awt.Color;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Predicate;
 import javax.inject.Singleton;
 import lombok.Value;
@@ -46,13 +48,34 @@ public class GroupIndex
 		String name;
 	}
 
+	@Value
+	public static class Pin
+	{
+		String memberId;
+		String name;
+		Color color;
+		WorldPoint point;
+		long at;
+	}
+
+	@Value
+	public static class LogOwner
+	{
+		String memberId;
+		String name;
+		Color color;
+	}
+
 	private static final class Snapshot
 	{
 		final Map<String, Integer> combatLevels = new HashMap<>();
+		final Map<String, Integer> worlds = new HashMap<>();
 		final Map<String, Color> colors = new HashMap<>();
 		final Map<String, String> idsByName = new HashMap<>();
+		final Map<String, String> namesById = new HashMap<>();
 		final List<MarkedTile> tiles = new ArrayList<>();
 		final List<Highlight> highlights = new ArrayList<>();
+		final List<Pin> pins = new ArrayList<>();
 	}
 
 	private volatile GroupView view;
@@ -60,11 +83,19 @@ public class GroupIndex
 	private volatile boolean dirty = true;
 	private volatile Snapshot snapshot = new Snapshot();
 
+	/**
+	 * Who has each collection log item, by item id. Kept apart from the rest and only worked out while
+	 * someone is looking at their collection log, because it means reading everyone's whole log.
+	 */
+	private volatile boolean logOwnersDirty = true;
+	private volatile Map<Integer, List<LogOwner>> logOwners = Collections.emptyMap();
+
 	public void setView(GroupView view, Predicate<ProfileData> belongs)
 	{
 		this.view = view;
 		this.belongs = belongs;
 		dirty = true;
+		logOwnersDirty = true;
 	}
 
 	/**
@@ -73,6 +104,7 @@ public class GroupIndex
 	public void invalidate()
 	{
 		dirty = true;
+		logOwnersDirty = true;
 	}
 
 	/**
@@ -102,6 +134,23 @@ public class GroupIndex
 	}
 
 	/**
+	 * @return the member's name as they share it, or null if they aren't in the group
+	 */
+	public String nameOf(String memberId)
+	{
+		return memberId == null ? null : current().namesById.get(memberId);
+	}
+
+	/**
+	 * @return the world the member was last on, or 0 if they've logged out or we don't know
+	 */
+	public int world(String name)
+	{
+		Integer world = name == null ? null : current().worlds.get(key(name));
+		return world == null ? 0 : world;
+	}
+
+	/**
 	 * @return true if the member id belongs to someone in the group, so what they set up counts
 	 */
 	public boolean isMember(String memberId)
@@ -123,6 +172,57 @@ public class GroupIndex
 	public List<Highlight> highlights()
 	{
 		return Collections.unmodifiableList(current().highlights);
+	}
+
+	/**
+	 * @return the spot each member has pinned on the world map
+	 */
+	public List<Pin> pins()
+	{
+		return Collections.unmodifiableList(current().pins);
+	}
+
+	/**
+	 * @return everyone who has this collection log item, as far as we've seen their log
+	 */
+	public List<LogOwner> logOwners(int itemId)
+	{
+		if (logOwnersDirty)
+		{
+			logOwnersDirty = false;
+			logOwners = buildLogOwners(view);
+		}
+		return logOwners.getOrDefault(itemId, Collections.emptyList());
+	}
+
+	private Map<Integer, List<LogOwner>> buildLogOwners(GroupView view)
+	{
+		Map<Integer, List<LogOwner>> out = new HashMap<>();
+		if (view == null)
+		{
+			return out;
+		}
+		Snapshot members = current();
+		for (Map.Entry<String, String> member : members.namesById.entrySet())
+		{
+			CollectionLogData log = view.get(member.getKey(), Section.COLLECTION_LOG, CollectionLogData.class);
+			if (log == null)
+			{
+				continue;
+			}
+			LogOwner owner = new LogOwner(member.getKey(), member.getValue(), color(member.getValue()));
+			// an item can be on more than one page
+			Set<Integer> items = new HashSet<>();
+			for (CollectionLogData.Page page : log.getPages().values())
+			{
+				items.addAll(page.getItems());
+			}
+			for (int item : items)
+			{
+				out.computeIfAbsent(item, id -> new ArrayList<>()).add(owner);
+			}
+		}
+		return out;
 	}
 
 	private Snapshot current()
@@ -153,6 +253,8 @@ public class GroupIndex
 			}
 			String key = key(name);
 			out.idsByName.put(key, id);
+			out.namesById.put(id, name);
+			out.worlds.put(key, profile.getWorld());
 
 			SkillsData skills = view.get(id, Section.SKILLS, SkillsData.class);
 			if (skills != null && !skills.getXp().isEmpty())
@@ -182,7 +284,16 @@ public class GroupIndex
 					out.tiles.add(new MarkedTile(new WorldPoint(tile.getX(), tile.getY(), tile.getPlane()), color, name));
 				}
 			}
-			out.colors.put(key, color);
+			// the colour they chose, once they've said; before that, what their tiles or highlights were marked in
+			Color chosen = profile.getColor() == null ? color : new Color(profile.getColor() & 0xFFFFFF);
+			out.colors.put(key, chosen);
+
+			PinData pin = view.get(id, Section.PIN, PinData.class);
+			if (pin != null && pin.isPlaced())
+			{
+				out.pins.add(new Pin(id, name, new Color(pin.getColor() & 0xFFFFFF),
+					new WorldPoint(pin.getX(), pin.getY(), pin.getPlane()), pin.getAt()));
+			}
 		}
 		return out;
 	}

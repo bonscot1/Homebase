@@ -17,6 +17,7 @@ public interface HomebaseConfig extends Config
 	String GIM_SECRET_KEY = "gimSecret";
 	String GIM_GROUP_KEY = "gimGroup";
 	String TILE_COLOR_KEY = "tileColor";
+	String SHARE_KEY_PREFIX = "share";
 
 	@ConfigItem(
 		keyName = GIM_SECRET_KEY,
@@ -42,40 +43,6 @@ public interface HomebaseConfig extends Config
 	default String groupPassphrase()
 	{
 		return "";
-	}
-
-	@ConfigItem(
-		keyName = "requestMessages",
-		name = "Request chat messages",
-		description = "Show a chat message when someone in your group makes, takes on or finishes a request",
-		position = 3
-	)
-	default boolean requestMessages()
-	{
-		return true;
-	}
-
-	@ConfigItem(
-		keyName = "updateMessages",
-		name = "Update chat messages",
-		description = "Show a chat message summarising what someone in your group did since your last update, "
-			+ "such as levels gained, quests finished and diaries completed",
-		position = 4
-	)
-	default boolean updateMessages()
-	{
-		return true;
-	}
-
-	@ConfigItem(
-		keyName = "goalMessages",
-		name = "Goal chat messages",
-		description = "Show a chat message when someone in your group reaches a group goal",
-		position = 5
-	)
-	default boolean goalMessages()
-	{
-		return true;
 	}
 
 	@ConfigItem(
@@ -158,6 +125,18 @@ public interface HomebaseConfig extends Config
 	}
 
 	@ConfigItem(
+		keyName = "hudSpecEnergy",
+		name = "Special attack",
+		description = "Show special attack energy in the group HUD",
+		section = hudSection,
+		position = 151
+	)
+	default boolean hudSpecEnergy()
+	{
+		return true;
+	}
+
+	@ConfigItem(
 		keyName = "hudLevel",
 		name = "Combat level",
 		description = "Show combat level in the group HUD",
@@ -191,6 +170,49 @@ public interface HomebaseConfig extends Config
 	default boolean hudCompact()
 	{
 		return false;
+	}
+
+	@ConfigItem(
+		keyName = "hudSameWorld",
+		name = "Only your world",
+		description = "Only show group members on the same world as you",
+		section = hudSection,
+		position = 181
+	)
+	default boolean hudSameWorld()
+	{
+		return false;
+	}
+
+	enum HudOrder
+	{
+		NAME("By name"),
+		LOWEST_HITPOINTS("Lowest hitpoints first");
+
+		private final String label;
+
+		HudOrder(String label)
+		{
+			this.label = label;
+		}
+
+		@Override
+		public String toString()
+		{
+			return label;
+		}
+	}
+
+	@ConfigItem(
+		keyName = "hudOrder",
+		name = "Order",
+		description = "The order group members are listed in",
+		section = hudSection,
+		position = 182
+	)
+	default HudOrder hudOrder()
+	{
+		return HudOrder.NAME;
 	}
 
 	enum HudSize
@@ -229,6 +251,86 @@ public interface HomebaseConfig extends Config
 	default boolean worldMap()
 	{
 		return true;
+	}
+
+	@ConfigItem(
+		keyName = "mapNames",
+		name = "Names on map markers",
+		description = "Show each member's name above their arrow and pin on the world map",
+		section = mapSection,
+		position = 211
+	)
+	default boolean mapNames()
+	{
+		return true;
+	}
+
+	enum MarkerSize
+	{
+		SMALL(0.75),
+		MEDIUM(1),
+		LARGE(1.5);
+
+		private final double scale;
+
+		MarkerSize(double scale)
+		{
+			this.scale = scale;
+		}
+
+		public double getScale()
+		{
+			return scale;
+		}
+	}
+
+	@ConfigItem(
+		keyName = "mapMarkerSize",
+		name = "Map marker size",
+		description = "How big arrows and pins are on the world map",
+		section = mapSection,
+		position = 212
+	)
+	default MarkerSize mapMarkerSize()
+	{
+		return MarkerSize.MEDIUM;
+	}
+
+	@ConfigItem(
+		keyName = "mapEdge",
+		name = "Keep off-screen members at the edge",
+		description = "When someone is off the part of the map you're looking at, keep their marker at the edge, pointing towards them",
+		section = mapSection,
+		position = 213
+	)
+	default boolean mapEdge()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "mapPins",
+		name = "Map pins",
+		description = "Right-click the world map and choose Pin for group to show everyone a spot. You have one pin at a time.",
+		section = mapSection,
+		position = 214
+	)
+	default boolean mapPins()
+	{
+		return true;
+	}
+
+	@Range(min = 1, max = 168)
+	@ConfigItem(
+		keyName = "mapPinHours",
+		name = "Pins last (hours)",
+		description = "How long a pin stays on the map, unless the person who placed it removes it sooner",
+		section = mapSection,
+		position = 215
+	)
+	default int mapPinHours()
+	{
+		return 24;
 	}
 
 	@ConfigItem(
@@ -357,6 +459,18 @@ public interface HomebaseConfig extends Config
 	}
 
 	@ConfigItem(
+		keyName = "pingMinimap",
+		name = "Pings on the minimap",
+		description = "Show pings on the minimap too, so one behind the camera still gets noticed",
+		section = pingSection,
+		position = 351
+	)
+	default boolean pingMinimap()
+	{
+		return true;
+	}
+
+	@ConfigItem(
 		keyName = "npcHighlights",
 		name = "Group highlights",
 		description = "Shift + right-click a monster and choose Group highlight to outline it for the whole group until it dies",
@@ -364,6 +478,333 @@ public interface HomebaseConfig extends Config
 		position = 36
 	)
 	default boolean npcHighlights()
+	{
+		return true;
+	}
+
+	@ConfigSection(
+		name = "Sidebar panel",
+		description = "What the sidebar panel shows",
+		position = 40
+	)
+	String panelSection = "panel";
+
+	@ConfigItem(
+		keyName = "itemSearch",
+		name = "Item search box",
+		description = "Show a box above the tabs that searches everyone's inventory, equipment, bank, seed vault and looting bag, and the group storage",
+		section = panelSection,
+		position = 41
+	)
+	default boolean itemSearch()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "showOfflineMembers",
+		name = "Show offline members",
+		description = "List members who aren't online on the Members tab",
+		section = panelSection,
+		position = 42
+	)
+	default boolean showOfflineMembers()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "onlineFirst",
+		name = "Online members first",
+		description = "List online members above offline ones on the Members tab, rather than only by name",
+		section = panelSection,
+		position = 43
+	)
+	default boolean onlineFirst()
+	{
+		return false;
+	}
+
+	@ConfigItem(
+		keyName = "cardBars",
+		name = "Live bars on cards",
+		description = "Show hitpoints, prayer, run energy and special attack bars on online members' cards",
+		section = panelSection,
+		position = 44
+	)
+	default boolean cardBars()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "logOwners",
+		name = "Who has collection log items",
+		description = "In the collection log, mark items with a dot in the colour of each group member who has them. Hover over an item for their names.",
+		section = panelSection,
+		position = 45
+	)
+	default boolean logOwners()
+	{
+		return true;
+	}
+
+	@ConfigSection(
+		name = "Updates and chat",
+		description = "Which of your group's news shows on the Updates tab, and which of it reaches the chat box",
+		position = 50,
+		closedByDefault = true
+	)
+	String updatesSection = "updates";
+
+	@ConfigItem(
+		keyName = "requestMessages",
+		name = "Request chat messages",
+		description = "Show a chat message when someone in your group makes, takes on or finishes a request",
+		section = updatesSection,
+		position = 51
+	)
+	default boolean requestMessages()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "updateMessages",
+		name = "Update chat messages",
+		description = "Show a chat message summarising what someone in your group did since your last update, "
+			+ "such as levels gained, quests finished and diaries completed",
+		section = updatesSection,
+		position = 52
+	)
+	default boolean updateMessages()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "goalMessages",
+		name = "Goal chat messages",
+		description = "Show a chat message when someone in your group reaches a group goal",
+		section = updatesSection,
+		position = 53
+	)
+	default boolean goalMessages()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "pinMessages",
+		name = "Pin chat messages",
+		description = "Show a chat message when someone in your group pins a spot on the world map",
+		section = updatesSection,
+		position = 54
+	)
+	default boolean pinMessages()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "updateLevels",
+		name = "Levels",
+		description = "Include levels gained in your group's updates",
+		section = updatesSection,
+		position = 55
+	)
+	default boolean updateLevels()
+	{
+		return true;
+	}
+
+	@Range(min = 1, max = 99)
+	@ConfigItem(
+		keyName = "updateMinLevel",
+		name = "Levels from",
+		description = "Only include levels gained at or above this level, to leave out the early ones",
+		section = updatesSection,
+		position = 56
+	)
+	default int updateMinLevel()
+	{
+		return 1;
+	}
+
+	@ConfigItem(
+		keyName = "updateQuests",
+		name = "Quests and achievements",
+		description = "Include quests, achievement diaries and combat achievements in your group's updates",
+		section = updatesSection,
+		position = 57
+	)
+	default boolean updateQuests()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "updateCollectionLog",
+		name = "Collection log",
+		description = "Include new collection log slots in your group's updates",
+		section = updatesSection,
+		position = 58
+	)
+	default boolean updateCollectionLog()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "updateKillCounts",
+		name = "Kill counts",
+		description = "Include boss kill counts in your group's updates",
+		section = updatesSection,
+		position = 59
+	)
+	default boolean updateKillCounts()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "updateDrops",
+		name = "Drops and pets",
+		description = "Include valuable drops and pets in your group's updates",
+		section = updatesSection,
+		position = 60
+	)
+	default boolean updateDrops()
+	{
+		return true;
+	}
+
+	@Range(min = 10_000, max = Integer.MAX_VALUE)
+	@ConfigItem(
+		keyName = "dropMinValue",
+		name = "Drops worth at least",
+		description = "Only include drops worth at least this many coins at Grand Exchange prices",
+		section = updatesSection,
+		position = 61
+	)
+	default int dropMinValue()
+	{
+		return 100_000;
+	}
+
+	@ConfigItem(
+		keyName = "updateDeaths",
+		name = "Deaths",
+		description = "Include deaths in your group's updates",
+		section = updatesSection,
+		position = 62
+	)
+	default boolean updateDeaths()
+	{
+		return true;
+	}
+
+	@ConfigSection(
+		name = "What you share",
+		description = "What your group can see about you. Turning off your position, inventory, equipment, bank, seed vault or looting bag "
+			+ "also removes what you've already shared of it.",
+		position = 60,
+		closedByDefault = true
+	)
+	String shareSection = "share";
+
+	@ConfigItem(
+		keyName = "sharePosition",
+		name = "Your position",
+		description = "Let your group see where you are, on the world map and in the group HUD",
+		section = shareSection,
+		position = 61
+	)
+	default boolean sharePosition()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "shareInventory",
+		name = "Your inventory",
+		description = "Let your group see your inventory",
+		section = shareSection,
+		position = 62
+	)
+	default boolean shareInventory()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "shareEquipment",
+		name = "Your equipment",
+		description = "Let your group see what you're wearing",
+		section = shareSection,
+		position = 63
+	)
+	default boolean shareEquipment()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "shareBank",
+		name = "Your bank",
+		description = "Let your group see your bank",
+		section = shareSection,
+		position = 64
+	)
+	default boolean shareBank()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "shareSeedVault",
+		name = "Your seed vault",
+		description = "Let your group see your seed vault",
+		section = shareSection,
+		position = 65
+	)
+	default boolean shareSeedVault()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "shareLootingBag",
+		name = "Your looting bag",
+		description = "Let your group see your looting bag",
+		section = shareSection,
+		position = 66
+	)
+	default boolean shareLootingBag()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "shareDrops",
+		name = "Your drops and pets",
+		description = "Tell your group about your valuable drops and pets",
+		section = shareSection,
+		position = 67
+	)
+	default boolean shareDrops()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "shareDeaths",
+		name = "Your deaths",
+		description = "Tell your group when you die, and roughly where",
+		section = shareSection,
+		position = 68
+	)
+	default boolean shareDeaths()
 	{
 		return true;
 	}

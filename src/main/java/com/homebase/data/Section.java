@@ -27,6 +27,8 @@ public enum Section
 	COLLECTION_LOG("clog", false, 3_000),
 	KILL_COUNTS("kc", false, 3_000),
 	HOUSE("poh", false, 5_000),
+	FEED("feed", false, 1_000),
+	PIN("pin", false, 500),
 	GROUP_STORAGE("storage", true, 2_000),
 	STORAGE_LOG("storagelog", false, 2_000);
 

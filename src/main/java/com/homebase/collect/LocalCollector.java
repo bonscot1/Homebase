@@ -2,6 +2,7 @@ package com.homebase.collect;
 
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
+import com.homebase.HomebaseConfig;
 import com.homebase.data.Checkable;
 import com.homebase.data.DiariesData;
 import com.homebase.data.Ids;
@@ -12,9 +13,11 @@ import com.homebase.data.Section;
 import com.homebase.data.SkillsData;
 import com.homebase.sync.SyncEngine;
 import com.homebase.sync.SyncRecord;
+import java.util.EnumMap;
 import java.util.Iterator;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
@@ -25,6 +28,7 @@ import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
 import net.runelite.api.GameState;
+import net.runelite.api.ItemContainer;
 import net.runelite.api.Player;
 import net.runelite.api.Quest;
 import net.runelite.api.QuestState;
@@ -73,8 +77,23 @@ public class LocalCollector
 	 */
 	private static final int QUEST_MESSAGE_DELAY_TICKS = 2;
 
+	/**
+	 * The containers members can choose not to share.
+	 */
+	private static final Map<Section, Integer> ITEM_SECTIONS = new EnumMap<>(Section.class);
+
+	static
+	{
+		ITEM_SECTIONS.put(Section.INVENTORY, InventoryID.INV);
+		ITEM_SECTIONS.put(Section.EQUIPMENT, InventoryID.WORN);
+		ITEM_SECTIONS.put(Section.BANK, InventoryID.BANK);
+		ITEM_SECTIONS.put(Section.SEED_VAULT, InventoryID.SEED_VAULT);
+		ITEM_SECTIONS.put(Section.LOOTING_BAG, InventoryID.LOOTING_BAG);
+	}
+
 	private final Client client;
 	private final Gson gson;
+	private final HomebaseConfig config;
 
 	private volatile SyncEngine engine;
 
@@ -116,11 +135,18 @@ public class LocalCollector
 	private final Map<Section, Object> pending = new ConcurrentHashMap<>();
 	private final Map<Section, Long> lastPublished = new ConcurrentHashMap<>();
 
+	/**
+	 * Sections the player has turned off and that have already been emptied for the group, so a busy
+	 * inventory doesn't keep sending the same empty copy.
+	 */
+	private final Set<Section> withheld = ConcurrentHashMap.newKeySet();
+
 	@Inject
-	private LocalCollector(Client client, Gson gson)
+	private LocalCollector(Client client, Gson gson, HomebaseConfig config)
 	{
 		this.client = client;
 		this.gson = gson;
+		this.config = config;
 	}
 
 	/**
@@ -172,6 +198,7 @@ public class LocalCollector
 		loginTicks = -1;
 		pending.clear();
 		lastPublished.clear();
+		withheld.clear();
 	}
 
 	@Subscribe
@@ -197,7 +224,7 @@ public class LocalCollector
 				if (memberId != null && profile != null)
 				{
 					// world 0 marks them logged out, and the record's version records when
-					capture(Section.PROFILE, new ProfileData(profile.getName(), 0, profile.getGroupName()));
+					capture(Section.PROFILE, new ProfileData(profile.getName(), 0, profile.getGroupName(), profile.getColor()));
 				}
 				flush(true);
 				memberId = null;
@@ -205,6 +232,7 @@ public class LocalCollector
 				loginTicks = -1;
 				questTicks = -1;
 				pending.clear();
+				withheld.clear();
 				break;
 		}
 	}
@@ -277,7 +305,70 @@ public class LocalCollector
 		Section section = sectionFor(event.getContainerId());
 		if (section != null)
 		{
-			capture(section, ItemsData.of(event.getItemContainer()));
+			captureItems(section, event.getItemContainer());
+		}
+	}
+
+	/**
+	 * The player changed their mind about what they share. Runs on the client thread.
+	 */
+	public void sharingChanged()
+	{
+		if (memberId == null)
+		{
+			return;
+		}
+		ITEM_SECTIONS.forEach((section, containerId) ->
+		{
+			ItemContainer container = client.getItemContainer(containerId);
+			// a container the game hasn't sent yet is shared when it next opens
+			if (!isShared(section) || container != null)
+			{
+				captureItems(section, container);
+			}
+		});
+	}
+
+	/**
+	 * Share the player's new colour. Runs on the client thread.
+	 */
+	public void colorChanged()
+	{
+		if (memberId != null)
+		{
+			capture(Section.PROFILE, readProfile());
+		}
+	}
+
+	private void captureItems(Section section, ItemContainer container)
+	{
+		if (isShared(section))
+		{
+			withheld.remove(section);
+			capture(section, ItemsData.of(container));
+		}
+		else if (withheld.add(section))
+		{
+			capture(section, new ItemsData());
+		}
+	}
+
+	private boolean isShared(Section section)
+	{
+		switch (section)
+		{
+			case INVENTORY:
+				return config.shareInventory();
+			case EQUIPMENT:
+				return config.shareEquipment();
+			case BANK:
+				return config.shareBank();
+			case SEED_VAULT:
+				return config.shareSeedVault();
+			case LOOTING_BAG:
+				return config.shareLootingBag();
+			default:
+				return true;
 		}
 	}
 
@@ -301,8 +392,8 @@ public class LocalCollector
 	{
 		capture(Section.PROFILE, readProfile());
 		capture(Section.SKILLS, readSkills());
-		capture(Section.INVENTORY, ItemsData.of(client.getItemContainer(InventoryID.INV)));
-		capture(Section.EQUIPMENT, ItemsData.of(client.getItemContainer(InventoryID.WORN)));
+		captureItems(Section.INVENTORY, client.getItemContainer(InventoryID.INV));
+		captureItems(Section.EQUIPMENT, client.getItemContainer(InventoryID.WORN));
 		capture(Section.DIARIES, readDiaries());
 		questTicks = QUEST_DELAY_TICKS;
 		flush(true);
@@ -390,7 +481,7 @@ public class LocalCollector
 		{
 			return null;
 		}
-		profile = new ProfileData(player.getName(), client.getWorld(), readGroupName());
+		profile = new ProfileData(player.getName(), client.getWorld(), readGroupName(), config.tileColor().getRGB() & 0xFFFFFF);
 		Consumer<String> listener = groupListener;
 		if (listener != null && profile.getGroupName() != null)
 		{

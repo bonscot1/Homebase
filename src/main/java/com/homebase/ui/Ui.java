@@ -41,6 +41,8 @@ final class Ui
 	static final Color PRAY_BG = Color.BLACK;
 	static final Color RUN_FG = new Color(0xC8A01E);
 	static final Color RUN_BG = new Color(0x3A3220);
+	static final Color SPEC_FG = new Color(0x8E5CC8);
+	static final Color SPEC_BG = new Color(0x2B2140);
 
 	/**
 	 * Gap between cards.
