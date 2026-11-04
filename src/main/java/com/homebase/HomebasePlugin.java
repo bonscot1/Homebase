@@ -19,6 +19,7 @@ import com.homebase.data.ProfileData;
 import com.homebase.data.UpdateEntry;
 import com.homebase.goals.GoalService;
 import com.homebase.map.GroupWorldMap;
+import com.homebase.map.FindOnMap;
 import com.homebase.map.MapPins;
 import com.homebase.overlay.CollectionLogOverlay;
 import com.homebase.overlay.GroupHudOverlay;
@@ -199,6 +200,9 @@ public class HomebasePlugin extends Plugin
 	private MapPins mapPins;
 
 	@Inject
+	private FindOnMap findOnMap;
+
+	@Inject
 	private CollectionLogOverlay collectionLogOverlay;
 
 	@Inject
@@ -305,6 +309,8 @@ public class HomebasePlugin extends Plugin
 		eventBus.register(collector);
 		eventBus.register(feedCollector);
 		eventBus.register(mapPins);
+		eventBus.register(findOnMap);
+		findOnMap.start(this::addChatLine);
 		eventBus.register(groupTiles);
 		eventBus.register(activityCollector);
 		eventBus.register(collectionLogSearch);
@@ -385,6 +391,8 @@ public class HomebasePlugin extends Plugin
 			collectionLogSearch.reset();
 		});
 		eventBus.unregister(groupTiles);
+		findOnMap.stop();
+		eventBus.unregister(findOnMap);
 		eventBus.unregister(mapPins);
 		eventBus.unregister(feedCollector);
 		eventBus.unregister(collector);

@@ -47,6 +47,7 @@ The house icon in the sidebar opens the panel, with four tabs: **Members**, **Up
 | Highlight a monster for the group | Shift + right-click it, **Group highlight** |
 | Mark a tile for the group | Shift + right-click the tile, **Group mark** |
 | Pin a spot on the world map | Right-click the world map, **Pin for group** (or **Remove your pin**) |
+| Find a member on the world map | Click them in the **Group HUD**, then open your world map |
 | Put a bounty on a group storage item | **Goals** tab, **Add bounty** on a goal |
 
 Under **Pings and highlights** in the settings you can switch pings to a key + left-click, change how long they last, or turn off the sound. **Your colour** sets the colour of your arrow, pin, pings, highlights and tiles.

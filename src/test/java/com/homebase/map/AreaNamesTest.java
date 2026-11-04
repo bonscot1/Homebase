@@ -46,6 +46,37 @@ public class AreaNamesTest
 	}
 
 	@Test
+	public void smallPlaceWinsInsideAnIslandAroundIt()
+	{
+		assertEquals("The Great Conch", AreaNames.describe(3200, 2435));
+		assertEquals("The Summer Shore", AreaNames.describe(3155, 2415));
+	}
+
+	@Test
+	public void namesSailingIslandsAndPorts()
+	{
+		assertEquals("Shipyard", AreaNames.describe(2078, 2720));
+		assertEquals("Deepfin Point", AreaNames.describe(1948, 2782));
+		assertEquals("Port Roberts", AreaNames.describe(1888, 3298));
+		assertEquals("The Pandemonium", AreaNames.describe(3040, 2980));
+		assertEquals("Buccaneers' Haven", AreaNames.describe(2080, 3685));
+	}
+
+	@Test
+	public void openSeaIsNearTheClosestIsland()
+	{
+		assertEquals("near Deepfin Point", AreaNames.describe(2000, 2750));
+	}
+
+	@Test
+	public void dungeonsUnderSailingIslandsAreNamedAfterThem()
+	{
+		assertEquals("Sunbleak Island (underground)", AreaNames.describe(2227, 8738));
+		assertEquals("Wyrmscraig (underground)", AreaNames.describe(2590, 8615));
+		assertEquals("Charred Island (underground)", AreaNames.describe(2684, 8864));
+	}
+
+	@Test
 	public void wildernessGivesLevel()
 	{
 		assertEquals("Wilderness (level 11)", AreaNames.describe(3100, 3600));

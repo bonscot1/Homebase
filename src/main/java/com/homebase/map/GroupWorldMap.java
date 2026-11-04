@@ -210,7 +210,7 @@ public class GroupWorldMap
 	/**
 	 * @return where to put a member's marker on the map being looked at, or null if there's nowhere yet
 	 */
-	private WorldPoint pointOnMap(long memberId, WorldPoint coord)
+	WorldPoint pointOnMap(long memberId, WorldPoint coord)
 	{
 		WorldPoint above = AreaNames.aboveGround(coord);
 		WorldMapData openMap = openMap();

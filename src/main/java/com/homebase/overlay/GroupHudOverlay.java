@@ -11,13 +11,18 @@ import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.Graphics2D;
+import java.awt.Point;
+import java.awt.Rectangle;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import net.runelite.api.Client;
 import net.runelite.api.GameState;
+import net.runelite.api.MenuAction;
+import net.runelite.api.MenuEntry;
 import net.runelite.api.Skill;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.gameval.VarPlayerID;
@@ -27,6 +32,7 @@ import net.runelite.client.ui.FontManager;
 import net.runelite.client.ui.overlay.OverlayPanel;
 import net.runelite.client.ui.overlay.OverlayPosition;
 import net.runelite.client.ui.overlay.components.ComponentConstants;
+import net.runelite.client.ui.overlay.components.LayoutableRenderableEntity;
 import net.runelite.client.ui.overlay.components.LineComponent;
 import net.runelite.client.ui.overlay.components.ProgressBarComponent;
 import net.runelite.client.ui.overlay.components.TitleComponent;
@@ -68,6 +74,18 @@ public class GroupHudOverlay extends OverlayPanel
 	private final GroupIndex index;
 	private final Presence presence;
 
+	/**
+	 * Where each member starts in the box as last drawn, top first. The mouse is read on another thread.
+	 */
+	private volatile List<MemberStart> memberStarts = Collections.emptyList();
+	private List<MemberStart> drawing = new ArrayList<>();
+
+	/**
+	 * Whether the mouse was over the game world as last drawn. The HUD is drawn under interfaces, so
+	 * otherwise a click on it could really be meant for the bank on top of it.
+	 */
+	private volatile boolean mouseOverWorld;
+
 	@Inject
 	private GroupHudOverlay(Client client, HomebaseConfig config, PartyService partyService, GroupSync groupSync, GroupIndex index,
 		Presence presence)
@@ -85,10 +103,12 @@ public class GroupHudOverlay extends OverlayPanel
 	@Override
 	public Dimension render(Graphics2D graphics)
 	{
+		memberStarts = Collections.emptyList();
 		if (!config.hudEnabled() || client.getGameState() != GameState.LOGGED_IN || !groupSync.isGroupParty())
 		{
 			return null;
 		}
+		mouseOverWorld = isMouseOverWorld();
 		List<PartyMember> members = visibleMembers();
 		if (members.isEmpty())
 		{
@@ -100,8 +120,10 @@ public class GroupHudOverlay extends OverlayPanel
 		boolean compact = config.hudCompact();
 		panelComponent.setPreferredSize(new Dimension(boxWidth(size), 0));
 
+		drawing = new ArrayList<>();
 		for (PartyMember member : members)
 		{
+			panelComponent.getChildren().add(new MemberStart(member.getMemberId()));
 			if (compact)
 			{
 				addCompact(member, font, size);
@@ -111,7 +133,84 @@ public class GroupHudOverlay extends OverlayPanel
 				addFull(member, font, size);
 			}
 		}
-		return super.render(graphics);
+		Dimension drawn = super.render(graphics);
+		memberStarts = drawing;
+		return drawn;
+	}
+
+	/**
+	 * @return the member whose part of the box a point on the screen is in, or null if it isn't in the
+	 * box or there's an interface in the way
+	 */
+	public Long memberAt(Point point)
+	{
+		Rectangle box = getBounds();
+		if (!mouseOverWorld || box == null || !box.contains(point))
+		{
+			return null;
+		}
+		int y = point.y - box.y;
+		Long found = null;
+		for (MemberStart start : memberStarts)
+		{
+			if (start.y > y)
+			{
+				break;
+			}
+			found = start.memberId;
+		}
+		return found;
+	}
+
+	private boolean isMouseOverWorld()
+	{
+		for (MenuEntry entry : client.getMenuEntries())
+		{
+			if (entry.getType() == MenuAction.WALK)
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Takes up no room, and notes where in the box a member's lines begin.
+	 */
+	private final class MemberStart implements LayoutableRenderableEntity
+	{
+		private final long memberId;
+		private final Rectangle bounds = new Rectangle();
+		private int y;
+
+		MemberStart(long memberId)
+		{
+			this.memberId = memberId;
+		}
+
+		@Override
+		public Dimension render(Graphics2D graphics)
+		{
+			drawing.add(this);
+			return new Dimension();
+		}
+
+		@Override
+		public Rectangle getBounds()
+		{
+			return bounds;
+		}
+
+		@Override
+		public void setPreferredLocation(Point location)
+		{
+			y = location.y;
+		}
+
+		@Override
+		public void setPreferredSize(Dimension size)
+		{
+		}
 	}
 
 	private List<PartyMember> visibleMembers()

@@ -54,6 +54,7 @@ With one account:
 - [ ] On the **Requests** tab, requesting an item adds it to the list. **Cancel** removes it. There's no button to mark it done.
 - [ ] After closing and reopening RuneLite, everything is still there before you log in.
 - [ ] The **Group HUD** box shows your hitpoints, prayer, run energy, combat level and area (for example "Lumbridge"). Its settings change what it shows, compact mode and size, and **Include yourself** hides your own line.
+- [ ] Clicking a member in the **Group HUD** says in chat to open your world map, and doesn't walk you there. Opening the map within a minute goes to that member. With an interface over the HUD, or Alt held to move it, the click goes to that instead. Turning off **Click to find on map** lets clicks through to the game.
 - [ ] Shift + right-click a tile and choose **Group mark**. The tile is outlined in **Your colour** with your name on it. Changing the colour changes the tile. **Group unmark** removes it, and it's still there after restarting.
 - [ ] A combat achievement task, a "New item added to your collection log" message and a boss kill count message each update the matching line on your card (**Combat achievements**, **Collection log**, **Kill counts**).
 - [ ] Browsing a page of your collection log adds that page, with how many of its items you have, under **Collection log** on your card.

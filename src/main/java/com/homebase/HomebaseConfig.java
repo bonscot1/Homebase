@@ -215,6 +215,19 @@ public interface HomebaseConfig extends Config
 		return HudOrder.NAME;
 	}
 
+	@ConfigItem(
+		keyName = "hudClickToMap",
+		name = "Click to find on map",
+		description = "Click a member in the group HUD, then open your world map, and the map goes straight to them. "
+			+ "Clicks on the HUD don't reach the game behind it while this is on.",
+		section = hudSection,
+		position = 183
+	)
+	default boolean hudClickToMap()
+	{
+		return true;
+	}
+
 	enum HudSize
 	{
 		SMALL,

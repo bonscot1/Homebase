@@ -23,7 +23,7 @@ public final class AreaNames
 	/**
 	 * The band of the game's map that most dungeons are in.
 	 */
-	private static final int UNDERGROUND_SOUTH = 8700;
+	private static final int UNDERGROUND_SOUTH = 8600;
 	private static final int UNDERGROUND_NORTH = 10500;
 
 	/**
@@ -175,6 +175,121 @@ public final class AreaNames
 		new Place("Mount Karuulm", 1311, 3807, 30),
 		// Varlamore
 		new Place("Civitas illa Fortis", 1700, 3100, 70),
+		// Sailing's islands and ports, at the coordinates the OSRS Wiki gives them
+		new Place("Shipyard", 2078, 2720, 25),
+		new Place("Deepfin Point", 1948, 2782, 30),
+		new Place("Port Roberts", 1888, 3298, 30),
+		new Place("The Great Conch", 3200, 2435, 90),
+		new Place("The Summer Shore", 3155, 2415, 20),
+		new Place("The Sacred Grove", 3200, 2485, 12),
+		new Place("Abalone Cliffs", 3105, 2518, 15),
+		new Place("Cape Conch", 3279, 2336, 20),
+		new Place("Buccaneers' Haven", 2080, 3685, 35),
+		new Place("Minotaurs' Rest", 1953, 3103, 30),
+		new Place("Charred Island", 2648, 2406, 35),
+		new Place("Wintumber Island", 2068, 2603, 30),
+		new Place("Isle of Souls", 2210, 2900, 70),
+		new Place("Tear of the Soul", 2333, 2768, 20),
+		new Place("Limbo", 2023, 2666, 15),
+		new Place("Isle of Bones", 2533, 2533, 25),
+		new Place("Isle of Serpents", 1855, 2425, 25),
+		new Place("Sunbleak Island", 2209, 2330, 30),
+		new Place("Rainbow's End", 2335, 2270, 20),
+		new Place("Wyrmscraig", 2571, 2240, 45),
+		new Place("Auchrie", 2576, 2258, 12),
+		new Place("Ardeaglais", 2532, 2216, 10),
+		new Place("Last Light", 2850, 2330, 25),
+		new Place("Red Rock", 2799, 2517, 15),
+		new Place("Remote Island", 2961, 2610, 20),
+		new Place("Dognose Island", 3048, 2648, 25),
+		new Place("The Onyx Crest", 2975, 2273, 25),
+		new Place("The Little Pearl", 3356, 2205, 20),
+		new Place("The Pandemonium", 3040, 2980, 25),
+		new Place("Tempoross Cove", 3035, 2850, 20),
+		new Place("Rock Island Prison", 2898, 2837, 15),
+		new Place("Crash Island", 2914, 2720, 25),
+		new Place("Void Knights' Outpost", 2656, 2656, 30),
+		new Place("Pest Control Island", 2656, 2592, 20),
+		new Place("Anglers' Retreat", 2478, 2715, 20),
+		new Place("Myths' Guild", 2457, 2846, 15),
+		new Place("Cairn Isle", 2765, 2976, 12),
+		new Place("Shimmering Atoll", 1569, 2786, 25),
+		new Place("The Crown Jewel", 1761, 2664, 25),
+		new Place("Laguna Aurorae", 1195, 2772, 30),
+		new Place("Vatrachos Island", 1887, 2984, 25),
+		new Place("Lledrith Island", 2091, 3179, 20),
+		new Place("Port Tyras", 2153, 3122, 20),
+		new Place("Ynysdail", 2220, 3475, 30),
+		new Place("Gwenith", 2200, 3410, 25),
+		new Place("Drumstick Isle", 2146, 3545, 20),
+		new Place("Chinchompa Island", 1884, 3434, 20),
+		new Place("Crabclaw Isle", 1767, 3420, 25),
+		new Place("Pirates' Cove", 2205, 3812, 25),
+		new Place("Ungael", 2272, 4064, 20),
+		new Place("Brittle Isle", 1947, 4069, 25),
+		new Place("Etceteria", 2604, 3873, 25),
+		new Place("Island of Stone", 2463, 4008, 20),
+		new Place("Iceberg", 2652, 4029, 30),
+		new Place("The Graveyard", 2786, 3996, 25),
+		new Place("Grimstone", 2913, 4072, 25),
+		new Place("Lithkren", 3566, 4003, 30),
+		new Place("Harmony Island", 3805, 2844, 20),
+		new Place("Braindeath Island", 3680, 3535, 25),
+		new Place("Dragontooth Island", 3806, 3549, 15),
+		new Place("Karamja Shipyard", 2987, 3050, 20),
+		new Place("Kharazi Jungle", 2865, 2907, 50),
+		// More of Varlamore
+		new Place("Sunset Coast", 1530, 2983, 35),
+		new Place("Aldarin", 1391, 2935, 35),
+		new Place("Mistrock", 1387, 2862, 20),
+		new Place("Darkmoon Ravine", 1310, 2915, 20),
+		new Place("Kastori", 1373, 3042, 30),
+		new Place("Tal Teklan", 1223, 3111, 30),
+		new Place("Tlati Rainforest", 1327, 3090, 45),
+		new Place("Auburn Valley", 1384, 3169, 35),
+		new Place("Auburnvale", 1417, 3360, 35),
+		new Place("Nemus Retreat", 1376, 3310, 15),
+		new Place("Tempestus", 1285, 3256, 15),
+		new Place("College of Bards", 1296, 3213, 15),
+		new Place("Custodia Mountains", 1277, 3390, 40),
+		new Place("The Stranglewood", 1162, 3379, 45),
+		new Place("Ralos' Rise", 1450, 3140, 25),
+		new Place("Quetzacalli Gorge", 1505, 3232, 25),
+		new Place("The Proudspire", 1570, 3235, 15),
+		new Place("Salvager Overlook", 1625, 3295, 25),
+		new Place("Shipwreck Cove", 1575, 3315, 15),
+		new Place("Hunter Guild", 1559, 3048, 20),
+		new Place("Locus Oasis", 1685, 2986, 20),
+		new Place("Colossal Wyrm Remains", 1640, 2921, 20),
+		new Place("Twilight Temple", 1670, 3246, 15),
+		new Place("Ortus Farm", 1569, 3126, 15),
+		new Place("Gloomthorn Trail", 1381, 3226, 20),
+		new Place("Mons Gratia", 1440, 3240, 20),
+		// Other places the table was missing
+		new Place("Land's End", 1510, 3430, 25),
+		new Place("Woodcutting Guild", 1565, 3499, 25),
+		new Place("Kourend Woodland", 1540, 3464, 20),
+		new Place("Lizardman Settlement", 1324, 3556, 25),
+		new Place("Mount Quidamortem", 1246, 3550, 30),
+		new Place("Battlefront", 1368, 3716, 12),
+		new Place("Isafdar", 2244, 3182, 35),
+		new Place("Arandar", 2342, 3290, 15),
+		new Place("Iorwerth Camp", 2198, 3253, 15),
+		new Place("Tyras Camp", 2185, 3145, 15),
+		new Place("Poison Waste", 2245, 3078, 20),
+		new Place("Mynydd", 2158, 3423, 15),
+		new Place("Darkmeyer", 3597, 3360, 30),
+		new Place("Meiyerditch", 3615, 3250, 35),
+		new Place("Slepe", 3724, 3335, 20),
+		new Place("Icyene Graveyard", 3696, 3184, 15),
+		new Place("Necropolis", 3340, 2724, 25),
+		new Place("Ruins of Unkah", 3165, 2845, 20),
+		new Place("Ruins of Ullek", 3412, 2811, 20),
+		new Place("Citharede Abbey", 3411, 3177, 15),
+		new Place("Troll Stronghold", 2836, 3680, 15),
+		new Place("Trollweiss Mountain", 2782, 3790, 30),
+		new Place("Karamja Volcano", 2845, 3174, 20),
+		new Place("Gu'Tanoth", 2524, 3035, 20),
 		// Wilderness safe zone, checked before the Wilderness itself
 		new Place("Ferox Enclave", 3130, 3631, 20),
 		// Places off the main map
@@ -182,6 +297,15 @@ public final class AreaNames
 		new Place("Motherlode Mine", 3760, 5670, 40),
 		new Place("Keldagrim", 2885, 10200, 70),
 		new Place("Guardians of the Rift", 3615, 9490, 40),
+		new Place("Dorgesh-Kaan", 2723, 5314, 40),
+		new Place("Lassar Undercity", 2663, 6367, 40),
+		new Place("Puro-Puro", 2593, 4320, 25),
+		new Place("Vampyrium", 2750, 7860, 230),
+		new Place("Sangvesti", 2604, 7838, 40),
+		new Place("Ruined Village", 2710, 7842, 20),
+		new Place("Sotfa Forest", 2740, 7850, 25),
+		new Place("Sugadinti's Hideout", 2973, 7678, 20),
+		new Place("Maggot King's lair", 2911, 8036, 20),
 		// houses are instances built from room templates kept in this block
 		new Place("Player-owned house", 1952, 7104, 96)
 	);
@@ -264,18 +388,24 @@ public final class AreaNames
 	private static Place closest(int x, int y)
 	{
 		Place best = null;
+		Place smallestAround = null;
 		int bestScore = Integer.MAX_VALUE;
 		for (Place place : PLACES)
 		{
 			// compare by how far outside each place's radius the point is, so a small place next to a
 			// big one still wins when you're standing in it
 			int score = place.distance(x, y) - place.radius;
+			if (score <= 0 && (smallestAround == null || place.radius < smallestAround.radius))
+			{
+				smallestAround = place;
+			}
 			if (score < bestScore)
 			{
 				bestScore = score;
 				best = place;
 			}
 		}
-		return best;
+		// a town on an island is named over the island it's on
+		return smallestAround != null ? smallestAround : best;
 	}
 }
