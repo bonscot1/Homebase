@@ -10,7 +10,8 @@ It's made for Group Ironman groups, and works for any group of friends too.
 - A card for each member, with a green dot and their world while they're online, and live hitpoints, prayer and run energy bars.
 - Their skills, laid out like the in-game skills tab, plus quests, achievement diaries, combat achievements, collection log pages and boss kill counts (read from the hiscores when you log in, and kept up to date as you play).
 - Their inventory, equipment, bank, seed vault and looting bag, as they were last time they opened them, and your group storage, with who saw it last.
-- **Group storage history:** who put in or took out what, how many and when, plus a short **Still borrowed** list of what's been taken out and not returned. Open **Group storage** on the **Members** tab to see them.
+- **Group storage history:** who put in or took out what, how many and when. Open **Group storage** on the **Members** tab to see it.
+- **Owed back:** right-click an item in **Group storage** to say it needs returning. Anyone who takes it out from then on is listed as owing it until they put it back. Everything else is free to take and keep, as it's only in the history.
 - Useful furniture built in their house, and what's in their costume room.
 - An **Updates** tab, plus a chat line when you log in, saying what everyone did while you were away: "Magic 15 → 32, completed The Restless Ghost, got Dragon warhammer from Lizardman shaman (41.2M)". It covers levels, quests, diaries, combat achievements, the collection log, kill counts, valuable drops, pets and deaths.
 - **Item search:** type in the box above the tabs to find who has an item, and how many, across everyone's inventory, equipment, bank, seed vault and looting bag, and the group storage.
@@ -48,6 +49,7 @@ The house icon in the sidebar opens the panel, with four tabs: **Members**, **Up
 | Mark a tile for the group | Shift + right-click the tile, **Group mark** |
 | Pin a spot on the world map | Right-click the world map, **Pin for group** (or **Remove your pin**) |
 | Find a member on the world map | Click them in the **Group HUD**, then open your world map |
+| Say a storage item needs returning | Right-click it under **Group storage** on the **Members** tab |
 | Put a bounty on a group storage item | **Goals** tab, **Add bounty** on a goal |
 
 Under **Pings and highlights** in the settings you can switch pings to a key + left-click, change how long they last, or turn off the sound. **Your colour** sets the colour of your arrow, pin, pings, highlights and tiles.
@@ -83,7 +85,7 @@ Open the plugin's settings to choose:
 - Item search and the collection log dots only know what members have shared, as it was when they last opened it.
 - Banks, the seed vault, the looting bag and group storage update when someone opens them. To share your whole collection log, open it and click **Search** once; browsing a page also updates that page.
 - The group storage history only shows what was saved, so putting something in and taking it back before saving leaves no line. It only knows about changes made by members using RuneLite with this plugin turned on, and each member keeps their latest 100 lines.
-- **Still borrowed** is what a member has taken out of an item, less what they've put in themselves, so taking back your own deposit doesn't count. Someone else putting the same item in doesn't settle it, and anything used up or passed on stays listed until newer lines push it out of that member's 100.
+- **Owed back** only counts items marked as needing returning, and only what's been taken out since they were marked. It's what a member has taken out, less what they've put in themselves, so taking back your own deposit doesn't count. Someone else putting the same item in doesn't settle it. To clear a line, right-click it and choose **Doesn't need returning**.
 
 ## Feedback
 

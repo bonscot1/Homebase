@@ -15,6 +15,7 @@ import com.homebase.party.GroupSync;
 import com.homebase.party.PartyMembers;
 import com.homebase.party.Presence;
 import com.homebase.requests.RequestService;
+import com.homebase.storage.ReturnTags;
 import com.homebase.storage.StorageHistory;
 import com.homebase.updates.UpdateTracker;
 import java.awt.BorderLayout;
@@ -133,6 +134,7 @@ public class HomebasePanel extends PluginPanel
 	private final ItemSearchView itemSearchView;
 	private final IconTextField searchBox = new IconTextField();
 	private final Timer searchTimer = new Timer(SEARCH_DELAY_MS, e -> rebuild());
+	private final ReturnTags returnTags;
 	private final MemberCard.Context cardContext;
 	private final Map<String, MemberCard> cards = new HashMap<>();
 	private final Set<String> expandedMembers = new HashSet<>();
@@ -150,7 +152,7 @@ public class HomebasePanel extends PluginPanel
 	@Inject
 	private HomebasePanel(HomebasePlugin plugin, HomebaseConfig config, GroupSync groupSync, PartyService partyService, Presence presence, LocalCollector collector,
 		RequestService requestService, UpdateTracker updateTracker, GoalService goalService, BountyService bountyService,
-		ItemManager itemManager, SkillIconManager skillIconManager, ClientThread clientThread)
+		ReturnTags returnTags, ItemManager itemManager, SkillIconManager skillIconManager, ClientThread clientThread)
 	{
 		this.plugin = plugin;
 		this.config = config;
@@ -158,6 +160,7 @@ public class HomebasePanel extends PluginPanel
 		this.partyService = partyService;
 		this.presence = presence;
 		this.collector = collector;
+		this.returnTags = returnTags;
 		this.itemSprites = new ItemSprites(itemManager, clientThread);
 		this.requestsView = new RequestsView(requestService);
 		this.updatesView = new UpdatesView(updateTracker);
@@ -557,8 +560,11 @@ public class HomebasePanel extends PluginPanel
 			body.setLayout(new BoxLayout(body, BoxLayout.Y_AXIS));
 			body.setOpaque(false);
 			body.setBorder(new EmptyBorder(0, 8, 8, 8));
-			body.add(new ItemGrid(slots, itemSprites));
-			StorageHistoryView.add(body, storageLogs(), cardContext, this::scheduleRebuild);
+			Map<Integer, Long> marked = returnTags.marked();
+			boolean canMark = returnTags.canEdit();
+			body.add(new ItemGrid(slots, itemSprites,
+				new ItemGrid.Marks(marked.keySet(), canMark ? returnTags::mark : null, returnTags::unmark)));
+			StorageHistoryView.add(body, storageLogs(), marked, canMark ? returnTags::unmark : null, cardContext, this::scheduleRebuild);
 			Ui.alignChildrenLeft(body);
 			panel.add(body, BorderLayout.CENTER);
 		}

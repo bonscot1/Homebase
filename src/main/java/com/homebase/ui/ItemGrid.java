@@ -5,15 +5,20 @@ import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Graphics;
 import java.awt.Rectangle;
+import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.BitSet;
+import java.util.Collections;
 import java.util.List;
+import java.util.Set;
+import java.util.function.IntConsumer;
 import javax.swing.JComponent;
 import javax.swing.JPanel;
 import javax.swing.ToolTipManager;
 import net.runelite.api.Constants;
 import net.runelite.api.Item;
+import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.util.AsyncBufferedImage;
 import net.runelite.client.util.QuantityFormatter;
 
@@ -41,9 +46,41 @@ class ItemGrid extends JPanel
 	private static final int ROW_STEP = TILE_HEIGHT + LINE;
 
 	/**
+	 * The dot on an item that's marked as needing to be returned, in the corner the quantity doesn't use.
+	 */
+	private static final int MARK_SIZE = 6;
+
+	/**
+	 * Items that can be marked as needing to be returned, by right-clicking them.
+	 */
+	static final class Marks
+	{
+		private final Set<Integer> marked;
+		private final IntConsumer mark;
+		private final IntConsumer unmark;
+
+		/**
+		 * @param mark called when an item is marked, or null if they can only be looked at for now
+		 */
+		Marks(Set<Integer> marked, IntConsumer mark, IntConsumer unmark)
+		{
+			this.marked = marked;
+			this.mark = mark;
+			this.unmark = unmark;
+		}
+	}
+
+	private static final Marks NO_MARKS = new Marks(Collections.emptySet(), null, null);
+
+	/**
 	 * @param items the container's slots, with null for empty ones
 	 */
 	ItemGrid(List<Item> items, ItemSprites sprites)
+	{
+		this(items, sprites, NO_MARKS);
+	}
+
+	ItemGrid(List<Item> items, ItemSprites sprites, Marks marks)
 	{
 		super(new FlowLayout(FlowLayout.CENTER, 0, 0));
 		setOpaque(false);
@@ -56,7 +93,7 @@ class ItemGrid extends JPanel
 				shown.add(item);
 			}
 		}
-		add(new Tiles(shown, sprites));
+		add(new Tiles(shown, sprites, marks));
 	}
 
 	/**
@@ -106,14 +143,21 @@ class ItemGrid extends JPanel
 	{
 		private final List<Item> items;
 		private final ItemSprites sprites;
+		private final Marks marks;
 		private final AsyncBufferedImage[] pictures;
 		private final BitSet namesRequested = new BitSet();
 		private final int rows;
 
 		Tiles(List<Item> items, ItemSprites sprites)
 		{
+			this(items, sprites, NO_MARKS);
+		}
+
+		Tiles(List<Item> items, ItemSprites sprites, Marks marks)
+		{
 			this.items = items;
 			this.sprites = sprites;
+			this.marks = marks;
 			pictures = new AsyncBufferedImage[items.size()];
 			rows = rowsFor(items.size());
 
@@ -123,6 +167,37 @@ class ItemGrid extends JPanel
 			setMaximumSize(size);
 			setOpaque(true);
 			ToolTipManager.sharedInstance().registerComponent(this);
+			if (marks.mark != null)
+			{
+				addMouseListener(new MouseAdapter()
+				{
+					// which of these it comes on differs between systems
+					@Override
+					public void mousePressed(MouseEvent e)
+					{
+						showMenu(e);
+					}
+
+					@Override
+					public void mouseReleased(MouseEvent e)
+					{
+						showMenu(e);
+					}
+				});
+			}
+		}
+
+		private void showMenu(MouseEvent e)
+		{
+			int index = e.isPopupTrigger() ? itemAt(e.getX(), e.getY(), items.size()) : -1;
+			if (index < 0)
+			{
+				return;
+			}
+			int id = items.get(index).getId();
+			(marks.marked.contains(id)
+				? Ui.rightClickMenu(StorageHistoryView.UNMARK, () -> marks.unmark.accept(id))
+				: Ui.rightClickMenu("Needs returning", () -> marks.mark.accept(id))).show(this, e.getX(), e.getY());
 		}
 
 		@Override
@@ -153,6 +228,11 @@ class ItemGrid extends JPanel
 					if (item < items.size())
 					{
 						g.drawImage(picture(item, x, y), x, y, null);
+						if (marks.marked.contains(items.get(item).getId()))
+						{
+							g.setColor(ColorScheme.BRAND_ORANGE);
+							g.fillOval(x + TILE_WIDTH - MARK_SIZE - 1, y + TILE_HEIGHT - MARK_SIZE - 1, MARK_SIZE, MARK_SIZE);
+						}
 						if (!namesRequested.get(item))
 						{
 							namesRequested.set(item);
@@ -191,7 +271,8 @@ class ItemGrid extends JPanel
 			}
 			Item item = items.get(index);
 			String name = ItemNames.get(item.getId());
-			return item.getQuantity() > 1 ? name + " ×" + QuantityFormatter.formatNumber(item.getQuantity()) : name;
+			String tip = item.getQuantity() > 1 ? name + " ×" + QuantityFormatter.formatNumber(item.getQuantity()) : name;
+			return marks.marked.contains(item.getId()) ? tip + " (needs returning)" : tip;
 		}
 	}
 }

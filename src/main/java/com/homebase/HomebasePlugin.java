@@ -33,6 +33,7 @@ import com.homebase.pings.PingOverlay;
 import com.homebase.pings.PingService;
 import com.homebase.requests.RequestDelivery;
 import com.homebase.requests.RequestService;
+import com.homebase.storage.ReturnTags;
 import com.homebase.storage.StorageWatcher;
 import com.homebase.sync.GroupStore;
 import com.homebase.sync.SyncEngine;
@@ -212,6 +213,9 @@ public class HomebasePlugin extends Plugin
 	private BountyService bountyService;
 
 	@Inject
+	private ReturnTags returnTags;
+
+	@Inject
 	private BountyGuard bountyGuard;
 
 	@Inject
@@ -374,6 +378,7 @@ public class HomebasePlugin extends Plugin
 		activityCollector.stop();
 		goalService.setGroup(null, null, null);
 		bountyService.setEngine(null);
+		returnTags.setEngine(null);
 		eventBus.unregister(groupHighlights);
 		eventBus.unregister(pingService);
 		pingService.stop();
@@ -613,6 +618,7 @@ public class HomebasePlugin extends Plugin
 			groupIndex.setView(null, this::belongsToGroup);
 			goalService.setGroup(null, null, null);
 			bountyService.setEngine(null);
+			returnTags.setEngine(null);
 			panel.setView(null);
 			return;
 		}
@@ -644,6 +650,7 @@ public class HomebasePlugin extends Plugin
 		groupIndex.setView(view, this::belongsToGroup);
 		goalService.setGroup(group.engine, view, this::belongsToGroup);
 		bountyService.setEngine(group.engine);
+		returnTags.setEngine(group.engine);
 		panel.setView(view);
 
 		executor.execute(() ->

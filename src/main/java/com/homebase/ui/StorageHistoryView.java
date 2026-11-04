@@ -6,7 +6,9 @@ import java.awt.Component;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.function.IntConsumer;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.JLabel;
@@ -17,10 +19,12 @@ import net.runelite.client.util.ColorUtil;
 import net.runelite.client.util.QuantityFormatter;
 
 /**
- * Under the group storage items: what's still out, and who put in or took out what.
+ * Under the group storage items: what's owed back, and who put in or took out what.
  */
 final class StorageHistoryView
 {
+	static final String UNMARK = "Doesn't need returning";
+
 	private static final int MAX_BORROWED_SHOWN = 8;
 	private static final int MAX_LINES_SHOWN = 30;
 
@@ -48,28 +52,51 @@ final class StorageHistoryView
 	/**
 	 * Add the lists to the group storage section, if anyone has changed anything.
 	 *
+	 * @param marked each item marked as needing to be returned, and when it was marked
+	 * @param unmark called when someone says an item doesn't need returning after all, or null if they
+	 * can't for now
 	 * @param onNamesFound run on the Swing thread once item names we didn't have yet have been looked up
 	 */
-	static void add(JPanel parent, List<StorageHistory.MemberLog> logs, MemberCard.Context context, Runnable onNamesFound)
+	static void add(JPanel parent, List<StorageHistory.MemberLog> logs, Map<Integer, Long> marked, IntConsumer unmark,
+		MemberCard.Context context, Runnable onNamesFound)
 	{
+		if (marked.isEmpty() && unmark != null)
+		{
+			JLabel hint = Ui.wrapped("Right-click an item that belongs in storage to have anyone who takes it owe it back.",
+				ColorScheme.MEDIUM_GRAY_COLOR, TEXT_WIDTH);
+			hint.setBorder(new EmptyBorder(4, 0, 0, 0));
+			parent.add(hint);
+		}
 		List<StorageHistory.Line> lines = StorageHistory.lines(logs);
 		if (lines.isEmpty())
 		{
 			return;
 		}
-		List<StorageHistory.Borrowed> borrowed = StorageHistory.borrowed(logs);
+		List<StorageHistory.Borrowed> borrowed = StorageHistory.borrowed(logs, marked);
 		Set<Integer> shownItems = new HashSet<>();
 
 		parent.add(Box.createVerticalStrut(4));
-		if (!borrowed.isEmpty() && MemberCard.addFoldRow(parent, "Still borrowed", String.valueOf(borrowed.size()), BORROWED_ID, context))
+		if (!borrowed.isEmpty() && MemberCard.addFoldRow(parent, "Owed back", String.valueOf(borrowed.size()), BORROWED_ID, context))
 		{
-			List<String> rows = new ArrayList<>();
+			JPanel list = new JPanel();
+			list.setLayout(new BoxLayout(list, BoxLayout.Y_AXIS));
+			list.setOpaque(false);
 			for (StorageHistory.Borrowed out : borrowed.subList(0, Math.min(MAX_BORROWED_SHOWN, borrowed.size())))
 			{
 				shownItems.add(out.getItem());
-				rows.add(text(out));
+				JLabel row = Ui.wrapped(text(out), ColorScheme.LIGHT_GRAY_COLOR, TEXT_WIDTH);
+				// all of an item can be out, so it may not be in the grid to right-click there
+				if (unmark != null)
+				{
+					row.setComponentPopupMenu(Ui.rightClickMenu(UNMARK, () -> unmark.accept(out.getItem())));
+				}
+				addRow(list, row);
 			}
-			addRows(parent, rows, borrowed.size() - rows.size(), " more");
+			if (borrowed.size() > MAX_BORROWED_SHOWN)
+			{
+				addRow(list, Ui.muted("and " + (borrowed.size() - MAX_BORROWED_SHOWN) + " more"));
+			}
+			MemberCard.addContent(parent, list);
 		}
 
 		MemberCard.addSectionRow(parent, "History", String.valueOf(lines.size()), HISTORY_ID, context);

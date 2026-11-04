@@ -16,7 +16,9 @@ import javax.swing.Icon;
 import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
+import javax.swing.JMenuItem;
 import javax.swing.JPanel;
+import javax.swing.JPopupMenu;
 import javax.swing.border.EmptyBorder;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.FontManager;
@@ -291,6 +293,15 @@ final class Ui
 		button.setBorder(new EmptyBorder(6, 8, 6, 8));
 		button.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 		hover(button, ColorScheme.BRAND_ORANGE.darker(), ColorScheme.BRAND_ORANGE);
+	}
+
+	static JPopupMenu rightClickMenu(String option, Runnable onClick)
+	{
+		JMenuItem item = new JMenuItem(option);
+		item.addActionListener(e -> onClick.run());
+		JPopupMenu menu = new JPopupMenu();
+		menu.add(item);
+		return menu;
 	}
 
 	static void clickable(JComponent component, Runnable onClick)

@@ -67,7 +67,7 @@ public final class StorageHistory
 	}
 
 	/**
-	 * Some of an item a member has taken out and not put back, and when they last took some.
+	 * Some of a marked item a member has taken out and not put back, and when they last took some.
 	 */
 	@Value
 	public static class Borrowed
@@ -156,13 +156,15 @@ public final class StorageHistory
 	}
 
 	/**
-	 * Something is borrowed when a member has taken out more of it than they've put in, so taking back
-	 * what you put in yourself isn't borrowing. Only their own entries count: someone else putting in
-	 * the same item doesn't settle it.
+	 * Something is borrowed when it's marked as needing to be returned and a member has taken out more
+	 * of it than they've put in, so taking back what you put in yourself isn't borrowing. Only their own
+	 * entries count: someone else putting in the same item doesn't settle it. Neither do entries from
+	 * before it was marked, since whoever took it then was free to keep it.
 	 *
+	 * @param marked each item marked as needing to be returned, and when it was marked
 	 * @return what's still out, most recently taken first
 	 */
-	public static List<Borrowed> borrowed(List<MemberLog> logs)
+	public static List<Borrowed> borrowed(List<MemberLog> logs, Map<Integer, Long> marked)
 	{
 		List<Borrowed> out = new ArrayList<>();
 		for (MemberLog member : logs)
@@ -171,10 +173,16 @@ public final class StorageHistory
 			Map<Integer, Long> lastTaken = new HashMap<>();
 			for (StorageLogData.Entry entry : member.getLog().getEntries())
 			{
+				Long markedAt = marked.get(entry.getItem());
+				long at = timeOf(entry, member);
+				if (markedAt == null || at < markedAt)
+				{
+					continue;
+				}
 				net.merge(entry.getItem(), (long) entry.getAmount(), Long::sum);
 				if (entry.getAmount() < 0)
 				{
-					lastTaken.merge(entry.getItem(), timeOf(entry, member), Math::max);
+					lastTaken.merge(entry.getItem(), at, Math::max);
 				}
 			}
 			net.forEach((item, amount) ->
