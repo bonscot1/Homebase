@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.swing.SwingUtilities;
+import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.game.ItemManager;
 
@@ -13,6 +14,7 @@ import net.runelite.client.game.ItemManager;
  * Item names for tooltips and lists, shared by the whole panel. Names come from the game's cache,
  * which can only be read on the client thread, so they're looked up once and kept.
  */
+@Slf4j
 final class ItemNames
 {
 	private static final Map<Integer, String> NAMES = new ConcurrentHashMap<>();
@@ -27,6 +29,14 @@ final class ItemNames
 	static String get(int itemId)
 	{
 		return NAMES.getOrDefault(itemId, "item " + itemId);
+	}
+
+	/**
+	 * @return true if the item's name has been looked up
+	 */
+	static boolean known(int itemId)
+	{
+		return NAMES.containsKey(itemId);
 	}
 
 	/**
@@ -52,9 +62,27 @@ final class ItemNames
 		{
 			for (int id : missing)
 			{
-				NAMES.put(id, itemManager.getItemComposition(id).getName());
+				NAMES.put(id, lookUp(id, itemManager));
 			}
 			SwingUtilities.invokeLater(done);
 		});
+	}
+
+	/**
+	 * @return the item's name. Ids can come from other players, so one the game doesn't know just keeps
+	 * the stand-in name, rather than stopping the names after it from being looked up.
+	 */
+	private static String lookUp(int itemId, ItemManager itemManager)
+	{
+		String name = null;
+		try
+		{
+			name = itemManager.getItemComposition(itemId).getName();
+		}
+		catch (RuntimeException e)
+		{
+			log.debug("No name for item {}", itemId, e);
+		}
+		return name == null ? "item " + itemId : name;
 	}
 }

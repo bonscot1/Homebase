@@ -254,7 +254,7 @@ class MemberCard extends JPanel
 	/**
 	 * A row that opens a section, with a little space under it.
 	 */
-	private static void addSectionRow(JPanel parent, String title, String summary, String id, Context context)
+	static void addSectionRow(JPanel parent, String title, String summary, String id, Context context)
 	{
 		parent.add(Ui.sectionRow(title, summary, context.openSections.contains(id), () -> context.toggleSection.accept(id)));
 		parent.add(Box.createVerticalStrut(2));
@@ -266,7 +266,7 @@ class MemberCard extends JPanel
 	 *
 	 * @return true if the section is open
 	 */
-	private static boolean addFoldRow(JPanel parent, String title, String summary, String id, Context context)
+	static boolean addFoldRow(JPanel parent, String title, String summary, String id, Context context)
 	{
 		String folded = id + ":folded";
 		boolean open = !context.openSections.contains(folded);
@@ -278,7 +278,7 @@ class MemberCard extends JPanel
 	/**
 	 * What an open section shows, indented a little under its row.
 	 */
-	private static void addContent(JPanel parent, JComponent content)
+	static void addContent(JPanel parent, JComponent content)
 	{
 		JPanel wrap = new JPanel(new BorderLayout());
 		wrap.setOpaque(false);

@@ -8,11 +8,13 @@ import com.homebase.data.GroupView;
 import com.homebase.data.ItemsData;
 import com.homebase.data.ProfileData;
 import com.homebase.data.Section;
+import com.homebase.data.StorageLogData;
 import com.homebase.goals.GoalService;
 import com.homebase.party.GroupSync;
 import com.homebase.party.PartyMembers;
 import com.homebase.party.Presence;
 import com.homebase.requests.RequestService;
+import com.homebase.storage.StorageHistory;
 import com.homebase.updates.UpdateTracker;
 import java.awt.BorderLayout;
 import java.awt.Color;
@@ -443,13 +445,36 @@ public class HomebasePanel extends PluginPanel
 
 		if (storageExpanded)
 		{
-			ItemGrid grid = new ItemGrid(slots, itemSprites);
-			grid.setBorder(new EmptyBorder(0, 8, 8, 8));
-			panel.add(grid, BorderLayout.CENTER);
+			JPanel body = new JPanel();
+			body.setLayout(new BoxLayout(body, BoxLayout.Y_AXIS));
+			body.setOpaque(false);
+			body.setBorder(new EmptyBorder(0, 8, 8, 8));
+			body.add(new ItemGrid(slots, itemSprites));
+			StorageHistoryView.add(body, storageLogs(), cardContext, this::scheduleRebuild);
+			Ui.alignChildrenLeft(body);
+			panel.add(body, BorderLayout.CENTER);
 		}
 
 		tabContent.add(panel);
 		tabContent.add(Box.createVerticalStrut(Ui.GAP));
+	}
+
+	/**
+	 * @return the group storage log of each member, leaving out accounts that aren't in the group
+	 */
+	private List<StorageHistory.MemberLog> storageLogs()
+	{
+		List<StorageHistory.MemberLog> logs = new ArrayList<>();
+		for (String id : view.memberIds())
+		{
+			ProfileData profile = view.get(id, Section.PROFILE, ProfileData.class);
+			StorageLogData log = view.get(id, Section.STORAGE_LOG, StorageLogData.class);
+			if (profile != null && log != null && plugin.belongsToGroup(profile))
+			{
+				logs.add(new StorageHistory.MemberLog(profile.getName(), log, view.updatedAt(id, Section.STORAGE_LOG)));
+			}
+		}
+		return logs;
 	}
 
 	private void toggleMember(String memberId)

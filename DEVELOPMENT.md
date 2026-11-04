@@ -23,6 +23,8 @@ Example: I have bonscott1's data from 5pm and mundell's from 1pm. Fred has munde
 - On an account that isn't in your Group Ironman group, such as an alt, nothing is shared.
 - Within the group, members trust each other. A member with a modified client could write records that claim to be another member's, or change shared requests and bounties however they like. Signing records with a key per member would close this, if it's ever needed.
 - Withdraw-X is hidden while any of an item is held back, because the amount typed can't be checked before the game takes it.
+- The group storage history is one log per member (`m:<id>:storagelog`), not one for the group, so two members saving while they can't reach each other can't overwrite one another, and who did something comes from whose record it is. Members on older versions pass the logs on without showing them, and don't add to them. A log keeps a member's latest 100 entries, which also limits how far back **Still borrowed** can see.
+- While group storage is open, `INV_GROUP_TEMP` is a temporary copy, and changes can still be lost until the game saves them, so entries are only added when the game's "Saving..." message (`LOADING_ICON_MODAL`) appears. Each save is compared with what storage held when it was opened or last saved. An empty container is only believed when the interface was just drawn from it (`GROUP_IRONMAN_STORAGE_BUILD`), because other plugins have found it can report empty at other times. A save that seems to move over 40 kinds of item in one direction is dropped, since nobody can carry that many.
 - Received messages are limited: no nesting past 32 levels, at most 2,000 records a message, and every record from another client is checked (missing lists become empty, numbers kept in range) before use. Request chat lines are limited to 3 every 10 seconds, and ping sounds to one a second.
 
 ## Testing it in RuneLite
@@ -62,6 +64,14 @@ With one account:
 - [ ] **Add bounty** on a goal you haven't reached, pick an item from group storage and tick yourself. In group storage that item gets a red padlock with the goal in its tooltip, and its Withdraw options are gone. Deleting the bounty brings them back.
 - [ ] With **Hold items in group storage** turned off, the padlock stays but no Withdraw options are hidden.
 - [ ] A few seconds after logging in, **Kill counts** on your card fills in bosses from the hiscores, with none at 0. A boss already listed from chat (for example "Gauntlet") isn't listed twice.
+- [ ] Open group storage and close it without changing anything. No new line appears under **History** in the **Group storage** section, and the opening doesn't list everything as put in or taken out.
+- [ ] Move items between slots, or put something in and take it back out, then save. No new line appears.
+- [ ] Take out 5 of something and save, using each of the **Save** button, the cross and Esc in turn. A line such as "bonscott1 took out Shark ×5" appears under **History** after each one (one line each), and the item appears under **Still borrowed**.
+- [ ] Put 3 of it back and save. **History** gains a line, and **Still borrowed** drops to 2. Putting the rest back removes it from the list.
+- [ ] Put in something new and save, then take it back out and save. **History** shows both, and **Still borrowed** doesn't list it.
+- [ ] Take the only item out of storage that holds just one kind of item, and save. It's listed as taken out, with storage now empty.
+- [ ] Change something and leave without saving, if the game lets you (log out or switch worlds with storage open). No line appears, and reopening shows the game put things back.
+- [ ] Open storage with a change another member just saved. That change isn't listed as yours.
 
 With a second group member running the plugin:
 
@@ -85,6 +95,9 @@ With a second group member running the plugin:
 - [ ] A ping from one of you shows up for the other with the pinger's name and colour, and a ping sound (**Ping sound**). A monster pinged or highlighted by one of you is outlined for the other when you're on the same world.
 - [ ] When one of you reaches a goal, the other gets a chat message such as "[Homebase] bonscott1 reached the goal: 50 Firemaking." and the goal ticks off for them.
 - [ ] A bounty that locks only one of you leaves the other's Withdraw options alone and shows them a green padlock.
+- [ ] One of you takes something out of group storage and saves. The other sees the line under **History** and the item under **Still borrowed** with the first one's name, within a few seconds and without opening storage. If they then put it back, it leaves the list for both of you.
+- [ ] Each of you saves a change while the other is offline. Once you're both online, both changes are listed for both of you, in time order.
+- [ ] Someone on an older version of the plugin in the group still gets the logs and passes them on, and nothing breaks for them.
 - [ ] Expanding a member shows **Quests** and **Diaries** lines with their counts. Clicking them shows the quest list and the diary grid. Karamja's Easy, Medium and Hard tiers use older game flags than the other diaries, so check those against the in-game journal.
 
 ## To-do
@@ -171,6 +184,13 @@ Items are ticked when they're built. Each stage's last box is ticked once it has
 - [x] Bounty lifts automatically for each locked member as they reach the goal
 - [x] Bounties and requests hold back only the amount asked for; anything more in group storage is free for anyone
 - [x] Quick repeated withdrawals can't dip into what's held: withdrawals let through are counted until the game reports them
+- [ ] Tested in game
+
+### Stage 6: Group storage history
+
+- [x] A log per member of what they put in and took out of group storage, how many and when, added each time the game saves storage and shared through the normal sync
+- [x] **History** and **Still borrowed** lists under **Group storage** on the **Members** tab
+- [x] Opening and closing storage, moving items around, and changes that cancel out or are never saved add nothing
 - [ ] Tested in game
 
 ### Release

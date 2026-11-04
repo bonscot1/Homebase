@@ -29,6 +29,7 @@ import com.homebase.pings.PingOverlay;
 import com.homebase.pings.PingService;
 import com.homebase.requests.RequestDelivery;
 import com.homebase.requests.RequestService;
+import com.homebase.storage.StorageWatcher;
 import com.homebase.sync.GroupStore;
 import com.homebase.sync.SyncEngine;
 import com.homebase.sync.SyncRecord;
@@ -204,6 +205,9 @@ public class HomebasePlugin extends Plugin
 	private RequestDelivery requestDelivery;
 
 	@Inject
+	private StorageWatcher storageWatcher;
+
+	@Inject
 	private PingService pingService;
 
 	@Inject
@@ -288,6 +292,7 @@ public class HomebasePlugin extends Plugin
 		clientThread.invokeLater(collectionLogSearch::preload);
 		eventBus.register(bountyGuard);
 		eventBus.register(requestDelivery);
+		eventBus.register(storageWatcher);
 		pingService.start();
 		eventBus.register(pingService);
 		eventBus.register(groupHighlights);
@@ -346,6 +351,7 @@ public class HomebasePlugin extends Plugin
 		eventBus.unregister(groupHighlights);
 		eventBus.unregister(pingService);
 		pingService.stop();
+		eventBus.unregister(storageWatcher);
 		eventBus.unregister(requestDelivery);
 		eventBus.unregister(bountyGuard);
 		eventBus.unregister(activityCollector);
@@ -354,6 +360,7 @@ public class HomebasePlugin extends Plugin
 		clientThread.invokeLater(() ->
 		{
 			requestDelivery.reset();
+			storageWatcher.reset();
 			bountyGuard.reset();
 			collectionLogSearch.reset();
 		});

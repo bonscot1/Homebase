@@ -10,6 +10,7 @@ It's made for Group Ironman groups, and works for any group of friends too.
 - A card for each member, with a green dot and their world while they're online, and live hitpoints, prayer and run energy bars.
 - Their skills, laid out like the in-game skills tab, plus quests, achievement diaries, combat achievements, collection log pages and boss kill counts (read from the hiscores when you log in, and kept up to date as you play).
 - Their inventory, equipment, bank, seed vault and looting bag, as they were last time they opened them, and your group storage, with who saw it last.
+- **Group storage history:** who put in or took out what, how many and when, plus a short **Still borrowed** list of what's been taken out and not returned. Open **Group storage** on the **Members** tab to see them.
 - Useful furniture built in their house, and what's in their costume room.
 - An **Updates** tab, plus a chat line when you log in, saying what everyone did while you were away: "Magic 15 → 32, completed The Restless Ghost".
 
@@ -63,6 +64,8 @@ Under **Pings and highlights** in the settings you can switch pings to a key + l
 - Only the amount asked for is held back. If 5 are kept for someone and there are 8 in group storage, anyone can take the other 3, with Withdraw-1, -5 or -10 when the amount fits. Withdraw-X is hidden while any of an item is held back, because the plugin can't see the number you type.
 - On the world map, someone in a dungeon is shown above it, and someone somewhere the map doesn't cover, such as a player-owned house, stays where they were last on it. If you have a dungeon's own map open, members on the surface don't appear until you switch back to the surface map.
 - Banks, the seed vault, the looting bag and group storage update when someone opens them. To share your whole collection log, open it and click **Search** once; browsing a page also updates that page.
+- The group storage history only shows what was saved, so putting something in and taking it back before saving leaves no line. It only knows about changes made by members using RuneLite with this plugin turned on, and each member keeps their latest 100 lines.
+- **Still borrowed** is what a member has taken out of an item, less what they've put in themselves, so taking back your own deposit doesn't count. Someone else putting the same item in doesn't settle it, and anything used up or passed on stays listed until newer lines push it out of that member's 100.
 
 ## Feedback
 

@@ -95,7 +95,15 @@ final class Ui
 	 */
 	static JLabel wrapped(String text, Color color)
 	{
-		return small("<html><body style='width:" + TEXT_WIDTH + "px'>" + text + "</body></html>", color);
+		return wrapped(text, color, TEXT_WIDTH);
+	}
+
+	/**
+	 * @return the same, wrapping at a narrower width for text that's indented further than usual
+	 */
+	static JLabel wrapped(String text, Color color, int width)
+	{
+		return small("<html><body style='width:" + width + "px'>" + text + "</body></html>", color);
 	}
 
 	static String escapeHtml(String text)

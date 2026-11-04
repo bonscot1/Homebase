@@ -2,6 +2,9 @@ package com.homebase.sync;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonPrimitive;
+import com.homebase.data.GroupView;
+import com.homebase.data.Section;
+import com.homebase.data.StorageLogData;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -183,6 +186,53 @@ public class SyncEngineTest
 		runFor(10_000);
 
 		assertEquals("bob's bank", carol.valueOf(bob, "bank"));
+	}
+
+	@Test
+	public void storageLogsReachEveryoneWithoutOverwritingEachOther()
+	{
+		Node alice = new Node("alice");
+		Node bob = new Node("bob");
+		Node carol = new Node("carol");
+
+		// both save group storage while they can't reach each other
+		StorageLogData aliceLog = new StorageLogData();
+		aliceLog.add(385, -5, now);
+		alice.engine.publish(Section.STORAGE_LOG.keyFor(alice.id), alice.id, gson.toJsonTree(aliceLog));
+		StorageLogData bobLog = new StorageLogData();
+		bobLog.add(453, 20, now);
+		bob.engine.publish(Section.STORAGE_LOG.keyFor(bob.id), bob.id, gson.toJsonTree(bobLog));
+
+		join(alice);
+		join(bob);
+		runFor(5_000);
+		leave(alice);
+
+		// carol has never been online with alice
+		join(carol);
+		runFor(10_000);
+
+		GroupView view = new GroupView(carol.store, gson);
+		assertEquals(aliceLog.getEntries(), view.get(alice.id, Section.STORAGE_LOG, StorageLogData.class).getEntries());
+		assertEquals(bobLog.getEntries(), view.get(bob.id, Section.STORAGE_LOG, StorageLogData.class).getEntries());
+	}
+
+	@Test
+	public void noMemberCanWriteAnothersStorageLog()
+	{
+		Node alice = new Node("alice");
+		String key = Section.STORAGE_LOG.keyFor("bob");
+		alice.engine.onRecords(Collections.singletonList(new SyncRecord(key, now, "mallory", false, new JsonPrimitive("taken"))));
+		assertNull(alice.store.get(key));
+	}
+
+	@Test
+	public void aBadStorageLogIsUnreadableNotAProblem()
+	{
+		Node alice = new Node("alice");
+		String key = Section.STORAGE_LOG.keyFor("bob");
+		alice.engine.onRecords(Collections.singletonList(new SyncRecord(key, now, "bob", false, new JsonPrimitive("nonsense"))));
+		assertNull(new GroupView(alice.store, gson).get("bob", Section.STORAGE_LOG, StorageLogData.class));
 	}
 
 	@Test

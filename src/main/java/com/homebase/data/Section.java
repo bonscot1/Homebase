@@ -27,7 +27,8 @@ public enum Section
 	COLLECTION_LOG("clog", false, 3_000),
 	KILL_COUNTS("kc", false, 3_000),
 	HOUSE("poh", false, 5_000),
-	GROUP_STORAGE("storage", true, 2_000);
+	GROUP_STORAGE("storage", true, 2_000),
+	STORAGE_LOG("storagelog", false, 2_000);
 
 	/**
 	 * Part of the record key. Records are saved and sent under it, so it can't change.
