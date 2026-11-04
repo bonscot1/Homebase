@@ -11,6 +11,11 @@ import javax.inject.Inject;
 import javax.inject.Singleton;
 import net.runelite.api.Client;
 import net.runelite.api.GameState;
+import net.runelite.api.Player;
+import net.runelite.api.WorldEntity;
+import net.runelite.api.WorldView;
+import net.runelite.api.coords.LocalPoint;
+import net.runelite.api.coords.WorldPoint;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.party.PartyMember;
 import net.runelite.client.party.PartyService;
@@ -23,6 +28,10 @@ import net.runelite.client.party.events.UserPart;
  * member leaves, so a member who logged out could stay "online" for ages. Instead each member says
  * when they're going offline, and sends a small "still here" every so often while they play; anyone
  * not heard from for a while counts as offline, which also covers crashes and closed windows.
+ * <p>
+ * The same message carries where the member is. RuneLite's party only sends a position after the
+ * player has moved, and what it sends is where they were at its last update, so someone who logs in
+ * and stands still has no position at all and someone who has stopped walking shows a little way back.
  */
 @Singleton
 public class Presence
@@ -34,6 +43,11 @@ public class Presence
 	 */
 	static final long TIMEOUT_MS = 75_000;
 
+	/**
+	 * The least time between messages while a member is on the move.
+	 */
+	static final long POSITION_GAP_MS = 3_000;
+
 	private final Client client;
 	private final PartyService party;
 	private final WSClient wsClient;
@@ -44,8 +58,14 @@ public class Presence
 	 * Members who said they were going offline, until they're heard from again.
 	 */
 	private final Set<Long> gone = ConcurrentHashMap.newKeySet();
+
+	/**
+	 * Where members last said they were.
+	 */
+	private final Map<Long, WorldPoint> positions = new ConcurrentHashMap<>();
 	private final List<Runnable> listeners = new CopyOnWriteArrayList<>();
-	private long lastSent;
+	private volatile long lastSent;
+	private volatile WorldPoint lastSentPosition;
 	private Set<Long> lastOnline = new HashSet<>();
 
 	/**
@@ -71,8 +91,10 @@ public class Presence
 		wsClient.unregisterMessage(HomebasePresence.class);
 		lastHeard.clear();
 		gone.clear();
+		positions.clear();
 		listeners.clear();
 		lastSent = 0;
+		lastSentPosition = null;
 	}
 
 	/**
@@ -103,6 +125,10 @@ public class Presence
 		if (message.isOnline())
 		{
 			heard(message.getMemberId());
+			if (message.getCoord() != null)
+			{
+				positions.put(message.getMemberId(), WorldPoint.fromCoord(message.getCoord()));
+			}
 		}
 		else
 		{
@@ -117,6 +143,8 @@ public class Presence
 	{
 		// give them until their first "still here" arrives
 		heard(event.getMemberId());
+		// and send ours soon, so they can see where we are even if we're standing still
+		lastSent = 0;
 	}
 
 	@Subscribe
@@ -124,6 +152,7 @@ public class Presence
 	{
 		lastHeard.remove(event.getMemberId());
 		gone.remove(event.getMemberId());
+		positions.remove(event.getMemberId());
 	}
 
 	/**
@@ -135,9 +164,13 @@ public class Presence
 	public void tick(boolean sharing)
 	{
 		long now = System.currentTimeMillis();
-		if (sharing && client.getGameState() == GameState.LOGGED_IN && now - lastSent >= HEARTBEAT_MS)
+		if (sharing && client.getGameState() == GameState.LOGGED_IN)
 		{
-			send(true);
+			WorldPoint here = localPosition();
+			if (isSendDue(now - lastSent, here != null && !here.equals(lastSentPosition)))
+			{
+				send(true, here);
+			}
 		}
 		Set<Long> online = new HashSet<>();
 		if (sharing)
@@ -162,9 +195,59 @@ public class Presence
 	 */
 	public void sendOffline()
 	{
-		send(false);
+		send(false, null);
 		// so the next login says "still here" straight away
 		lastSent = 0;
+	}
+
+	/**
+	 * @return where the member is: what they told us if they have, or failing that what RuneLite's
+	 * party last sent, which is all a member on an older version of the plugin shares. Null if neither
+	 * has said yet.
+	 */
+	public WorldPoint positionOf(PartyMember member)
+	{
+		return position(member.getMemberId(), member.getCoord());
+	}
+
+	WorldPoint position(long memberId, WorldPoint fromParty)
+	{
+		WorldPoint told = positions.get(memberId);
+		return told != null ? told : fromParty;
+	}
+
+	/**
+	 * @param sinceLastSent how long ago we last sent anything
+	 * @param moved whether we've moved since then
+	 */
+	static boolean isSendDue(long sinceLastSent, boolean moved)
+	{
+		return sinceLastSent >= HEARTBEAT_MS || (moved && sinceLastSent >= POSITION_GAP_MS);
+	}
+
+	/**
+	 * @return where we are, or null if the game doesn't have us yet. An instance such as a raid is given
+	 * as the real place it's a copy of, and a boat's deck, which has coordinates of its own, as where
+	 * the boat is. Call it on the client thread.
+	 */
+	public WorldPoint localPosition()
+	{
+		Player player = client.getLocalPlayer();
+		if (player == null)
+		{
+			return null;
+		}
+		LocalPoint where = player.getLocalLocation();
+		WorldView view = player.getWorldView();
+		if (view != null && !view.isTopLevel())
+		{
+			WorldEntity boat = client.getTopLevelWorldView().worldEntities().byIndex(view.getId());
+			if (boat != null)
+			{
+				where = boat.getLocalLocation();
+			}
+		}
+		return where == null ? null : WorldPoint.fromLocalInstance(client, where);
 	}
 
 	/**
@@ -195,17 +278,18 @@ public class Presence
 		return heard != null && now - heard < TIMEOUT_MS;
 	}
 
-	private void send(boolean online)
+	private void send(boolean online, WorldPoint position)
 	{
 		PartyMember local = party.getLocalMember();
 		if (local == null)
 		{
 			return;
 		}
-		HomebasePresence message = new HomebasePresence(online);
+		HomebasePresence message = new HomebasePresence(online, position == null ? null : HomebasePresence.packCoord(position));
 		message.setMemberId(local.getMemberId());
 		party.send(message);
 		lastSent = System.currentTimeMillis();
+		lastSentPosition = position;
 	}
 
 	private void notifyListeners()

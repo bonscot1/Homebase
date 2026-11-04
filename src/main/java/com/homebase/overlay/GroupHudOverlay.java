@@ -17,7 +17,6 @@ import javax.inject.Inject;
 import javax.inject.Singleton;
 import net.runelite.api.Client;
 import net.runelite.api.GameState;
-import net.runelite.api.Player;
 import net.runelite.api.Skill;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.client.party.PartyMember;
@@ -227,18 +226,13 @@ public class GroupHudOverlay extends OverlayPanel
 	}
 
 	/**
-	 * Where a member is. The party only sends a position once the player moves, so after joining
-	 * before login our own would be missing until we walk; ours is read from the game instead.
+	 * Where a member is. Our own is read straight from the game, since it's what we send everyone else.
 	 */
 	private WorldPoint coordOf(PartyMember member)
 	{
 		PartyMember local = partyService.getLocalMember();
-		Player player = client.getLocalPlayer();
-		if (local != null && local.getMemberId() == member.getMemberId() && player != null)
-		{
-			return WorldPoint.fromLocalInstance(client, player.getLocalLocation());
-		}
-		return member.getCoord();
+		boolean self = local != null && local.getMemberId() == member.getMemberId();
+		return self ? presence.localPosition() : presence.positionOf(member);
 	}
 
 	private static Font fontFor(HomebaseConfig.HudSize size)

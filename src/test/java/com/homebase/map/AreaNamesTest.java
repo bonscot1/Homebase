@@ -1,10 +1,33 @@
 package com.homebase.map;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import net.runelite.api.coords.WorldPoint;
 import org.junit.Test;
 
 public class AreaNamesTest
 {
+	@Test
+	public void dungeonsAreUnderTheLandAboveThem()
+	{
+		// Varrock's sewers, under Varrock
+		assertEquals(new WorldPoint(3237, 3499, 0), AreaNames.aboveGround(new WorldPoint(3237, 9899, 0)));
+		// already on the surface, upstairs included
+		WorldPoint upstairs = new WorldPoint(3222, 3218, 1);
+		assertEquals(upstairs, AreaNames.aboveGround(upstairs));
+	}
+
+	@Test
+	public void housesAndRaidsAreOffTheMainMap()
+	{
+		assertTrue(AreaNames.isOnSurface(new WorldPoint(3222, 3218, 0)));
+		// the far north of the Wilderness
+		assertTrue(AreaNames.isOnSurface(new WorldPoint(3100, 3960, 0)));
+		// a player-owned house
+		assertFalse(AreaNames.isOnSurface(new WorldPoint(1930, 5700, 0)));
+	}
+
 	@Test
 	public void namesTownsMembersAreIn()
 	{

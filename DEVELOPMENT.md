@@ -77,7 +77,11 @@ With a second group member running the plugin:
 - [ ] Instead, whoever took a request on trades the item to the requester. When the trade is accepted, the amount counts towards the request, and it's done once everything asked for has arrived. Typing "Accepted trade." in chat does nothing.
 - [ ] When one of you logs out, the other's panel shows "Seen … ago" for them straight away, and they drop out of the other's HUD and world map. If one of you closes RuneLite without logging out, the same happens within about a minute and a quarter.
 - [ ] While one of you is offline, the other gains a level, finishes a quest or completes a diary tier. On logging back in, the first gets one chat line such as "[Homebase] bonscott1: Magic 15 -> 32, completed The Restless Ghost, completed the Varrock Easy diary." The same summary appears on the **Updates** tab.
-- [ ] Each of you sees the other in the **Group HUD**, on the world map (a dot in their colour, with their name and area as the tooltip), and their marked tiles in their colour, including inside a raid you both enter.
+- [ ] Each of you sees the other in the **Group HUD**, on the world map (an arrow in their colour with their name above it, and their area as the tooltip), and their marked tiles in their colour, including inside a raid you both enter.
+- [ ] One of you logs in and stands still. The other still gets their arrow within a few seconds of connecting, in the right place.
+- [ ] Scrolling the world map so someone is off screen leaves their arrow at the edge, pointing towards them. Scrolling back points it down at them again.
+- [ ] One of you goes into a dungeon. On the surface map, the other sees their arrow above the dungeon. In a player-owned house or a raid, their arrow stays where they were last on the map. On a boat, it follows the boat.
+- [ ] Opening a member's big bank doesn't make the game stutter, and it still doesn't when the panel refreshes with the bank open. Scrolling shows the items as they come into view, and hovering shows each one's name and amount.
 - [ ] A ping from one of you shows up for the other with the pinger's name and colour, and a ping sound (**Ping sound**). A monster pinged or highlighted by one of you is outlined for the other when you're on the same world.
 - [ ] When one of you reaches a goal, the other gets a chat message such as "[Homebase] bonscott1 reached the goal: 50 Firemaking." and the goal ticks off for them.
 - [ ] A bounty that locks only one of you leaves the other's Withdraw options alone and shows them a green padlock.

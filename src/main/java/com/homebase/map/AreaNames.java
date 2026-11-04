@@ -27,6 +27,11 @@ public final class AreaNames
 	private static final int UNDERGROUND_NORTH = 10500;
 
 	/**
+	 * The main map's land is all south of this.
+	 */
+	private static final int SURFACE_NORTH = 4160;
+
+	/**
 	 * The Wilderness on the surface. Its dungeons cover the same ground {@link #UNDERGROUND_OFFSET} north.
 	 */
 	private static final int WILDERNESS_WEST = 2944;
@@ -232,6 +237,23 @@ public final class AreaNames
 			return 0;
 		}
 		return (surfaceY - WILDERNESS_SOUTH) / ROWS_PER_LEVEL + 1;
+	}
+
+	/**
+	 * @return the spot on the surface above a point, or the point itself if it isn't in a dungeon
+	 */
+	public static WorldPoint aboveGround(WorldPoint point)
+	{
+		return isUnderground(point.getY()) ? new WorldPoint(point.getX(), point.getY() - UNDERGROUND_OFFSET, 0) : point;
+	}
+
+	/**
+	 * @return true if a point is on the land of the main map, rather than in somewhere like a player-owned
+	 * house or a raid, which are all further north. A few boss rooms are the exception.
+	 */
+	public static boolean isOnSurface(WorldPoint point)
+	{
+		return point.getY() < SURFACE_NORTH;
 	}
 
 	private static boolean isUnderground(int y)

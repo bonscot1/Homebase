@@ -15,7 +15,7 @@ It's made for Group Ironman groups, and works for any group of friends too.
 
 **Play together**
 - A **Group HUD** in the corner of the screen with each member's hitpoints, prayer, run energy, combat level and where they are ("Varrock", "near Catherby", "Wilderness (level 11)").
-- Group members shown on the world map.
+- Group members on the world map, each as an arrow in their colour with their name. Anyone off the part of the map you're looking at waits at the edge, with their arrow pointing the way.
 - **Pings:** middle-click the ground or a monster, and everyone sees it flash in your colour with your name for a few seconds.
 - **Group highlights:** outline a monster for the whole group until it dies.
 - **Group tiles:** mark tiles that the whole group sees, including inside raids.
@@ -61,6 +61,7 @@ Under **Pings and highlights** in the settings you can switch pings to a key + l
 - RuneLite allows one party at a time. If you join someone else's party, syncing pauses until you click **Switch to group**.
 - Bank bounties and items kept for requests only stop withdrawals for members using RuneLite with this plugin turned on, and only count when someone in your group set them up. To see the padlocks without the plugin hiding any Withdraw options, turn off **Hold items in group storage**.
 - Only the amount asked for is held back. If 5 are kept for someone and there are 8 in group storage, anyone can take the other 3, with Withdraw-1, -5 or -10 when the amount fits. Withdraw-X is hidden while any of an item is held back, because the plugin can't see the number you type.
+- On the world map, someone in a dungeon is shown above it, and someone somewhere the map doesn't cover, such as a player-owned house, stays where they were last on it. If you have a dungeon's own map open, members on the surface don't appear until you switch back to the surface map.
 - Banks, the seed vault, the looting bag and group storage update when someone opens them. To share your whole collection log, open it and click **Search** once; browsing a page also updates that page.
 
 ## Feedback
