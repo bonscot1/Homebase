@@ -429,7 +429,7 @@ public interface HomebaseConfig extends Config
 	)
 	default Keybind pingKey()
 	{
-		return Keybind.CTRL;
+		return Keybind.NOT_SET;
 	}
 
 	@Range(min = 1, max = 10)
