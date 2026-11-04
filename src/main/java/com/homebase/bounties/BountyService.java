@@ -6,6 +6,7 @@ import com.homebase.data.BountyData;
 import com.homebase.data.Checkable;
 import com.homebase.data.Clean;
 import com.homebase.data.GroupIndex;
+import com.homebase.data.Ids;
 import com.homebase.goals.GoalService;
 import com.homebase.sync.Keys;
 import com.homebase.sync.SyncEngine;
@@ -16,7 +17,6 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import lombok.Value;
@@ -101,11 +101,6 @@ public class BountyService
 		dirty = true;
 	}
 
-	public boolean canEdit()
-	{
-		return goals.canEdit();
-	}
-
 	public List<Bounty> list()
 	{
 		SyncEngine engine = this.engine;
@@ -145,7 +140,7 @@ public class BountyService
 		data.setCreatedBy(me);
 		data.setCreatedByName(myName);
 		data.setCreatedAt(System.currentTimeMillis());
-		String id = UUID.randomUUID().toString().replace("-", "").substring(0, 16);
+		String id = Ids.random();
 		engine.publish(Keys.shared(TYPE, id), me, gson.toJsonTree(data));
 	}
 

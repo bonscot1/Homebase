@@ -76,7 +76,7 @@ public class ItemGridTest
 	public void aFullBankOnlyAsksForWhatsOnScreen()
 	{
 		CountingSprites sprites = new CountingSprites();
-		ItemGrid.Tiles tiles = new ItemGrid.Tiles(items(1000), sprites);
+		ItemGrid.Tiles tiles = new ItemGrid.Tiles(items(1000), sprites, ItemGrid.NO_MARKS);
 
 		// six rows' height of a bank, scrolled to the top
 		paint(tiles, 0, 6 * ROW_STEP);
@@ -96,18 +96,18 @@ public class ItemGridTest
 	public void refreshingThePanelDoesntReloadPictures()
 	{
 		CountingSprites sprites = new CountingSprites();
-		paint(new ItemGrid.Tiles(items(50), sprites), 0, 6 * ROW_STEP);
+		paint(new ItemGrid.Tiles(items(50), sprites, ItemGrid.NO_MARKS), 0, 6 * ROW_STEP);
 		int loaded = sprites.loads;
 
 		// a rebuild makes a new grid over the same sprites
-		paint(new ItemGrid.Tiles(items(50), sprites), 0, 6 * ROW_STEP);
+		paint(new ItemGrid.Tiles(items(50), sprites, ItemGrid.NO_MARKS), 0, 6 * ROW_STEP);
 		assertEquals(loaded, sprites.loads);
 	}
 
 	@Test
 	public void tilesKeepTheirSize()
 	{
-		ItemGrid.Tiles tiles = new ItemGrid.Tiles(items(7), new CountingSprites());
+		ItemGrid.Tiles tiles = new ItemGrid.Tiles(items(7), new CountingSprites(), ItemGrid.NO_MARKS);
 		assertEquals(new Dimension(1 + 5 * COLUMN_STEP, 1 + 2 * ROW_STEP), tiles.getPreferredSize());
 		assertEquals(0, ItemGrid.rowsFor(0));
 		assertEquals(1, ItemGrid.rowsFor(5));
@@ -131,7 +131,7 @@ public class ItemGridTest
 		List<Item> items = new ArrayList<>();
 		items.add(new Item(4151, 1));
 		items.add(new Item(995, 1200));
-		ItemGrid.Tiles tiles = new ItemGrid.Tiles(items, new CountingSprites());
+		ItemGrid.Tiles tiles = new ItemGrid.Tiles(items, new CountingSprites(), ItemGrid.NO_MARKS);
 
 		assertEquals(ItemNames.get(4151), tiles.getToolTipText(mouseAt(tiles, 5, 5)));
 		String stack = tiles.getToolTipText(mouseAt(tiles, 5 + COLUMN_STEP, 5));
@@ -143,5 +143,13 @@ public class ItemGridTest
 	private static MouseEvent mouseAt(ItemGrid.Tiles tiles, int x, int y)
 	{
 		return new MouseEvent(tiles, MouseEvent.MOUSE_MOVED, 0, 0, x, y, 0, false);
+	}
+
+	@Test
+	public void oneItemIsNotItems()
+	{
+		assertEquals("1 item", ItemGrid.itemCount(1));
+		assertEquals("0 items", ItemGrid.itemCount(0));
+		assertEquals("67 items", ItemGrid.itemCount(67));
 	}
 }

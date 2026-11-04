@@ -4,12 +4,12 @@ Notes for working on the plugin: how the sync works, how to run it from source, 
 
 ## How syncing works
 
-- **Group Ironman players don't set anything up.** When you log in, the plugin reads your group's name (for example HungryHorse) and joins a RuneLite party for that group. Everyone in the group ends up in the same party. You're in the party only while you're logged in: the plugin joins when you load into the game and leaves when you log out, so RuneLite's party servers only carry people who are playing. The group is remembered, so its saved data shows before you log in.
+- **Group Ironman players don't set anything up.** When you log in, the plugin reads your group's name (for example HungryHorse), and **Connect** joins a RuneLite party for that group. Everyone in the group ends up in the same party. You stay in it through logouts and leave after 30 minutes at the login screen, so RuneLite's party servers only carry people who are playing. The group is remembered, so its saved data shows before you log in.
 - Other groups share a **group passphrase** instead, set once in the plugin's settings.
 - Every member's client keeps its own copy of the group's data on disk.
 - Data is stored per member, per section (bank, skills, inventory and so on), and each section is stamped with the time it was captured. When two copies meet, the newer one wins.
 - When anyone joins, everyone online compares what they hold and fills in the gaps. Whoever receives data passes it on later, so members who are never online at the same time still catch up through the others.
-- Live stats (HP, prayer, run energy) come from RuneLite's own party data while members are online.
+- Live stats (HP, prayer, run energy, special attack) come from RuneLite's own party data while members are online.
 
 Example: I have bonscott1's data from 5pm and mundell's from 1pm. Fred has mundell's from 4pm and bonscott1's from 2pm. When Fred and I are online together, I update Fred's copy of bonscott1 and Fred updates my copy of mundell.
 
@@ -23,7 +23,7 @@ Example: I have bonscott1's data from 5pm and mundell's from 1pm. Fred has munde
 - On an account that isn't in your Group Ironman group, such as an alt, nothing is shared.
 - Within the group, members trust each other. A member with a modified client could write records that claim to be another member's, or change shared requests and bounties however they like. Signing records with a key per member would close this, if it's ever needed.
 - Withdraw-X is hidden while any of an item is held back, because the amount typed can't be checked before the game takes it.
-- The group storage history is one log per member (`m:<id>:storagelog`), not one for the group, so two members saving while they can't reach each other can't overwrite one another, and who did something comes from whose record it is. Members on older versions pass the logs on without showing them, and don't add to them. A log keeps a member's latest 100 entries, which also limits how far back **Still borrowed** can see.
+- The group storage history is one log per member (`m:<id>:storagelog`), not one for the group, so two members saving while they can't reach each other can't overwrite one another, and who did something comes from whose record it is. Members on older versions pass the logs on without showing them, and don't add to them. A log keeps a member's latest 100 entries, which also limits how far back **Owed back** can see.
 - While group storage is open, `INV_GROUP_TEMP` is a temporary copy, and changes can still be lost until the game saves them, so entries are only added when the game's "Saving..." message (`LOADING_ICON_MODAL`) appears. Each save is compared with what storage held when it was opened or last saved. An empty container is only believed when the interface was just drawn from it (`GROUP_IRONMAN_STORAGE_BUILD`), because other plugins have found it can report empty at other times. A save that seems to move over 40 kinds of item in one direction is dropped, since nobody can carry that many.
 - Received messages are limited: no nesting past 32 levels, at most 2,000 records a message, and every record from another client is checked (missing lists become empty, numbers kept in range) before use. Request chat lines are limited to 3 every 10 seconds, and ping sounds to one a second.
 
@@ -34,7 +34,7 @@ You need a JDK (Java 11 or 17, for example [Eclipse Temurin](https://adoptium.ne
 1. Clone this repository and open a terminal in it.
 2. Run `./gradlew run` (on Windows, `gradlew.bat run`). This starts a development RuneLite with the plugin loaded. Alternatively, open the folder in IntelliJ IDEA and run `HomebasePluginTest`.
 3. To log in with a Jagex account, follow RuneLite's [Using Jagex Accounts](https://github.com/runelite/runelite/wiki/Using-Jagex-Accounts) guide once.
-4. Log in on your Group Ironman account. That's all: the plugin joins your group by itself.
+4. Log in on your Group Ironman account and click **Connect**. The plugin finds your group by itself.
 5. For a group that isn't a Group Ironman group, open the house icon in the sidebar, click **Create group**, then **Copy passphrase** and send it to the others. They paste it into the plugin's settings (**Group passphrase**).
 
 ### What to check
@@ -50,7 +50,7 @@ With one account:
 - [ ] Connecting again soon after closing RuneLite can say "Connecting..." for up to 10 seconds while the party still lists the old connection. It doesn't warn about someone outside the group, and it then changes to "Connected".
 - [ ] Your card appears on the **Members** tab with a green world number. Clicking your name shows your skills, inventory and equipment.
 - [ ] Opening your bank adds a **Bank** line to your card. Clicking it shows the items. The seed vault and looting bag work the same way.
-- [ ] Opening the group storage fills the **Storage** tab, saying who saw it last. The tab sums up what's owed back, the bounties and what's held for requests, and each of those lists is folded away when there's nothing in it or you fold it. Group storage is no longer on the **Members** tab.
+- [ ] Opening the group storage fills the **Storage** tab, saying who saw it last. The tab sums up what's owed back, the bounties and what's held for requests, and each of those lists is folded away when there's nothing in it or you fold it.
 - [ ] On the **Requests** tab, requesting an item adds it to the list. **Cancel** removes it. There's no button to mark it done.
 - [ ] After closing and reopening RuneLite, everything is still there before you log in.
 - [ ] The **Group HUD** box shows your hitpoints, prayer, run energy, combat level and area (for example "Lumbridge"). Its settings change what it shows, compact mode and size, and **Include yourself** hides your own line.
@@ -112,128 +112,13 @@ With a second group member running the plugin:
 - [ ] Someone on an older version of the plugin in the group still gets the logs and passes them on, and nothing breaks for them.
 - [ ] Expanding a member shows **Quests** and **Diaries** lines with their counts. Clicking them shows the quest list and the diary grid. Karamja's Easy, Medium and Hard tiers use older game flags than the other diaries, so check those against the in-game journal.
 
-## To-do
+## To do
 
-Items are ticked when they're built. Each stage's last box is ticked once it has been tested in game.
+- Test with a second group member: everything under "With a second group member" above
+- Rooms built in the house (the game doesn't name rooms, so this needs more work)
+- Screenshots in the README
+- Ask in RuneLite's Discord `#development` about bounties hiding Withdraw options
 
-### Stage 1: Foundation (sync and member panel)
+## Releasing
 
-- [x] Plugin project set up from RuneLite's template (Java 11, BSD-2 licence)
-- [x] Group Ironman players connect with one click, with no passphrase, and the group is remembered for next time
-- [x] Only accounts in the Group Ironman group share data, so alts stay out
-- [x] Optional **Group Ironman secret** to keep out people who only know the group's name
-- [x] Group passphrase setting, **Create group** and **Copy passphrase** buttons, for groups that aren't Group Ironman groups
-- [x] Connect once per session with a button; stay connected through logouts and leave after 30 minutes at the login screen
-- [x] Check party members against the Group Ironman member list and share nothing while anyone else is in the party
-- [x] Pause syncing while in another party, with a button to switch back
-- [x] Save the group's data to disk (loaded on start, saved every 30 seconds and on exit)
-- [x] Sync protocol: summaries on join, newest copy wins per member per section, relaying between members, no duplicate sends
-- [x] Safety checks: members can only write their own data, deleted items stay deleted, bad clocks and malformed messages are rejected
-- [x] Unit tests for the sync protocol, including the bonscott1/mundell/Fred example
-- [x] Share profile (name, world, last seen), skills and inventory
-- [x] Share equipment
-- [x] Share the bank, seed vault and looting bag whenever they're opened
-- [x] Share the group storage whenever anyone opens it
-- [x] Live HP, prayer and run energy for online members
-- [x] Members show as offline as soon as they log out (each client says so before leaving the party), or after 75 seconds without a "still here" if RuneLite closes without logging out
-- [x] Each player listed once even when the party briefly keeps their old connection after they log back in
-- [x] Sidebar panel: members with online status or last seen, live stats and total level
-- [x] Expand a member to see skills, inventory, equipment, bank, seed vault and looting bag
-- [x] Bank, seed vault and looting bag start collapsed, with an item count, so a full bank doesn't take over the panel
-- [x] Group storage section showing when it was last seen and by whom
-- [x] Your Group Ironman group's name (for example HungryHorse) shown in the panel header
-- [x] Tested in a simulated RuneLite: three players, the real plugin code, 56 checks
-- [ ] Tested in game with at least two group members
-
-### Stage 2: On-screen features
-
-- [x] Group status HUD: each member's HP, prayer and run energy as bars, combat level and position
-- [x] HUD settings: choose what's shown, include yourself or not, compact mode, size
-- [x] Area names for members' positions (for example "Varrock", "near Catherby", "Wilderness (level 11)", "Varrock (underground)")
-- [x] Group members on the world map, updated live, with their area in the tooltip
-- [x] Group tile markers: Shift + right-click a tile and choose **Group mark**, and the whole group sees it
-- [x] Per-member colours for tiles, pings and highlights, set in the plugin settings (**Your colour**), with optional names
-- [x] Tile markers work inside instances (raids and similar): they're stored at the instance's template location
-- [x] Pings: middle-click the ground or a monster (or hold a **Ping key** and left-click, if you prefer), and the group sees it flash in your colour, with your name and a minimap dot, for a few seconds
-- [x] Group highlights: Shift + right-click a monster and choose **Group highlight** to outline it for the whole group until it dies
-- [x] Area names for player-owned houses
-- [ ] Tested in game
-
-### Stage 3: Quests, activities and goals
-
-- [x] Quests (finished and started), read after login, after quest messages and about once a minute
-- [x] Achievement diaries (every region and tier)
-- [x] Summaries of what each member did since your last update: levels gained, quests finished and diary tiers completed. Shown in chat (can be turned off) and on the **Updates** tab, and kept after restarting
-- [x] Updates gathered for a few seconds, so catching up on login gives one line per member
-- [x] Quests and Diaries sections on each member's card
-- [x] Tested in the simulated RuneLite, including your example summary
-- [x] Combat achievements: points, tasks done and highest tier reached, read from the game
-- [x] Collection log: every page at once from the log's Search (script 4100 runs once per obtained item; pages and their items come from the cache, enum 2102 and params 683, 689 and 690, as WikiSync does), pages captured as members browse them, new slots from the "New item added to your collection log" message, and the total when the game provides it
-- [x] Boss kill counts, from kill count messages, the collection log's page headers, and the hiscores at login (bosses never killed aren't ranked, so they stay hidden; names are matched loosely so "The Gauntlet" and "Gauntlet" are one boss)
-- [x] Player-owned house: useful furniture built (pools, jewellery box, portal nexus, altars, mounted items and more), captured in your own house, and the costume room storage when it's opened
-- [ ] Rooms built in the house (the game doesn't name rooms, so this needs more work)
-- [x] Combat achievements, collection log and kill counts in the summaries too
-- [x] Goals on a new **Goals** tab: skill levels, total level, quests, diaries, kill counts, combat achievement points and collection log slots, for everyone or one member (for example 50 Firemaking for Wintertodt)
-- [x] Goals tick off automatically as each member reaches them, with a chat message when someone does (can be turned off)
-- [ ] Tested in game
-
-### Stage 4: Request panel
-
-- [x] Request an item from the group (for example a rune scimitar), with a quantity and a note
-- [x] Members can assign themselves to a request, or give it back
-- [x] Requests finish only from what happens in game: whoever took one on puts the item in group storage, where it's kept for the requester until they take it out, or trades it to them. Requests can be cancelled, and finished ones cleared
-- [x] In-game chat message when someone makes, takes on or finishes a request (can be turned off in settings)
-- [x] Text from other players is cleaned before it's shown, so a request can't inject formatting or load images
-- [x] Tested in the simulated RuneLite
-- [ ] Tested in game
-
-### Stage 5: Bank bounties
-
-- [x] Put a bounty on an item in group storage, tied to a goal (**Add bounty** on a goal)
-- [x] Choose which members are locked out until the goal is met
-- [x] Hide the Withdraw options for locked members (soft lock, RuneLite only)
-- [x] Padlock on the item in group storage, red while it's locked for you and green once it isn't, with the goal in its tooltip
-- [x] Bounty lifts automatically for each locked member as they reach the goal
-- [x] Bounties and requests hold back only the amount asked for; anything more in group storage is free for anyone
-- [x] Quick repeated withdrawals can't dip into what's held: withdrawals let through are counted until the game reports them
-- [ ] Tested in game
-
-### Stage 6: Group storage history
-
-- [x] A log per member of what they put in and took out of group storage, how many and when, added each time the game saves storage and shared through the normal sync
-- [x] A **Storage** tab with the items, **Owed back**, bounties, what's held for requests and **History**
-- [x] Right-click an item to mark it as needing to be returned; only marked items are owed back
-- [x] Opening and closing storage, moving items around, and changes that cancel out or are never saved add nothing
-- [ ] Tested in game
-
-### Release
-
-- [x] Panel styled after RuneLite's own panels: one row of tabs, cards with live HP, prayer and run bars, skills laid out like the in-game tab, rows that open each section, progress bars on goals, and item pictures on bounties
-- [x] Quests and miniquests counted apart
-- [x] A player README, with these developer notes moved here
-- [x] Plugin Hub icon (`icon.png`, 48×72)
-- [ ] Screenshots in the README
-- [x] Make the repository public (the Plugin Hub requires it)
-- [x] Code review: hardened message handling, checked data, request amounts, trade check, connect button
-- [ ] Ask in RuneLite's Discord `#development` about bounties hiding Withdraw options
-- [x] Submit to the RuneLite Plugin Hub ([runelite/plugin-hub#20070](https://github.com/runelite/plugin-hub/pull/20070), at commit 0d9b517)
-
-### Submitting to the Plugin Hub
-
-The Plugin Hub builds plugins from a public GitHub repository at a fixed commit. Once the repository is public and the last change is on `main`:
-
-1. Fork [runelite/plugin-hub](https://github.com/runelite/plugin-hub) on GitHub.
-2. In the fork, add a file named `plugins/group-ironman-homebase` (no extension) containing:
-
-   ```
-   repository=https://github.com/bonscot1/Homebase.git
-   commit=<the full hash of the commit on main to release>
-   ```
-
-3. Open a pull request to `runelite/plugin-hub` titled "Add Group Ironman Homebase". In the description, say what the plugin does and point reviewers at these:
-   - It joins a party only when the player clicks **Connect**.
-   - It hides Withdraw options in group storage for items held back by the group's own bounties and requests (can be turned off with **Hold items in group storage**).
-   - Party traffic: summaries every few seconds while something changed, records in batches of up to about 48 KB before compression, and a presence message every 30 seconds.
-4. The Plugin Hub's checks run on the pull request. Fix anything they flag and update `commit=` to the new hash.
-
-Updates later work the same way: push to `main`, then open a pull request that changes `commit=`.
+The Plugin Hub builds from a public GitHub repository at a fixed commit. To release, push to `main`, then open a pull request to [runelite/plugin-hub](https://github.com/runelite/plugin-hub) that changes `commit=` in `plugins/group-ironman-homebase` to the new hash. Say in the pull request what changed, and point reviewers at anything new that hides options or sends more party traffic.

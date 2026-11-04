@@ -38,7 +38,6 @@ import net.runelite.client.util.QuantityFormatter;
 class StorageView extends JPanel
 {
 	private static final int MAX_NAME = 20;
-	private static final int MAX_ITEM_NAME = 60;
 
 	private static final String BOUNTIES_ID = "storage:bounties";
 	private static final String HELD_ID = "storage:held";
@@ -84,7 +83,7 @@ class StorageView extends JPanel
 		boolean canMark = returnTags.canEdit();
 		Map<String, String> names = memberNames(view);
 		List<StorageHistory.MemberLog> logs = logs(view);
-		List<StorageHistory.Borrowed> owed = StorageHistory.borrowed(logs, marked);
+		List<StorageHistory.Owed> owed = StorageHistory.owed(logs, marked);
 		List<String> bountyLines = bountyLines(names);
 		List<String> heldLines = heldLines(slots);
 
@@ -104,11 +103,11 @@ class StorageView extends JPanel
 		StorageHistoryView.addOwed(card, owed, canMark ? returnTags::unmark : null, context, onNamesFound);
 		if (!bountyLines.isEmpty() && MemberCard.addFoldRow(card, "Bounties", String.valueOf(bountyLines.size()), BOUNTIES_ID, context))
 		{
-			StorageHistoryView.addRows(card, bountyLines, 0, "");
+			StorageHistoryView.addRows(card, bountyLines);
 		}
 		if (!heldLines.isEmpty() && MemberCard.addFoldRow(card, "Held for requests", String.valueOf(heldLines.size()), HELD_ID, context))
 		{
-			StorageHistoryView.addRows(card, heldLines, 0, "");
+			StorageHistoryView.addRows(card, heldLines);
 		}
 
 		if (MemberCard.addFoldRow(card, "Items", String.valueOf(ItemGrid.countFilled(slots)), ITEMS_ID, context))
@@ -118,7 +117,7 @@ class StorageView extends JPanel
 			if (marked.isEmpty() && canMark)
 			{
 				StorageHistoryView.addRows(card, Collections.singletonList(
-					"Right-click an item that belongs in storage to have anyone who takes it owe it back."), 0, "");
+					"Right-click an item that belongs in storage to have anyone who takes it owe it back."));
 			}
 		}
 		StorageHistoryView.addHistory(card, logs, context, onNamesFound);
@@ -167,9 +166,10 @@ class StorageView extends JPanel
 		for (String id : view.memberIds())
 		{
 			ProfileData profile = view.get(id, Section.PROFILE, ProfileData.class);
-			if (profile != null && plugin.belongsToGroup(profile))
+			String name = profile != null && plugin.belongsToGroup(profile) ? Clean.text(profile.getName(), MAX_NAME) : null;
+			if (name != null)
 			{
-				out.put(id, Clean.text(profile.getName(), MAX_NAME));
+				out.put(id, name);
 			}
 		}
 		return out;
@@ -213,7 +213,7 @@ class StorageView extends JPanel
 					locked.add(names.getOrDefault(id, "someone"));
 				}
 			}
-			String item = Clean.text(data.getItemName(), MAX_ITEM_NAME);
+			String item = data.getItemName();
 			out.add(Ui.escapeHtml((item == null ? "item " + data.getItemId() : item)
 				+ (data.getQuantity() > 0 ? " ×" + QuantityFormatter.formatNumber(data.getQuantity()) : "")
 				+ ": " + (locked.isEmpty() ? "lifted for everyone" : String.join(", ", locked))
@@ -240,8 +240,8 @@ class StorageView extends JPanel
 		{
 			for (RequestService.Reservation held : requests.reservationsFor(item))
 			{
-				String name = Clean.text(held.getItem(), MAX_ITEM_NAME);
-				String who = Clean.text(held.getRequestedByName(), MAX_NAME);
+				String name = held.getItem();
+				String who = held.getRequestedByName();
 				out.add(Ui.escapeHtml((name == null ? "item " + item : name)
 					+ (held.getQuantity() > 1 ? " ×" + QuantityFormatter.formatNumber(held.getQuantity()) : "")
 					+ " for " + (who == null ? "someone" : who)));

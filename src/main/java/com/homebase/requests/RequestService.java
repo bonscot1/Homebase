@@ -6,6 +6,7 @@ import com.homebase.collect.LocalCollector;
 import com.homebase.data.Checkable;
 import com.homebase.data.Clean;
 import com.homebase.data.GroupIndex;
+import com.homebase.data.Ids;
 import com.homebase.data.RequestData;
 import com.homebase.sync.Keys;
 import com.homebase.sync.SyncEngine;
@@ -16,7 +17,6 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.function.Consumer;
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -42,11 +42,6 @@ public class RequestService
 	{
 		String id;
 		RequestData data;
-
-		/**
-		 * When the request was last changed.
-		 */
-		long updatedAt;
 	}
 
 	/**
@@ -61,7 +56,7 @@ public class RequestService
 		String requestedByName;
 
 		/**
-		 * How many were asked for; anything more in group storage is free for anyone.
+		 * How many are kept; anything more in group storage is free for anyone.
 		 */
 		int quantity;
 	}
@@ -184,7 +179,7 @@ public class RequestService
 			RequestData data = decode(record);
 			if (data != null && !Strings.isNullOrEmpty(data.getItem()))
 			{
-				out.add(new Request(record.getKey().substring(prefix.length()), data, record.getVersion()));
+				out.add(new Request(record.getKey().substring(prefix.length()), data));
 			}
 		}
 		out.sort(Comparator
@@ -214,7 +209,7 @@ public class RequestService
 		data.setRequestedBy(me);
 		data.setRequestedByName(myName);
 		data.setCreatedAt(System.currentTimeMillis());
-		String id = UUID.randomUUID().toString().replace("-", "").substring(0, 16);
+		String id = Ids.random();
 		engine.publish(Keys.shared(TYPE, id), me, gson.toJsonTree(data));
 	}
 

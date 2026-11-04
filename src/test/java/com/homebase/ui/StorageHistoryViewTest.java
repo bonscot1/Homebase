@@ -35,9 +35,9 @@ public class StorageHistoryViewTest
 	}
 
 	@Test
-	public void borrowedLinesSayWhoHasHowMany()
+	public void owedLinesSayWhoHasHowMany()
 	{
-		String out = StorageHistoryView.text(new StorageHistory.Borrowed("Mundell", WHIP, 3, System.currentTimeMillis()));
+		String out = StorageHistoryView.text(new StorageHistory.Owed("Mundell", WHIP, 3, System.currentTimeMillis()));
 		assertTrue(out, out.contains("Mundell"));
 		assertTrue(out, out.contains(": " + ItemNames.get(WHIP) + " ×3"));
 	}
@@ -56,7 +56,7 @@ public class StorageHistoryViewTest
 	@Test
 	public void aMissingNameStillReads()
 	{
-		String out = StorageHistoryView.text(new StorageHistory.Borrowed("<>", WHIP, 1, 1));
+		String out = StorageHistoryView.text(new StorageHistory.Owed("<>", WHIP, 1, 1));
 		assertTrue(out, out.contains("Someone"));
 	}
 }

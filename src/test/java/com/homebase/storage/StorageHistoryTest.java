@@ -116,25 +116,25 @@ public class StorageHistoryTest
 	{
 		List<StorageHistory.MemberLog> logs = Collections.singletonList(member("Mundell", 500, SHARK, -5, Long.MAX_VALUE));
 		assertEquals(500, StorageHistory.lines(logs).get(0).getAt());
-		assertEquals(500, borrowedAllMarked(logs).get(0).getAt());
+		assertEquals(500, owedAllMarked(logs).get(0).getAt());
 	}
 
 	/**
-	 * What's borrowed if every test item has been marked since before the logs began.
+	 * What's owed if every test item has been marked since before the logs began.
 	 */
-	private static List<StorageHistory.Borrowed> borrowedAllMarked(List<StorageHistory.MemberLog> logs)
+	private static List<StorageHistory.Owed> owedAllMarked(List<StorageHistory.MemberLog> logs)
 	{
 		Map<Integer, Long> marked = new HashMap<>();
 		marked.put(SHARK, 0L);
 		marked.put(COAL, 0L);
 		marked.put(WHIP, 0L);
-		return StorageHistory.borrowed(logs, marked);
+		return StorageHistory.owed(logs, marked);
 	}
 
 	@Test
 	public void takingSomethingUnmarkedOwesNothing()
 	{
-		assertTrue(StorageHistory.borrowed(Collections.singletonList(member("Mundell", 400, SHARK, -5, 100)),
+		assertTrue(StorageHistory.owed(Collections.singletonList(member("Mundell", 400, SHARK, -5, 100)),
 			Collections.emptyMap()).isEmpty());
 	}
 
@@ -142,69 +142,69 @@ public class StorageHistoryTest
 	public void onlyWhatsTakenAfterMarkingIsOwed()
 	{
 		Map<Integer, Long> marked = Collections.singletonMap(SHARK, 150L);
-		assertEquals(Collections.singletonList(new StorageHistory.Borrowed("Mundell", SHARK, 2, 200)),
-			StorageHistory.borrowed(Collections.singletonList(member("Mundell", 400, SHARK, -5, 100, SHARK, -2, 200)), marked));
+		assertEquals(Collections.singletonList(new StorageHistory.Owed("Mundell", SHARK, 2, 200)),
+			StorageHistory.owed(Collections.singletonList(member("Mundell", 400, SHARK, -5, 100, SHARK, -2, 200)), marked));
 	}
 
 	@Test
-	public void takenOutAndNotReturnedIsBorrowed()
+	public void takenOutAndNotReturnedIsOwed()
 	{
-		assertEquals(Collections.singletonList(new StorageHistory.Borrowed("Mundell", SHARK, 5, 100)),
-			borrowedAllMarked(Collections.singletonList(member("Mundell", 400, SHARK, -5, 100))));
+		assertEquals(Collections.singletonList(new StorageHistory.Owed("Mundell", SHARK, 5, 100)),
+			owedAllMarked(Collections.singletonList(member("Mundell", 400, SHARK, -5, 100))));
 	}
 
 	@Test
-	public void putBackPartlyLeavesTheRestBorrowed()
+	public void putBackPartlyLeavesTheRestOwed()
 	{
-		assertEquals(Collections.singletonList(new StorageHistory.Borrowed("Mundell", SHARK, 2, 100)),
-			borrowedAllMarked(Collections.singletonList(member("Mundell", 400, SHARK, -5, 100, SHARK, 3, 200))));
+		assertEquals(Collections.singletonList(new StorageHistory.Owed("Mundell", SHARK, 2, 100)),
+			owedAllMarked(Collections.singletonList(member("Mundell", 400, SHARK, -5, 100, SHARK, 3, 200))));
 	}
 
 	@Test
-	public void putBackInFullIsNoLongerBorrowed()
+	public void putBackInFullIsNoLongerOwed()
 	{
-		assertTrue(borrowedAllMarked(Collections.singletonList(member("Mundell", 400, SHARK, -5, 100, SHARK, 5, 200))).isEmpty());
-		assertTrue(borrowedAllMarked(Collections.singletonList(member("Mundell", 400, SHARK, -5, 100, SHARK, 9, 200))).isEmpty());
+		assertTrue(owedAllMarked(Collections.singletonList(member("Mundell", 400, SHARK, -5, 100, SHARK, 5, 200))).isEmpty());
+		assertTrue(owedAllMarked(Collections.singletonList(member("Mundell", 400, SHARK, -5, 100, SHARK, 9, 200))).isEmpty());
 	}
 
 	@Test
-	public void takingBackWhatYouPutInIsntBorrowing()
+	public void takingBackWhatYouPutInIsntOwing()
 	{
-		assertTrue(borrowedAllMarked(Collections.singletonList(member("Mundell", 400, WHIP, 1, 100, WHIP, -1, 200))).isEmpty());
-		assertTrue(borrowedAllMarked(Collections.singletonList(member("Mundell", 400, SHARK, 100, 100, SHARK, -3, 200))).isEmpty());
+		assertTrue(owedAllMarked(Collections.singletonList(member("Mundell", 400, WHIP, 1, 100, WHIP, -1, 200))).isEmpty());
+		assertTrue(owedAllMarked(Collections.singletonList(member("Mundell", 400, SHARK, 100, 100, SHARK, -3, 200))).isEmpty());
 	}
 
 	@Test
-	public void takingOutMoreThanYouPutInIsBorrowing()
+	public void takingOutMoreThanYouPutInIsOwing()
 	{
-		assertEquals(Collections.singletonList(new StorageHistory.Borrowed("Mundell", SHARK, 3, 200)),
-			borrowedAllMarked(Collections.singletonList(member("Mundell", 400, SHARK, 5, 100, SHARK, -8, 200))));
+		assertEquals(Collections.singletonList(new StorageHistory.Owed("Mundell", SHARK, 3, 200)),
+			owedAllMarked(Collections.singletonList(member("Mundell", 400, SHARK, 5, 100, SHARK, -8, 200))));
 	}
 
 	@Test
 	public void onlyWhoeverTookItCanReturnIt()
 	{
-		assertEquals(Collections.singletonList(new StorageHistory.Borrowed("Mundell", SHARK, 5, 100)),
-			borrowedAllMarked(Arrays.asList(
+		assertEquals(Collections.singletonList(new StorageHistory.Owed("Mundell", SHARK, 5, 100)),
+			owedAllMarked(Arrays.asList(
 				member("Mundell", 400, SHARK, -5, 100),
 				member("Fred", 400, SHARK, 5, 200))));
 	}
 
 	@Test
-	public void borrowedSaysWhenTheyLastTookSomeHoweverTheLogIsOrdered()
+	public void owedSaysWhenTheyLastTookSomeHoweverTheLogIsOrdered()
 	{
-		assertEquals(Collections.singletonList(new StorageHistory.Borrowed("Mundell", SHARK, 5, 300)),
-			borrowedAllMarked(Collections.singletonList(member("Mundell", 400, SHARK, -3, 300, SHARK, -2, 100))));
+		assertEquals(Collections.singletonList(new StorageHistory.Owed("Mundell", SHARK, 5, 300)),
+			owedAllMarked(Collections.singletonList(member("Mundell", 400, SHARK, -3, 300, SHARK, -2, 100))));
 	}
 
 	@Test
 	public void mostRecentlyTakenIsFirstAndAmountsDontOverflow()
 	{
-		List<StorageHistory.Borrowed> borrowed = borrowedAllMarked(Arrays.asList(
+		List<StorageHistory.Owed> owed = owedAllMarked(Arrays.asList(
 			member("Mundell", 400, SHARK, -1, 100),
 			member("Fred", 400, COAL, -Integer.MAX_VALUE, 200, COAL, -Integer.MAX_VALUE, 300)));
 		assertEquals(Arrays.asList(
-			new StorageHistory.Borrowed("Fred", COAL, 2L * Integer.MAX_VALUE, 300),
-			new StorageHistory.Borrowed("Mundell", SHARK, 1, 100)), borrowed);
+			new StorageHistory.Owed("Fred", COAL, 2L * Integer.MAX_VALUE, 300),
+			new StorageHistory.Owed("Mundell", SHARK, 1, 100)), owed);
 	}
 }

@@ -88,9 +88,7 @@ public class FindOnMap
 		}
 	};
 
-	private Consumer<String> messages = line ->
-	{
-	};
+	private Consumer<String> messages;
 	private volatile boolean swallowing;
 	private long wantedMember;
 	private long wantedAt;
@@ -111,7 +109,7 @@ public class FindOnMap
 	}
 
 	/**
-	 * @param messages shows a line in the chatbox, called on the client thread
+	 * @param messages shows a line in the chat box, called on the client thread
 	 */
 	public void start(Consumer<String> messages)
 	{
@@ -133,7 +131,7 @@ public class FindOnMap
 		{
 			return;
 		}
-		if (positionOf(member) == null)
+		if (presence.positionOf(member) == null)
 		{
 			wanted = false;
 			messages.accept(name + " isn't sharing where they are.");
@@ -160,7 +158,7 @@ public class FindOnMap
 		boolean due = isStillWanted(wanted, wantedAt, System.currentTimeMillis());
 		wanted = false;
 		PartyMember member = due ? partyService.getMemberById(wantedMember) : null;
-		WorldPoint where = member == null ? null : positionOf(member);
+		WorldPoint where = member == null ? null : presence.positionOf(member);
 		WorldPoint point = where == null ? null : groupWorldMap.pointOnMap(wantedMember, where);
 		WorldMap map = client.getWorldMap();
 		if (point != null && map != null)
@@ -172,15 +170,5 @@ public class FindOnMap
 	static boolean isStillWanted(boolean wanted, long wantedAt, long now)
 	{
 		return wanted && now - wantedAt < REMEMBER_MS;
-	}
-
-	/**
-	 * Where a member is. Our own is read straight from the game, since it's what we send everyone else.
-	 */
-	private WorldPoint positionOf(PartyMember member)
-	{
-		PartyMember local = partyService.getLocalMember();
-		boolean self = local != null && local.getMemberId() == member.getMemberId();
-		return self ? presence.localPosition() : presence.positionOf(member);
 	}
 }

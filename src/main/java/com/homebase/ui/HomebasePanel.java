@@ -20,8 +20,8 @@ import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
-import java.awt.Graphics2D;
 import java.awt.Graphics;
+import java.awt.Graphics2D;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.RenderingHints;
@@ -35,9 +35,9 @@ import java.util.Map;
 import java.util.Set;
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
-import javax.swing.BorderFactory;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JComponent;
@@ -64,7 +64,7 @@ import net.runelite.client.util.ImageUtil;
 
 /**
  * The sidebar panel: the group's name and connection status at the top, then a tab each for members,
- * updates, requests and goals.
+ * storage, updates, requests and goals.
  */
 @Slf4j
 @Singleton

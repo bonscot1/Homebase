@@ -70,7 +70,7 @@ public final class StorageHistory
 	 * Some of a marked item a member has taken out and not put back, and when they last took some.
 	 */
 	@Value
-	public static class Borrowed
+	public static class Owed
 	{
 		String who;
 		int item;
@@ -156,17 +156,17 @@ public final class StorageHistory
 	}
 
 	/**
-	 * Something is borrowed when it's marked as needing to be returned and a member has taken out more
-	 * of it than they've put in, so taking back what you put in yourself isn't borrowing. Only their own
+	 * Something is owed when it's marked as needing to be returned and a member has taken out more of
+	 * it than they've put in, so taking back what you put in yourself doesn't count. Only their own
 	 * entries count: someone else putting in the same item doesn't settle it. Neither do entries from
 	 * before it was marked, since whoever took it then was free to keep it.
 	 *
 	 * @param marked each item marked as needing to be returned, and when it was marked
 	 * @return what's still out, most recently taken first
 	 */
-	public static List<Borrowed> borrowed(List<MemberLog> logs, Map<Integer, Long> marked)
+	public static List<Owed> owed(List<MemberLog> logs, Map<Integer, Long> marked)
 	{
-		List<Borrowed> out = new ArrayList<>();
+		List<Owed> out = new ArrayList<>();
 		for (MemberLog member : logs)
 		{
 			Map<Integer, Long> net = new HashMap<>();
@@ -189,11 +189,11 @@ public final class StorageHistory
 			{
 				if (amount < 0)
 				{
-					out.add(new Borrowed(member.getName(), item, -amount, lastTaken.get(item)));
+					out.add(new Owed(member.getName(), item, -amount, lastTaken.get(item)));
 				}
 			});
 		}
-		out.sort(Comparator.comparingLong(Borrowed::getAt).reversed().thenComparingInt(Borrowed::getItem));
+		out.sort(Comparator.comparingLong(Owed::getAt).reversed().thenComparingInt(Owed::getItem));
 		return out;
 	}
 

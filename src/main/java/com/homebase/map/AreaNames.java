@@ -238,7 +238,7 @@ public final class AreaNames
 		new Place("Dragontooth Island", 3806, 3549, 15),
 		new Place("Karamja Shipyard", 2987, 3050, 20),
 		new Place("Kharazi Jungle", 2865, 2907, 50),
-		// More of Varlamore
+		// The rest of Varlamore
 		new Place("Sunset Coast", 1530, 2983, 35),
 		new Place("Aldarin", 1391, 2935, 35),
 		new Place("Mistrock", 1387, 2862, 20),
@@ -265,7 +265,7 @@ public final class AreaNames
 		new Place("Ortus Farm", 1569, 3126, 15),
 		new Place("Gloomthorn Trail", 1381, 3226, 20),
 		new Place("Mons Gratia", 1440, 3240, 20),
-		// Other places the table was missing
+		// Smaller places around the regions above
 		new Place("Land's End", 1510, 3430, 25),
 		new Place("Woodcutting Guild", 1565, 3499, 25),
 		new Place("Kourend Woodland", 1540, 3464, 20),

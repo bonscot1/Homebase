@@ -3,9 +3,10 @@ package com.homebase.data;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.UUID;
 
 /**
- * Stable identifiers derived by hashing, so raw account hashes and the group passphrase are never sent
+ * Identifiers. Most are derived by hashing, so raw account hashes and the group passphrase are never sent
  * to other players or written into file names.
  */
 public final class Ids
@@ -27,6 +28,14 @@ public final class Ids
 	public static String group(String passphrase)
 	{
 		return hash("homebase-group:" + passphrase);
+	}
+
+	/**
+	 * @return a new id for something shared, such as a goal
+	 */
+	public static String random()
+	{
+		return UUID.randomUUID().toString().replace("-", "").substring(0, ID_BYTES * 2);
 	}
 
 	private static String hash(String input)

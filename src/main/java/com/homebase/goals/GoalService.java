@@ -10,6 +10,7 @@ import com.homebase.data.CombatAchievementsData;
 import com.homebase.data.DiariesData;
 import com.homebase.data.GoalData;
 import com.homebase.data.GroupView;
+import com.homebase.data.Ids;
 import com.homebase.data.KillCountsData;
 import com.homebase.data.ProfileData;
 import com.homebase.data.QuestsData;
@@ -25,7 +26,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 import java.util.function.Predicate;
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -48,7 +48,6 @@ public class GoalService
 
 	private static final int MAX_TARGET = 60;
 	private static final int MAX_NAME = 20;
-	private static final int ID_LENGTH = 16;
 
 	@Value
 	public static class Goal
@@ -187,7 +186,7 @@ public class GoalService
 		{
 			return null;
 		}
-		String id = UUID.randomUUID().toString().replace("-", "").substring(0, ID_LENGTH);
+		String id = Ids.random();
 		engine.publish(Keys.shared(TYPE, id), me, gson.toJsonTree(data));
 		return id;
 	}

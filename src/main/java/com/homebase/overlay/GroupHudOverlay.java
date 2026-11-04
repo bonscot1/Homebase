@@ -38,7 +38,7 @@ import net.runelite.client.ui.overlay.components.ProgressBarComponent;
 import net.runelite.client.ui.overlay.components.TitleComponent;
 
 /**
- * An on-screen box with each online group member's hitpoints, prayer and run energy as bars, their
+ * An on-screen box with each online group member's hitpoints, prayer, run energy and special attack as bars, their
  * combat level and where they are. Live numbers come from RuneLite's party; combat level comes from
  * shared skills.
  */
@@ -169,7 +169,7 @@ public class GroupHudOverlay extends OverlayPanel
 
 	private boolean isMouseOverWorld()
 	{
-		for (MenuEntry entry : client.getMenuEntries())
+		for (MenuEntry entry : client.getMenu().getMenuEntries())
 		{
 			if (entry.getType() == MenuAction.WALK)
 			{
@@ -270,7 +270,7 @@ public class GroupHudOverlay extends OverlayPanel
 			.color(readable(index.color(name)))
 			.build());
 		addBars(member, size);
-		WorldPoint coord = coordOf(member);
+		WorldPoint coord = presence.positionOf(member);
 		if (config.hudPosition() && coord != null)
 		{
 			panelComponent.getChildren().add(LineComponent.builder()
@@ -296,7 +296,7 @@ public class GroupHudOverlay extends OverlayPanel
 	}
 
 	/**
-	 * Hitpoints, prayer and run energy as bars side by side, in the colours of the sidebar panel.
+	 * Whichever of hitpoints, prayer, run energy and special attack are turned on, as bars side by side.
 	 */
 	private void addBars(PartyMember member, HomebaseConfig.HudSize size)
 	{
@@ -382,16 +382,6 @@ public class GroupHudOverlay extends OverlayPanel
 			default:
 				return 15;
 		}
-	}
-
-	/**
-	 * Where a member is. Our own is read straight from the game, since it's what we send everyone else.
-	 */
-	private WorldPoint coordOf(PartyMember member)
-	{
-		PartyMember local = partyService.getLocalMember();
-		boolean self = local != null && local.getMemberId() == member.getMemberId();
-		return self ? presence.localPosition() : presence.positionOf(member);
 	}
 
 	private static Font fontFor(HomebaseConfig.HudSize size)

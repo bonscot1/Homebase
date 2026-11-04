@@ -2,6 +2,7 @@ package com.homebase.ui;
 
 import com.homebase.data.Clean;
 import com.homebase.storage.StorageHistory;
+import java.awt.Color;
 import java.awt.Component;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -23,7 +24,7 @@ final class StorageHistoryView
 {
 	static final String UNMARK = "Doesn't need returning";
 
-	private static final int MAX_BORROWED_SHOWN = 8;
+	private static final int MAX_OWED_SHOWN = 8;
 	private static final int MAX_LINES_SHOWN = 30;
 
 	/**
@@ -35,12 +36,11 @@ final class StorageHistoryView
 	 * Longest player and item names shown. Player names come from other members' data.
 	 */
 	private static final int MAX_NAME = 20;
-	private static final int MAX_ITEM_NAME = 60;
 
-	private static final String BORROWED_ID = "storage:borrowed";
+	private static final String OWED_ID = "storage:owed";
 	private static final String HISTORY_ID = "storage:history";
 
-	private static final String WHO_COLOR = ColorUtil.toHexColor(java.awt.Color.WHITE);
+	private static final String WHO_COLOR = ColorUtil.toHexColor(Color.WHITE);
 	private static final String TIME_COLOR = ColorUtil.toHexColor(ColorScheme.MEDIUM_GRAY_COLOR);
 
 	private StorageHistoryView()
@@ -54,10 +54,10 @@ final class StorageHistoryView
 	 * can't for now
 	 * @param onNamesFound run on the Swing thread once item names we didn't have yet have been looked up
 	 */
-	static void addOwed(JPanel parent, List<StorageHistory.Borrowed> borrowed, IntConsumer unmark, MemberCard.Context context,
+	static void addOwed(JPanel parent, List<StorageHistory.Owed> owed, IntConsumer unmark, MemberCard.Context context,
 		Runnable onNamesFound)
 	{
-		if (borrowed.isEmpty() || !MemberCard.addFoldRow(parent, "Owed back", String.valueOf(borrowed.size()), BORROWED_ID, context))
+		if (owed.isEmpty() || !MemberCard.addFoldRow(parent, "Owed back", String.valueOf(owed.size()), OWED_ID, context))
 		{
 			return;
 		}
@@ -65,20 +65,20 @@ final class StorageHistoryView
 		JPanel list = new JPanel();
 		list.setLayout(new BoxLayout(list, BoxLayout.Y_AXIS));
 		list.setOpaque(false);
-		for (StorageHistory.Borrowed out : borrowed.subList(0, Math.min(MAX_BORROWED_SHOWN, borrowed.size())))
+		for (StorageHistory.Owed entry : owed.subList(0, Math.min(MAX_OWED_SHOWN, owed.size())))
 		{
-			shownItems.add(out.getItem());
-			JLabel row = Ui.wrapped(text(out), ColorScheme.LIGHT_GRAY_COLOR, TEXT_WIDTH);
+			shownItems.add(entry.getItem());
+			JLabel row = Ui.wrapped(text(entry), ColorScheme.LIGHT_GRAY_COLOR, TEXT_WIDTH);
 			// all of an item can be out, so it may not be in the grid to right-click there
 			if (unmark != null)
 			{
-				row.setComponentPopupMenu(Ui.rightClickMenu(UNMARK, () -> unmark.accept(out.getItem())));
+				row.setComponentPopupMenu(Ui.rightClickMenu(UNMARK, () -> unmark.accept(entry.getItem())));
 			}
 			addRow(list, row);
 		}
-		if (borrowed.size() > MAX_BORROWED_SHOWN)
+		if (owed.size() > MAX_OWED_SHOWN)
 		{
-			addRow(list, Ui.muted("and " + (borrowed.size() - MAX_BORROWED_SHOWN) + " more"));
+			addRow(list, Ui.muted("and " + (owed.size() - MAX_OWED_SHOWN) + " more"));
 		}
 		MemberCard.addContent(parent, list);
 		lookUpMissingNames(shownItems, context, onNamesFound);
@@ -103,7 +103,7 @@ final class StorageHistoryView
 			shownItems.add(line.getItem());
 			rows.add(text(line));
 		}
-		addRows(parent, rows, lines.size() - rows.size(), " older");
+		addRows(parent, rows, lines.size() - rows.size());
 		lookUpMissingNames(shownItems, context, onNamesFound);
 	}
 
@@ -116,7 +116,12 @@ final class StorageHistoryView
 		}
 	}
 
-	static void addRows(JPanel parent, List<String> rows, int hidden, String hiddenNoun)
+	static void addRows(JPanel parent, List<String> rows)
+	{
+		addRows(parent, rows, 0);
+	}
+
+	private static void addRows(JPanel parent, List<String> rows, int older)
 	{
 		JPanel list = new JPanel();
 		list.setLayout(new BoxLayout(list, BoxLayout.Y_AXIS));
@@ -125,9 +130,9 @@ final class StorageHistoryView
 		{
 			addRow(list, Ui.wrapped(row, ColorScheme.LIGHT_GRAY_COLOR, TEXT_WIDTH));
 		}
-		if (hidden > 0)
+		if (older > 0)
 		{
-			addRow(list, Ui.muted("and " + hidden + hiddenNoun));
+			addRow(list, Ui.muted("and " + older + " older"));
 		}
 		MemberCard.addContent(parent, list);
 	}
@@ -149,11 +154,11 @@ final class StorageHistoryView
 	}
 
 	/**
-	 * @return the borrowed line as HTML, such as "Mundell: Shark ×5 · 2h ago"
+	 * @return the owed line as HTML, such as "Mundell: Shark ×5 · 2h ago"
 	 */
-	static String text(StorageHistory.Borrowed borrowed)
+	static String text(StorageHistory.Owed owed)
 	{
-		return who(borrowed.getWho()) + ": " + thing(borrowed.getItem(), borrowed.getAmount()) + when(borrowed.getAt());
+		return who(owed.getWho()) + ": " + thing(owed.getItem(), owed.getAmount()) + when(owed.getAt());
 	}
 
 	private static String who(String name)
@@ -164,9 +169,7 @@ final class StorageHistoryView
 
 	private static String thing(int item, long amount)
 	{
-		String name = Clean.text(ItemNames.get(item), MAX_ITEM_NAME);
-		return (name == null ? "item " + item : Ui.escapeHtml(name))
-			+ (amount > 1 ? " ×" + QuantityFormatter.formatNumber(amount) : "");
+		return Ui.escapeHtml(ItemNames.get(item)) + (amount > 1 ? " ×" + QuantityFormatter.formatNumber(amount) : "");
 	}
 
 	private static String when(long at)

@@ -15,6 +15,7 @@ import java.util.Set;
 import java.util.function.IntConsumer;
 import javax.swing.JComponent;
 import javax.swing.JPanel;
+import javax.swing.JPopupMenu;
 import javax.swing.ToolTipManager;
 import net.runelite.api.Constants;
 import net.runelite.api.Item;
@@ -70,7 +71,7 @@ class ItemGrid extends JPanel
 		}
 	}
 
-	private static final Marks NO_MARKS = new Marks(Collections.emptySet(), null, null);
+	static final Marks NO_MARKS = new Marks(Collections.emptySet(), null, null);
 
 	/**
 	 * @param items the container's slots, with null for empty ones
@@ -156,11 +157,6 @@ class ItemGrid extends JPanel
 		private final BitSet namesRequested = new BitSet();
 		private final int rows;
 
-		Tiles(List<Item> items, ItemSprites sprites)
-		{
-			this(items, sprites, NO_MARKS);
-		}
-
 		Tiles(List<Item> items, ItemSprites sprites, Marks marks)
 		{
 			this.items = items;
@@ -203,9 +199,10 @@ class ItemGrid extends JPanel
 				return;
 			}
 			int id = items.get(index).getId();
-			(marks.marked.contains(id)
+			JPopupMenu menu = marks.marked.contains(id)
 				? Ui.rightClickMenu(StorageHistoryView.UNMARK, () -> marks.unmark.accept(id))
-				: Ui.rightClickMenu("Needs returning", () -> marks.mark.accept(id))).show(this, e.getX(), e.getY());
+				: Ui.rightClickMenu("Needs returning", () -> marks.mark.accept(id));
+			menu.show(this, e.getX(), e.getY());
 		}
 
 		@Override

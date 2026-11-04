@@ -69,7 +69,7 @@ public interface HomebaseConfig extends Config
 		name = "Show group HUD",
 		description = "Show each online group member's hitpoints, prayer, run energy, level and position on screen",
 		section = hudSection,
-		position = 11
+		position = 101
 	)
 	default boolean hudEnabled()
 	{
@@ -81,7 +81,7 @@ public interface HomebaseConfig extends Config
 		name = "Include yourself",
 		description = "Show your own line in the group HUD too",
 		section = hudSection,
-		position = 12
+		position = 102
 	)
 	default boolean hudIncludeSelf()
 	{
@@ -93,7 +93,7 @@ public interface HomebaseConfig extends Config
 		name = "Hitpoints",
 		description = "Show hitpoints in the group HUD",
 		section = hudSection,
-		position = 13
+		position = 103
 	)
 	default boolean hudHitpoints()
 	{
@@ -105,7 +105,7 @@ public interface HomebaseConfig extends Config
 		name = "Prayer",
 		description = "Show prayer points in the group HUD",
 		section = hudSection,
-		position = 14
+		position = 104
 	)
 	default boolean hudPrayer()
 	{
@@ -117,7 +117,7 @@ public interface HomebaseConfig extends Config
 		name = "Run energy",
 		description = "Show run energy in the group HUD",
 		section = hudSection,
-		position = 15
+		position = 105
 	)
 	default boolean hudRunEnergy()
 	{
@@ -129,7 +129,7 @@ public interface HomebaseConfig extends Config
 		name = "Special attack",
 		description = "Show special attack energy in the group HUD",
 		section = hudSection,
-		position = 151
+		position = 106
 	)
 	default boolean hudSpecEnergy()
 	{
@@ -141,7 +141,7 @@ public interface HomebaseConfig extends Config
 		name = "Combat level",
 		description = "Show combat level in the group HUD",
 		section = hudSection,
-		position = 16
+		position = 107
 	)
 	default boolean hudLevel()
 	{
@@ -153,7 +153,7 @@ public interface HomebaseConfig extends Config
 		name = "Position",
 		description = "Show which area each member is in, such as Varrock",
 		section = hudSection,
-		position = 17
+		position = 108
 	)
 	default boolean hudPosition()
 	{
@@ -165,7 +165,7 @@ public interface HomebaseConfig extends Config
 		name = "Compact mode",
 		description = "One line per member instead of a block each",
 		section = hudSection,
-		position = 18
+		position = 111
 	)
 	default boolean hudCompact()
 	{
@@ -177,7 +177,7 @@ public interface HomebaseConfig extends Config
 		name = "Only your world",
 		description = "Only show group members on the same world as you",
 		section = hudSection,
-		position = 181
+		position = 109
 	)
 	default boolean hudSameWorld()
 	{
@@ -208,7 +208,7 @@ public interface HomebaseConfig extends Config
 		name = "Order",
 		description = "The order group members are listed in",
 		section = hudSection,
-		position = 182
+		position = 110
 	)
 	default HudOrder hudOrder()
 	{
@@ -221,7 +221,7 @@ public interface HomebaseConfig extends Config
 		description = "Click a member in the group HUD, then open your world map, and the map goes straight to them. "
 			+ "Clicks on the HUD don't reach the game behind it while this is on.",
 		section = hudSection,
-		position = 183
+		position = 113
 	)
 	default boolean hudClickToMap()
 	{
@@ -240,7 +240,7 @@ public interface HomebaseConfig extends Config
 		name = "Size",
 		description = "How big the group HUD is",
 		section = hudSection,
-		position = 19
+		position = 112
 	)
 	default HudSize hudSize()
 	{
@@ -259,7 +259,7 @@ public interface HomebaseConfig extends Config
 		name = "Show group on world map",
 		description = "Show where online group members are on the world map",
 		section = mapSection,
-		position = 21
+		position = 201
 	)
 	default boolean worldMap()
 	{
@@ -271,7 +271,7 @@ public interface HomebaseConfig extends Config
 		name = "Names on map markers",
 		description = "Show each member's name above their arrow and pin on the world map",
 		section = mapSection,
-		position = 211
+		position = 205
 	)
 	default boolean mapNames()
 	{
@@ -302,7 +302,7 @@ public interface HomebaseConfig extends Config
 		name = "Map marker size",
 		description = "How big arrows and pins are on the world map",
 		section = mapSection,
-		position = 212
+		position = 206
 	)
 	default MarkerSize mapMarkerSize()
 	{
@@ -314,7 +314,7 @@ public interface HomebaseConfig extends Config
 		name = "Keep off-screen members at the edge",
 		description = "When someone is off the part of the map you're looking at, keep their marker at the edge, pointing towards them",
 		section = mapSection,
-		position = 213
+		position = 207
 	)
 	default boolean mapEdge()
 	{
@@ -326,7 +326,7 @@ public interface HomebaseConfig extends Config
 		name = "Map pins",
 		description = "Right-click the world map and choose Pin for group to show everyone a spot. You have one pin at a time.",
 		section = mapSection,
-		position = 214
+		position = 208
 	)
 	default boolean mapPins()
 	{
@@ -339,7 +339,7 @@ public interface HomebaseConfig extends Config
 		name = "Pins last (hours)",
 		description = "How long a pin stays on the map, unless the person who placed it removes it sooner",
 		section = mapSection,
-		position = 215
+		position = 209
 	)
 	default int mapPinHours()
 	{
@@ -351,7 +351,7 @@ public interface HomebaseConfig extends Config
 		name = "Group tile markers",
 		description = "Shift + right-click a tile and choose Group mark to mark it for your whole group",
 		section = mapSection,
-		position = 22
+		position = 202
 	)
 	default boolean groupTiles()
 	{
@@ -363,7 +363,7 @@ public interface HomebaseConfig extends Config
 		name = "Your colour",
 		description = "The colour of your marked tiles, pings and highlights. Everyone in your group sees them in this colour.",
 		section = mapSection,
-		position = 23
+		position = 203
 	)
 	default Color tileColor()
 	{
@@ -375,7 +375,7 @@ public interface HomebaseConfig extends Config
 		name = "Names on tiles and highlights",
 		description = "Show who marked each tile or highlighted each monster",
 		section = mapSection,
-		position = 24
+		position = 204
 	)
 	default boolean tileNames()
 	{
@@ -413,7 +413,7 @@ public interface HomebaseConfig extends Config
 		name = "Pings",
 		description = "Middle-click the ground or a monster to point it out to your group for a few seconds",
 		section = pingSection,
-		position = 31
+		position = 301
 	)
 	default boolean pings()
 	{
@@ -425,7 +425,7 @@ public interface HomebaseConfig extends Config
 		name = "Ping with",
 		description = "Middle-click (dragging with the middle button still turns the camera), or hold the ping key and left-click",
 		section = pingSection,
-		position = 32
+		position = 302
 	)
 	default PingButton pingButton()
 	{
@@ -438,7 +438,7 @@ public interface HomebaseConfig extends Config
 		description = "The key to hold while left-clicking, when Ping with is set to use it. Alt moves RuneLite's overlays, "
 			+ "Ctrl + click is the game's run toggle and Shift is used by RuneLite's Party plugin pings.",
 		section = pingSection,
-		position = 33
+		position = 303
 	)
 	default Keybind pingKey()
 	{
@@ -452,7 +452,7 @@ public interface HomebaseConfig extends Config
 		name = "Ping length",
 		description = "How long a ping stays on screen",
 		section = pingSection,
-		position = 34
+		position = 304
 	)
 	default int pingSeconds()
 	{
@@ -464,7 +464,7 @@ public interface HomebaseConfig extends Config
 		name = "Ping sound",
 		description = "Play a sound when someone in your group pings",
 		section = pingSection,
-		position = 35
+		position = 305
 	)
 	default boolean pingSound()
 	{
@@ -476,7 +476,7 @@ public interface HomebaseConfig extends Config
 		name = "Pings on the minimap",
 		description = "Show pings on the minimap too, so one behind the camera still gets noticed",
 		section = pingSection,
-		position = 351
+		position = 308
 	)
 	default boolean pingMinimap()
 	{
@@ -488,7 +488,7 @@ public interface HomebaseConfig extends Config
 		name = "Group highlights",
 		description = "Shift + right-click a monster and choose Group highlight to outline it for the whole group until it dies",
 		section = pingSection,
-		position = 36
+		position = 306
 	)
 	default boolean npcHighlights()
 	{
@@ -501,7 +501,7 @@ public interface HomebaseConfig extends Config
 		description = "Keep your group highlights when the monster dies, so it's highlighted again when it respawns. "
 			+ "Shift + right-click it and choose Group unhighlight to remove one.",
 		section = pingSection,
-		position = 37
+		position = 307
 	)
 	default boolean keepHighlights()
 	{
@@ -520,7 +520,7 @@ public interface HomebaseConfig extends Config
 		name = "Item search box",
 		description = "Show a box above the tabs that searches everyone's inventory, equipment, bank, seed vault and looting bag, and the group storage",
 		section = panelSection,
-		position = 41
+		position = 401
 	)
 	default boolean itemSearch()
 	{
@@ -532,7 +532,7 @@ public interface HomebaseConfig extends Config
 		name = "Show offline members",
 		description = "List members who aren't online on the Members tab",
 		section = panelSection,
-		position = 42
+		position = 402
 	)
 	default boolean showOfflineMembers()
 	{
@@ -544,7 +544,7 @@ public interface HomebaseConfig extends Config
 		name = "Online members first",
 		description = "List online members above offline ones on the Members tab, rather than only by name",
 		section = panelSection,
-		position = 43
+		position = 403
 	)
 	default boolean onlineFirst()
 	{
@@ -556,7 +556,7 @@ public interface HomebaseConfig extends Config
 		name = "Live bars on cards",
 		description = "Show hitpoints, prayer, run energy and special attack bars on online members' cards",
 		section = panelSection,
-		position = 44
+		position = 404
 	)
 	default boolean cardBars()
 	{
@@ -568,7 +568,7 @@ public interface HomebaseConfig extends Config
 		name = "Who has collection log items",
 		description = "In the collection log, mark items with a dot in the colour of each group member who has them. Hover over an item for their names.",
 		section = panelSection,
-		position = 45
+		position = 405
 	)
 	default boolean logOwners()
 	{
@@ -588,7 +588,7 @@ public interface HomebaseConfig extends Config
 		name = "Request chat messages",
 		description = "Show a chat message when someone in your group makes, takes on or finishes a request",
 		section = updatesSection,
-		position = 51
+		position = 501
 	)
 	default boolean requestMessages()
 	{
@@ -601,7 +601,7 @@ public interface HomebaseConfig extends Config
 		description = "Show a chat message summarising what someone in your group did since your last update, "
 			+ "such as levels gained, quests finished and diaries completed",
 		section = updatesSection,
-		position = 52
+		position = 502
 	)
 	default boolean updateMessages()
 	{
@@ -613,7 +613,7 @@ public interface HomebaseConfig extends Config
 		name = "Goal chat messages",
 		description = "Show a chat message when someone in your group reaches a group goal",
 		section = updatesSection,
-		position = 53
+		position = 503
 	)
 	default boolean goalMessages()
 	{
@@ -625,7 +625,7 @@ public interface HomebaseConfig extends Config
 		name = "Pin chat messages",
 		description = "Show a chat message when someone in your group pins a spot on the world map",
 		section = updatesSection,
-		position = 54
+		position = 504
 	)
 	default boolean pinMessages()
 	{
@@ -637,7 +637,7 @@ public interface HomebaseConfig extends Config
 		name = "Levels",
 		description = "Include levels gained in your group's updates",
 		section = updatesSection,
-		position = 55
+		position = 505
 	)
 	default boolean updateLevels()
 	{
@@ -650,7 +650,7 @@ public interface HomebaseConfig extends Config
 		name = "Levels from",
 		description = "Only include levels gained at or above this level, to leave out the early ones",
 		section = updatesSection,
-		position = 56
+		position = 506
 	)
 	default int updateMinLevel()
 	{
@@ -662,7 +662,7 @@ public interface HomebaseConfig extends Config
 		name = "Quests and achievements",
 		description = "Include quests, achievement diaries and combat achievements in your group's updates",
 		section = updatesSection,
-		position = 57
+		position = 507
 	)
 	default boolean updateQuests()
 	{
@@ -674,7 +674,7 @@ public interface HomebaseConfig extends Config
 		name = "Collection log",
 		description = "Include new collection log slots in your group's updates",
 		section = updatesSection,
-		position = 58
+		position = 508
 	)
 	default boolean updateCollectionLog()
 	{
@@ -686,7 +686,7 @@ public interface HomebaseConfig extends Config
 		name = "Kill counts",
 		description = "Include boss kill counts in your group's updates",
 		section = updatesSection,
-		position = 59
+		position = 509
 	)
 	default boolean updateKillCounts()
 	{
@@ -698,7 +698,7 @@ public interface HomebaseConfig extends Config
 		name = "Drops and pets",
 		description = "Include valuable drops and pets in your group's updates",
 		section = updatesSection,
-		position = 60
+		position = 510
 	)
 	default boolean updateDrops()
 	{
@@ -711,7 +711,7 @@ public interface HomebaseConfig extends Config
 		name = "Drops worth at least",
 		description = "Only include drops worth at least this many coins at Grand Exchange prices",
 		section = updatesSection,
-		position = 61
+		position = 511
 	)
 	default int dropMinValue()
 	{
@@ -723,7 +723,7 @@ public interface HomebaseConfig extends Config
 		name = "Deaths",
 		description = "Include deaths in your group's updates",
 		section = updatesSection,
-		position = 62
+		position = 512
 	)
 	default boolean updateDeaths()
 	{
@@ -744,7 +744,7 @@ public interface HomebaseConfig extends Config
 		name = "Your position",
 		description = "Let your group see where you are, on the world map and in the group HUD",
 		section = shareSection,
-		position = 61
+		position = 601
 	)
 	default boolean sharePosition()
 	{
@@ -756,7 +756,7 @@ public interface HomebaseConfig extends Config
 		name = "Your inventory",
 		description = "Let your group see your inventory",
 		section = shareSection,
-		position = 62
+		position = 602
 	)
 	default boolean shareInventory()
 	{
@@ -768,7 +768,7 @@ public interface HomebaseConfig extends Config
 		name = "Your equipment",
 		description = "Let your group see what you're wearing",
 		section = shareSection,
-		position = 63
+		position = 603
 	)
 	default boolean shareEquipment()
 	{
@@ -780,7 +780,7 @@ public interface HomebaseConfig extends Config
 		name = "Your bank",
 		description = "Let your group see your bank",
 		section = shareSection,
-		position = 64
+		position = 604
 	)
 	default boolean shareBank()
 	{
@@ -792,7 +792,7 @@ public interface HomebaseConfig extends Config
 		name = "Your seed vault",
 		description = "Let your group see your seed vault",
 		section = shareSection,
-		position = 65
+		position = 605
 	)
 	default boolean shareSeedVault()
 	{
@@ -804,7 +804,7 @@ public interface HomebaseConfig extends Config
 		name = "Your looting bag",
 		description = "Let your group see your looting bag",
 		section = shareSection,
-		position = 66
+		position = 606
 	)
 	default boolean shareLootingBag()
 	{
@@ -816,7 +816,7 @@ public interface HomebaseConfig extends Config
 		name = "Your drops and pets",
 		description = "Tell your group about your valuable drops and pets",
 		section = shareSection,
-		position = 67
+		position = 607
 	)
 	default boolean shareDrops()
 	{
@@ -828,7 +828,7 @@ public interface HomebaseConfig extends Config
 		name = "Your deaths",
 		description = "Tell your group when you die, and roughly where",
 		section = shareSection,
-		position = 68
+		position = 608
 	)
 	default boolean shareDeaths()
 	{

@@ -222,7 +222,7 @@ public class Presence
 			WorldPoint here = config.sharePosition() ? localPosition() : null;
 			if (isSendDue(now - lastSent, !Objects.equals(here, lastSentPosition)))
 			{
-				send(true, here == null ? Integer.valueOf(HomebasePresence.NO_POSITION) : Integer.valueOf(HomebasePresence.packCoord(here)));
+				send(true, here == null ? HomebasePresence.NO_POSITION : HomebasePresence.packCoord(here));
 				lastSentPosition = here;
 			}
 		}
@@ -256,12 +256,18 @@ public class Presence
 	}
 
 	/**
-	 * @return where the member is: what they told us if they have, or failing that what RuneLite's
+	 * @return where the member is. Our own is read straight from the game, since it's what we send
+	 * everyone else. Anyone else's is what they told us if they have, or failing that what RuneLite's
 	 * party last sent, which is all a member on an older version of the plugin shares. Null if neither
-	 * has said yet.
+	 * has said yet. Call it on the client thread.
 	 */
 	public WorldPoint positionOf(PartyMember member)
 	{
+		PartyMember local = party.getLocalMember();
+		if (local != null && local.getMemberId() == member.getMemberId())
+		{
+			return localPosition();
+		}
 		return position(member.getMemberId(), member.getCoord());
 	}
 
