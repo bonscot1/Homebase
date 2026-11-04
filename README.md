@@ -22,7 +22,7 @@ It's made for Group Ironman groups, and works for any group of friends too.
 - Group members on the world map, each as an arrow in their colour with their name. Anyone off the part of the map you're looking at waits at the edge, with their arrow pointing the way.
 - **Map pins:** right-click the world map and choose **Pin for group** to show everyone a spot.
 - **Pings:** middle-click the ground or a monster, and everyone sees it flash in your colour with your name for a few seconds.
-- **Group highlights:** outline a monster for the whole group until it dies.
+- **Group highlights:** outline a monster for the whole group until it dies, or, with **Keep highlights after death** on, through every respawn.
 - **Group tiles:** mark tiles that the whole group sees, including inside raids.
 
 **Organise the group**

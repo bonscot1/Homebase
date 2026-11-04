@@ -27,6 +27,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
+import java.util.function.IntFunction;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.ImageIcon;
@@ -261,8 +262,8 @@ class MemberCard extends JPanel
 		addKillCounts(details, memberId, view, context);
 		addHouse(details, memberId, view, context);
 		details.add(Box.createVerticalStrut(6));
-		addItems(details, "Inventory", " items", memberId, Section.INVENTORY, view, context);
-		addItems(details, "Equipment", " worn", memberId, Section.EQUIPMENT, view, context);
+		addItems(details, "Inventory", ItemGrid::itemCount, memberId, Section.INVENTORY, view, context);
+		addItems(details, "Equipment", count -> count + " worn", memberId, Section.EQUIPMENT, view, context);
 		addCollapsible(details, "Bank", memberId, Section.BANK, view, context);
 		addCollapsible(details, "Seed vault", memberId, Section.SEED_VAULT, view, context);
 		addCollapsible(details, "Looting bag", memberId, Section.LOOTING_BAG, view, context);
@@ -310,7 +311,7 @@ class MemberCard extends JPanel
 	/**
 	 * The inventory or worn equipment, which are small enough to start open.
 	 */
-	private static void addItems(JPanel parent, String title, String noun, String memberId, Section section,
+	private static void addItems(JPanel parent, String title, IntFunction<String> countText, String memberId, Section section,
 		GroupView view, Context context)
 	{
 		ItemsData items = view.get(memberId, section, ItemsData.class);
@@ -320,7 +321,7 @@ class MemberCard extends JPanel
 		}
 		List<Item> slots = items.toItems();
 		int count = ItemGrid.countFilled(slots);
-		if (addFoldRow(parent, title, count + noun + "  ·  " + Ago.format(view.updatedAt(memberId, section)),
+		if (addFoldRow(parent, title, countText.apply(count) + "  ·  " + Ago.format(view.updatedAt(memberId, section)),
 			memberId + ":" + section.getKey(), context) && count > 0)
 		{
 			parent.add(new ItemGrid(slots, context.itemSprites));
@@ -341,7 +342,7 @@ class MemberCard extends JPanel
 		}
 		List<Item> slots = items.toItems();
 		String id = memberId + ":" + section.getKey();
-		addSectionRow(parent, title, ItemGrid.countFilled(slots) + " items · " + Ago.format(view.updatedAt(memberId, section)), id, context);
+		addSectionRow(parent, title, ItemGrid.itemCount(ItemGrid.countFilled(slots)) + " · " + Ago.format(view.updatedAt(memberId, section)), id, context);
 		if (context.openSections.contains(id))
 		{
 			parent.add(new ItemGrid(slots, context.itemSprites));

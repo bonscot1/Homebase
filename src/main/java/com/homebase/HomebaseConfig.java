@@ -495,6 +495,19 @@ public interface HomebaseConfig extends Config
 		return true;
 	}
 
+	@ConfigItem(
+		keyName = "keepHighlights",
+		name = "Keep highlights after death",
+		description = "Keep your group highlights when the monster dies, so it's highlighted again when it respawns. "
+			+ "Shift + right-click it and choose Group unhighlight to remove one.",
+		section = pingSection,
+		position = 37
+	)
+	default boolean keepHighlights()
+	{
+		return false;
+	}
+
 	@ConfigSection(
 		name = "Sidebar panel",
 		description = "What the sidebar panel shows",

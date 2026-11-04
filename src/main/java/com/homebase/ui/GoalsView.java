@@ -67,7 +67,12 @@ class GoalsView extends JPanel
 	/**
 	 * Width a bounty's text wraps at, leaving room for the item's picture and the remove button.
 	 */
-	private static final int BOUNTY_TEXT_WIDTH = 95;
+	private static final int BOUNTY_TEXT_WIDTH = 72;
+
+	/**
+	 * The room for a goal's title beside its count, so a long one wraps rather than gets cut off.
+	 */
+	private static final int GOAL_TITLE_WIDTH = 95;
 
 	private static final Map<GoalData.Type, String> TYPE_LABELS = new LinkedHashMap<>();
 
@@ -231,7 +236,8 @@ class GoalsView extends JPanel
 
 		JPanel header = new JPanel(new BorderLayout(6, 0));
 		header.setOpaque(false);
-		header.add(Ui.title(GoalService.title(data)), BorderLayout.CENTER);
+		header.add(Ui.title("<html><body style='width:" + GOAL_TITLE_WIDTH + "px'>"
+			+ Ui.escapeHtml(GoalService.title(data)) + "</body></html>"), BorderLayout.CENTER);
 		if (memberCount > 0)
 		{
 			header.add(Ui.small(doneCount + "/" + memberCount + " done", doneCount == memberCount ? DONE : ColorScheme.LIGHT_GRAY_COLOR),
@@ -548,6 +554,7 @@ class GoalsView extends JPanel
 
 	private void typeChanged()
 	{
+		formHint.setText("");
 		GoalData.Type type = selectedType();
 		List<String> options = new ArrayList<>();
 		String amount = "";

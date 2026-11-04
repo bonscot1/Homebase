@@ -113,6 +113,14 @@ class ItemGrid extends JPanel
 	}
 
 	/**
+	 * @return how many items, such as "1 item" or "12 items"
+	 */
+	static String itemCount(int count)
+	{
+		return count + (count == 1 ? " item" : " items");
+	}
+
+	/**
 	 * @return the rows needed to show this many items
 	 */
 	static int rowsFor(int itemCount)

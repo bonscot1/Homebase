@@ -7,6 +7,14 @@ import org.junit.Test;
 public class StorageViewTest
 {
 	@Test
+	public void oneItemIsNotItems()
+	{
+		assertEquals("1 item", ItemGrid.itemCount(1));
+		assertEquals("0 items", ItemGrid.itemCount(0));
+		assertEquals("67 items", ItemGrid.itemCount(67));
+	}
+
+	@Test
 	public void summaryOnlySaysWhatsGoingOn()
 	{
 		assertNull(StorageView.summary(0, 0, 0));

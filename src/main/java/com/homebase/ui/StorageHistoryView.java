@@ -171,6 +171,6 @@ final class StorageHistoryView
 
 	private static String when(long at)
 	{
-		return " <span style='color:" + TIME_COLOR + "'>· " + Ago.format(at) + "</span>";
+		return " <nobr><span style='color:" + TIME_COLOR + "'>· " + Ago.format(at) + "</span></nobr>";
 	}
 }

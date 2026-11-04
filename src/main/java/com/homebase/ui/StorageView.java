@@ -131,7 +131,7 @@ class StorageView extends JPanel
 		JPanel header = new JPanel(new BorderLayout(6, 0));
 		header.setOpaque(false);
 		header.add(Ui.title("Group storage"), BorderLayout.CENTER);
-		header.add(Ui.small(filled + " items", ColorScheme.LIGHT_GRAY_COLOR), BorderLayout.EAST);
+		header.add(Ui.small(ItemGrid.itemCount(filled), ColorScheme.LIGHT_GRAY_COLOR), BorderLayout.EAST);
 		String author = view.authorOf(null, Section.GROUP_STORAGE);
 		ProfileData seenBy = author == null ? null : view.get(author, Section.PROFILE, ProfileData.class);
 		header.add(Ui.muted("Seen " + Ago.format(view.updatedAt(null, Section.GROUP_STORAGE))

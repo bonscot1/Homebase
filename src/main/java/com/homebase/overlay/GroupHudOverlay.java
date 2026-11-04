@@ -67,6 +67,11 @@ public class GroupHudOverlay extends OverlayPanel
 
 	private static final int MAX_NAME = 20;
 
+	/**
+	 * How bright a name has to be to read on the HUD's dark box, from 0 to 255.
+	 */
+	private static final double MIN_NAME_BRIGHTNESS = 130;
+
 	private final Client client;
 	private final HomebaseConfig config;
 	private final PartyService partyService;
@@ -262,7 +267,7 @@ public class GroupHudOverlay extends OverlayPanel
 		int level = index.combatLevel(name);
 		panelComponent.getChildren().add(TitleComponent.builder()
 			.text(level > 0 && config.hudLevel() ? name + "  (level " + level + ")" : name)
-			.color(index.color(name))
+			.color(readable(index.color(name)))
 			.build());
 		addBars(member, size);
 		WorldPoint coord = coordOf(member);
@@ -284,7 +289,7 @@ public class GroupHudOverlay extends OverlayPanel
 		int level = index.combatLevel(name);
 		panelComponent.getChildren().add(LineComponent.builder()
 			.left(level > 0 && config.hudLevel() ? name + " (" + level + ")" : name)
-			.leftColor(index.color(name))
+			.leftColor(readable(index.color(name)))
 			.leftFont(font)
 			.build());
 		addBars(member, size);
@@ -345,6 +350,25 @@ public class GroupHudOverlay extends OverlayPanel
 		bar.setBackgroundColor(bg);
 		bar.setFontColor(Color.WHITE);
 		return bar;
+	}
+
+	/**
+	 * @return the colour, lightened just enough to read if a player has chosen a dark one
+	 */
+	static Color readable(Color color)
+	{
+		double brightness = 0.299 * color.getRed() + 0.587 * color.getGreen() + 0.114 * color.getBlue();
+		if (brightness >= MIN_NAME_BRIGHTNESS)
+		{
+			return color;
+		}
+		double toWhite = (MIN_NAME_BRIGHTNESS - brightness) / (255 - brightness);
+		return new Color(lighten(color.getRed(), toWhite), lighten(color.getGreen(), toWhite), lighten(color.getBlue(), toWhite));
+	}
+
+	private static int lighten(int channel, double toWhite)
+	{
+		return (int) Math.round(channel + (255 - channel) * toWhite);
 	}
 
 	private static int barHeight(HomebaseConfig.HudSize size)

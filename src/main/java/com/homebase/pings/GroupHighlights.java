@@ -20,7 +20,9 @@ import net.runelite.client.eventbus.Subscribe;
 
 /**
  * Highlights monsters for the whole group. Shift + right-click a monster and choose Group highlight;
- * everyone on the same world sees it outlined in your colour until it dies or you remove it.
+ * everyone on the same world sees it outlined in your colour until it dies or you remove it. With
+ * Keep highlights after death on, it stays highlighted through dying: a monster that respawns comes
+ * back with the same index, which is how a highlight knows it.
  */
 @Singleton
 public class GroupHighlights
@@ -66,7 +68,7 @@ public class GroupHighlights
 	public void onActorDeath(ActorDeath event)
 	{
 		Actor actor = event.getActor();
-		if (!(actor instanceof NPC) || collector.getMemberId() == null)
+		if (!(actor instanceof NPC) || collector.getMemberId() == null || config.keepHighlights())
 		{
 			return;
 		}
