@@ -94,7 +94,8 @@ public class FeedCollector
 	@Subscribe
 	public void onPlayerLootReceived(PlayerLootReceived event)
 	{
-		recordDrops(event.getPlayer().getName(), event.getItems());
+		// the player's name stays out of it: this only shares what's our own
+		recordDrops(null, event.getItems());
 	}
 
 	/**

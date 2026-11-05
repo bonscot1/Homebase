@@ -10,6 +10,8 @@ import com.homebase.data.GroupView;
 import com.homebase.data.Ids;
 import com.homebase.goals.GoalService;
 import com.homebase.party.GroupSync;
+import com.homebase.party.LiveSharing;
+import net.runelite.client.party.PartyDataService;
 import com.homebase.party.Presence;
 import com.homebase.requests.RequestService;
 import com.homebase.sync.GroupStore;
@@ -48,7 +50,6 @@ import net.runelite.client.callback.ClientThread;
 import net.runelite.client.eventbus.EventBus;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ClientShutdown;
-import net.runelite.client.party.PartyDataService;
 import net.runelite.client.party.PartyDataType;
 import net.runelite.client.party.PartyService;
 import net.runelite.client.party.WSClient;
@@ -98,6 +99,7 @@ final class SimulatedClient
 	private PartyService partyService;
 	private ClientThread clientThread;
 	private GroupSync groupSync;
+	private LiveSharing liveSharing;
 	private Presence presence;
 	private LocalCollector collector;
 	private GroupIndex groupIndex;
@@ -148,7 +150,7 @@ final class SimulatedClient
 		goals = injector.getInstance(GoalService.class);
 		bounties = injector.getInstance(BountyService.class);
 		requests = injector.getInstance(RequestService.class);
-		PartyDataService partyData = injector.getInstance(PartyDataService.class);
+		liveSharing = injector.getInstance(LiveSharing.class);
 
 		// the order HomebasePlugin starts them in
 		groupSync.start();
@@ -161,7 +163,7 @@ final class SimulatedClient
 		setGimGroup(plugin, gim);
 		collector.setSharePolicy(plugin::belongsToGroup);
 		collector.start();
-		partyData.subscribe(plugin, PartyDataType.CHARACTER_NAME);
+		liveSharing.start(plugin);
 		running = true;
 		openGroup(plugin, gim);
 	}
@@ -252,7 +254,11 @@ final class SimulatedClient
 		if (flushTimer >= FLUSH_MS)
 		{
 			flushTimer -= FLUSH_MS;
-			clientThread.invokeLater(groupSync::flush);
+			clientThread.invokeLater(() ->
+			{
+				liveSharing.update();
+				groupSync.flush();
+			});
 		}
 		saveTimer += millis;
 		if (saveTimer >= SAVE_MS)
@@ -309,6 +315,15 @@ final class SimulatedClient
 	/**
 	 * The player joins a party some other way, such as through RuneLite's Party panel.
 	 */
+	/**
+	 * RuneLite's own Party plugin turned on. It's what has the panel to type a party's name into, and it
+	 * sends the character's name to any party.
+	 */
+	void turnOnPartyPlugin()
+	{
+		injector.getInstance(PartyDataService.class).subscribe(new HomebasePlugin(), PartyDataType.CHARACTER_NAME);
+	}
+
 	void joinPartyDirectly(String partyPassphrase)
 	{
 		partyService.changeParty(partyPassphrase);
@@ -333,6 +348,8 @@ final class SimulatedClient
 	void logInOnAnotherAccount(String accountName)
 	{
 		logOut();
+		// nobody gets through the login screen instantly
+		party.run(5_000);
 		name = accountName;
 		accountHash = accountName.hashCode();
 		logIn();
@@ -544,6 +561,7 @@ final class SimulatedClient
 		age(groupSync, "lastSummaryAt", millis);
 		age(groupSync, "loginScreenSince", millis);
 		ageAll(groupSync, "listedAt", millis);
+		ageAll(groupSync, "heardAt", millis);
 		age(presence, "lastSent", millis);
 		ageAll(presence, "lastHeard", millis);
 		ageAll(collector, "lastPublished", millis);

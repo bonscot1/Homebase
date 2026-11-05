@@ -212,9 +212,10 @@ public class Presence
 	 * Send "still here" when it's due, and tell listeners when someone has gone quiet. Runs about once
 	 * a second on the client thread.
 	 *
-	 * @param sharing whether we're in the group's party and it's safe to share with everyone in it
+	 * @param safe whether we're in the group's party with nobody else in it
+	 * @param sharing whether this account may send anything to it
 	 */
-	public void tick(boolean sharing)
+	public void tick(boolean safe, boolean sharing)
 	{
 		long now = System.currentTimeMillis();
 		if (sharing && client.getGameState() == GameState.LOGGED_IN)
@@ -228,7 +229,7 @@ public class Presence
 			}
 		}
 		Set<Long> online = new HashSet<>();
-		if (sharing)
+		if (safe)
 		{
 			for (PartyMember member : party.getMembers())
 			{

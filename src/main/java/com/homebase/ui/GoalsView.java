@@ -276,6 +276,7 @@ class GoalsView extends JPanel
 			buttons.add(Ui.button("Delete", () ->
 			{
 				goals.delete(goal.getId());
+				bounties.deleteForGoal(goal.getId());
 				refresh();
 			}));
 			card.add(buttons);

@@ -155,6 +155,20 @@ public class BountyService
 	}
 
 	/**
+	 * Delete a goal's bounties along with it, since they're only ever listed under their goal.
+	 */
+	public void deleteForGoal(String goalId)
+	{
+		for (Bounty bounty : list())
+		{
+			if (goalId.equals(bounty.getData().getGoalId()))
+			{
+				delete(bounty.getId());
+			}
+		}
+	}
+
+	/**
 	 * @return how the item stands for the logged in player, or null if there's no bounty on it.
 	 * Cheap enough to call for every menu entry and every frame.
 	 */
@@ -195,7 +209,12 @@ public class BountyService
 				continue;
 			}
 			GoalService.Goal goal = goals.get(data.getGoalId());
-			String title = goal == null ? "a deleted goal" : GoalService.title(goal.getData());
+			if (goal == null)
+			{
+				// its goal has been deleted, or hasn't arrived yet, so it holds nothing back
+				continue;
+			}
+			String title = GoalService.title(goal.getData());
 			boolean locked = me != null && isLocked(data, me);
 			int quantity = 0;
 			if (locked)

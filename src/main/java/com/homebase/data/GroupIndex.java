@@ -234,7 +234,7 @@ public class GroupIndex
 		return out;
 	}
 
-	private Snapshot current()
+	private synchronized Snapshot current()
 	{
 		if (dirty)
 		{

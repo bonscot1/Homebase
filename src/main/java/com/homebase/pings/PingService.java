@@ -207,7 +207,7 @@ public class PingService
 	{
 		PartyMember local = partyService.getLocalMember();
 		WorldView view = client.getTopLevelWorldView();
-		if (!config.pings() || !groupSync.isGroupParty() || !groupSync.isShareSafe() || local == null || view == null)
+		if (!config.pings() || !groupSync.isSharing() || local == null || view == null)
 		{
 			return false;
 		}

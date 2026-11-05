@@ -67,7 +67,7 @@ public interface HomebaseConfig extends Config
 	@ConfigItem(
 		keyName = "hudEnabled",
 		name = "Show group HUD",
-		description = "Show each online group member's hitpoints, prayer, run energy, level and position on screen",
+		description = "Show each online group member's hitpoints, prayer, run energy, special attack, level and position on screen",
 		section = hudSection,
 		position = 101
 	)
@@ -151,7 +151,7 @@ public interface HomebaseConfig extends Config
 	@ConfigItem(
 		keyName = "hudPosition",
 		name = "Position",
-		description = "Show which area each member is in, such as Varrock",
+		description = "Show which area each member is in, such as Varrock. Compact mode leaves it out.",
 		section = hudSection,
 		position = 108
 	)
@@ -163,7 +163,7 @@ public interface HomebaseConfig extends Config
 	@ConfigItem(
 		keyName = "hudCompact",
 		name = "Compact mode",
-		description = "One line per member instead of a block each",
+		description = "A name line and bars for each member, without the area they're in",
 		section = hudSection,
 		position = 111
 	)
@@ -218,7 +218,8 @@ public interface HomebaseConfig extends Config
 	@ConfigItem(
 		keyName = "hudClickToMap",
 		name = "Click to find on map",
-		description = "Click a member in the group HUD, then open your world map, and the map goes straight to them. "
+		description = "Click a member in the group HUD, or right-click it and choose Find on map, then open your world map "
+			+ "within a minute, and the map goes straight to them. "
 			+ "While this is on, clicking the HUD won't walk you to the ground behind it. Monsters and objects behind it can still be clicked.",
 		section = hudSection,
 		position = 113
@@ -257,7 +258,7 @@ public interface HomebaseConfig extends Config
 	@ConfigItem(
 		keyName = "worldMap",
 		name = "Show group on world map",
-		description = "Show where online group members are on the world map",
+		description = "Show where online group members are on the world map, and everyone's pins",
 		section = mapSection,
 		position = 201
 	)
@@ -312,7 +313,8 @@ public interface HomebaseConfig extends Config
 	@ConfigItem(
 		keyName = "mapEdge",
 		name = "Keep off-screen members at the edge",
-		description = "When someone is off the part of the map you're looking at, keep their marker at the edge, pointing towards them",
+		description = "When someone or their pin is off the part of the map you're looking at, keep it at the edge. "
+			+ "A member's arrow points towards them.",
 		section = mapSection,
 		position = 207
 	)
@@ -337,7 +339,7 @@ public interface HomebaseConfig extends Config
 	@ConfigItem(
 		keyName = "mapPinHours",
 		name = "Pins last (hours)",
-		description = "How long a pin stays on the map, unless the person who placed it removes it sooner",
+		description = "How long pins stay on your map, unless the person who placed one removes it sooner",
 		section = mapSection,
 		position = 209
 	)
@@ -361,7 +363,8 @@ public interface HomebaseConfig extends Config
 	@ConfigItem(
 		keyName = TILE_COLOR_KEY,
 		name = "Your colour",
-		description = "The colour of your marked tiles, pings and highlights. Everyone in your group sees them in this colour.",
+		description = "The colour of your map arrow and pin, marked tiles, pings, highlights, collection log dots and your name "
+			+ "in the group HUD. Everyone in your group sees them in this colour.",
 		section = mapSection,
 		position = 203
 	)
@@ -411,7 +414,7 @@ public interface HomebaseConfig extends Config
 	@ConfigItem(
 		keyName = "pings",
 		name = "Pings",
-		description = "Middle-click the ground or a monster to point it out to your group for a few seconds",
+		description = "Point out the ground or a monster to your group for a few seconds, and see theirs. Ping with sets how.",
 		section = pingSection,
 		position = 301
 	)
@@ -435,7 +438,8 @@ public interface HomebaseConfig extends Config
 	@ConfigItem(
 		keyName = "pingKey",
 		name = "Ping key",
-		description = "The key to hold while left-clicking, when Ping with is set to use it. Alt moves RuneLite's overlays, "
+		description = "The key to hold while left-clicking, when Ping with is set to use it. None is set at first, so choose one "
+			+ "or those pings won't work. Alt moves RuneLite's overlays, "
 			+ "Ctrl + click is the game's run toggle and Shift is used by RuneLite's Party plugin pings.",
 		section = pingSection,
 		position = 303
@@ -486,7 +490,7 @@ public interface HomebaseConfig extends Config
 	@ConfigItem(
 		keyName = "npcHighlights",
 		name = "Group highlights",
-		description = "Shift + right-click a monster and choose Group highlight to outline it for the whole group until it dies",
+		description = "Shift + right-click a monster and choose Group highlight to outline it for group members on your world until it dies",
 		section = pingSection,
 		position = 306
 	)
@@ -499,7 +503,7 @@ public interface HomebaseConfig extends Config
 		keyName = "keepHighlights",
 		name = "Keep highlights after death",
 		description = "Keep your group highlights when the monster dies, so it's highlighted again when it respawns. "
-			+ "Shift + right-click it and choose Group unhighlight to remove one.",
+			+ "Shift + right-click it and choose Group unhighlight to remove one. Changing world clears them, and you can have 20 at once.",
 		section = pingSection,
 		position = 307
 	)
@@ -566,7 +570,7 @@ public interface HomebaseConfig extends Config
 	@ConfigItem(
 		keyName = "logOwners",
 		name = "Who has collection log items",
-		description = "In the collection log, mark items with a dot in the colour of each group member who has them. Hover over an item for their names.",
+		description = "In the collection log, mark items with a dot in the colour of each other group member who has them. Hover over an item for their names.",
 		section = panelSection,
 		position = 405
 	)
@@ -733,7 +737,7 @@ public interface HomebaseConfig extends Config
 	@ConfigSection(
 		name = "What you share",
 		description = "What your group can see about you. Turning off your position, inventory, equipment, bank, seed vault or looting bag "
-			+ "also removes what you've already shared of it.",
+			+ "also removes what you've already shared of it. Members on an older version of the plugin keep the last position they got.",
 		position = 60,
 		closedByDefault = true
 	)
@@ -826,7 +830,7 @@ public interface HomebaseConfig extends Config
 	@ConfigItem(
 		keyName = "shareDeaths",
 		name = "Your deaths",
-		description = "Tell your group when you die, and roughly where",
+		description = "Tell your group when you die, and roughly where unless Your position is off",
 		section = shareSection,
 		position = 608
 	)

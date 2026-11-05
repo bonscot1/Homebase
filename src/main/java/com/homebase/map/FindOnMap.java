@@ -10,7 +10,9 @@ import javax.inject.Inject;
 import javax.inject.Singleton;
 import javax.swing.SwingUtilities;
 import net.runelite.api.Client;
+import net.runelite.api.MenuAction;
 import net.runelite.api.coords.WorldPoint;
+import net.runelite.api.events.GameTick;
 import net.runelite.api.events.WidgetLoaded;
 import net.runelite.api.gameval.InterfaceID;
 import net.runelite.api.worldmap.WorldMap;
@@ -22,8 +24,9 @@ import net.runelite.client.party.PartyMember;
 import net.runelite.client.party.PartyService;
 
 /**
- * Click a member in the group HUD to find them on the world map. A plugin isn't allowed to open the
- * map itself, so the click is remembered and the map goes to them when it's next opened.
+ * Click a member in the group HUD, or right-click the box and choose Find on map, to find them on the
+ * world map. A plugin isn't allowed to open the map itself, so the choice is remembered and the map
+ * goes to them when it's next opened.
  */
 @Singleton
 public class FindOnMap
@@ -139,13 +142,36 @@ public class FindOnMap
 		if (presence.positionOf(member) == null)
 		{
 			wanted = false;
-			messages.accept(name + " isn't sharing where they are.");
+			messages.accept("Can't see where " + name + " is right now.");
 			return;
 		}
 		wanted = true;
 		wantedMember = memberId;
 		wantedAt = System.currentTimeMillis();
 		messages.accept("Open your world map to see where " + name + " is.");
+	}
+
+	/**
+	 * Keeps the box's right-click menu up to date. It works even with a monster behind the box, where a
+	 * left-click goes to the monster.
+	 */
+	@Subscribe
+	public void onGameTick(GameTick event)
+	{
+		hud.getMenuEntries().clear();
+		if (!config.hudClickToMap())
+		{
+			return;
+		}
+		for (PartyMember member : hud.visibleMembers())
+		{
+			String name = Clean.text(member.getDisplayName(), MAX_NAME);
+			long memberId = member.getMemberId();
+			if (name != null)
+			{
+				hud.addMenuEntry(MenuAction.RUNELITE_OVERLAY, "Find on map", name, entry -> clicked(memberId));
+			}
+		}
 	}
 
 	@Subscribe

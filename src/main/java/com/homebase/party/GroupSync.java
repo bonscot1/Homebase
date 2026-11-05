@@ -95,9 +95,14 @@ public class GroupSync
 	 * How long a nameless party member may stay silent before they're taken to be a closed connection.
 	 * RuneLite's party server keeps listing a connection for a few minutes after it closes, and anyone
 	 * who joins after that sees it with no name. Anyone actually there answers a newcomer within a few
-	 * seconds, and a nameless member who says anything at all still counts as a stranger.
+	 * seconds, and a nameless member who says anything counts as a stranger until they've been quiet this long.
 	 */
 	static final long SILENT_CONNECTION_MS = 10_000;
+
+	/**
+	 * How long after logging out a member of a Group Ironman group goes on sending what was waiting.
+	 */
+	static final long LOGOUT_SEND_MS = 10_000;
 
 	/**
 	 * The name RuneLite gives a party member until theirs arrives.
@@ -159,9 +164,9 @@ public class GroupSync
 	private long loginScreenSince;
 
 	/**
-	 * Party members heard from since we joined, by any message, and when each was first listed.
+	 * When each party member was last heard from, by any message, and when each was first listed.
 	 */
-	private final Set<Long> heardFrom = ConcurrentHashMap.newKeySet();
+	private final Map<Long, Long> heardAt = new ConcurrentHashMap<>();
 	private final Map<Long, Long> listedAt = new ConcurrentHashMap<>();
 
 	/**
@@ -233,6 +238,10 @@ public class GroupSync
 		}
 		if (isGroupParty())
 		{
+			if (isOnOtherAccount())
+			{
+				return Status.NOT_IN_GROUP;
+			}
 			if (isShareSafe())
 			{
 				return Status.CONNECTED;
@@ -260,6 +269,40 @@ public class GroupSync
 	}
 
 	/**
+	 * @return true if the game has shown this account is in the group. It can't at the login screen, or
+	 * for a moment after logging in, until the member list arrives.
+	 */
+	public boolean isVerifiedAccount()
+	{
+		return gimGroup == null || localInGroup;
+	}
+
+	/**
+	 * @return true if we may send the group anything
+	 */
+	public boolean isSharing()
+	{
+		return isGroupParty() && isShareSafe() && isVerifiedAccount();
+	}
+
+	/**
+	 * A member at the login screen has no name for anyone who joins after them, and anyone nameless who
+	 * says something stops sharing for whoever hears it. So once logged out, this only finishes sending
+	 * what was waiting, then goes quiet, and whoever joins next takes it for a closed connection. Nothing
+	 * is lost: what's left goes out at the next login. An alt on the same client says nothing at all, or
+	 * it would look like a stranger to everyone else.
+	 */
+	static boolean isFinishingAfterLogout(GameState state, long sinceLogout)
+	{
+		return state == GameState.LOGIN_SCREEN && sinceLogout < LOGOUT_SEND_MS;
+	}
+
+	private boolean isOnOtherAccount()
+	{
+		return gimGroup != null && !localInGroup && rosterChecked && client.getGameState() == GameState.LOGGED_IN;
+	}
+
+	/**
 	 * @return anyone in the group's party who isn't on the Group Ironman group's member list, by name
 	 * ("someone" for a member whose name hasn't arrived yet); always empty for a passphrase group
 	 */
@@ -280,7 +323,8 @@ public class GroupSync
 	{
 		for (PartyMember member : unverifiedMembers())
 		{
-			if (!isSilent(hasName(member), heardFrom.contains(member.getMemberId())))
+			boolean heardLately = System.currentTimeMillis() - heardAt.getOrDefault(member.getMemberId(), 0L) < SILENT_CONNECTION_MS;
+			if (!isSilent(hasName(member), heardLately))
 			{
 				return false;
 			}
@@ -304,8 +348,8 @@ public class GroupSync
 				continue;
 			}
 			boolean named = hasName(member);
-			boolean closed = isClosedConnection(named, heardFrom.contains(member.getMemberId()),
-				listedAt.getOrDefault(member.getMemberId(), now), now);
+			long lastSign = Math.max(listedAt.getOrDefault(member.getMemberId(), now), heardAt.getOrDefault(member.getMemberId(), 0L));
+			boolean closed = isClosedConnection(named, lastSign, now);
 			if (!isVerified(member) && !closed)
 			{
 				out.add(member);
@@ -315,12 +359,14 @@ public class GroupSync
 	}
 
 	/**
-	 * @return true if a party member is most likely a connection that has already closed: they have no
-	 * name, and haven't said anything in all the time they've been listed
+	 * @param lastSign when they were listed or last heard from, whichever came later
+	 * @return true if a party member is most likely a connection that has already closed, or a member at
+	 * the login screen, who has no name for anyone who joined after them: they have no name, and haven't
+	 * said anything for a while
 	 */
-	static boolean isClosedConnection(boolean named, boolean heard, long listedAt, long now)
+	static boolean isClosedConnection(boolean named, long lastSign, long now)
 	{
-		return isSilent(named, heard) && now - listedAt >= SILENT_CONNECTION_MS;
+		return !named && now - lastSign >= SILENT_CONNECTION_MS;
 	}
 
 	static boolean isSilent(boolean named, boolean heard)
@@ -365,9 +411,10 @@ public class GroupSync
 			return;
 		}
 		ClanSettings settings = client.getClanSettings(ClanID.GROUP_IRONMAN);
-		boolean inGroup = settings != null && settings.getName() != null
+		// the list can go missing for a moment, such as when hopping worlds, which doesn't mean we've left
+		boolean inGroup = settings == null ? localInGroup : settings.getName() != null
 			&& rosterKey(settings.getName()).equals(rosterKey(group));
-		if (inGroup)
+		if (inGroup && settings != null)
 		{
 			Set<String> names = new HashSet<>();
 			for (ClanMember member : settings.getMembers())
@@ -430,7 +477,7 @@ public class GroupSync
 		if (isGroupParty())
 		{
 			// the party server doesn't reliably tell the others we left, so say so ourselves
-			if (isShareSafe())
+			if (isShareSafe() && isVerifiedAccount())
 			{
 				presence.sendOffline();
 			}
@@ -442,7 +489,7 @@ public class GroupSync
 	@Subscribe
 	public void onPartyChanged(PartyChanged event)
 	{
-		heardFrom.clear();
+		heardAt.clear();
 		listedAt.clear();
 		notifyStatus();
 	}
@@ -460,7 +507,7 @@ public class GroupSync
 			{
 				// stay connected, but send whatever is waiting and tell the group we've gone
 				flush();
-				if (isShareSafe())
+				if (isShareSafe() && isVerifiedAccount())
 				{
 					presence.sendOffline();
 				}
@@ -495,7 +542,7 @@ public class GroupSync
 	@Subscribe
 	public void onUserPart(UserPart event)
 	{
-		heardFrom.remove(event.getMemberId());
+		heardAt.remove(event.getMemberId());
 		listedAt.remove(event.getMemberId());
 		notifyStatus();
 	}
@@ -505,25 +552,25 @@ public class GroupSync
 	@Subscribe
 	public void onPartyData(PartyData message)
 	{
-		heardFrom.add(message.getMemberId());
+		heardAt.put(message.getMemberId(), System.currentTimeMillis());
 	}
 
 	@Subscribe
 	public void onHomebasePresence(HomebasePresence message)
 	{
-		heardFrom.add(message.getMemberId());
+		heardAt.put(message.getMemberId(), System.currentTimeMillis());
 	}
 
 	@Subscribe
 	public void onHomebasePing(HomebasePing message)
 	{
-		heardFrom.add(message.getMemberId());
+		heardAt.put(message.getMemberId(), System.currentTimeMillis());
 	}
 
 	@Subscribe
 	public void onHomebaseSyncMessage(HomebaseSyncMessage message)
 	{
-		heardFrom.add(message.getMemberId());
+		heardAt.put(message.getMemberId(), System.currentTimeMillis());
 		SyncEngine engine = this.engine;
 		if (engine == null || !isGroupParty())
 		{
@@ -590,7 +637,9 @@ public class GroupSync
 			leaveGroupParty();
 			return;
 		}
-		boolean sharing = connected && isShareSafe();
+		boolean safe = connected && isShareSafe();
+		boolean sharing = safe && isVerifiedAccount();
+		boolean justStarted = sharing && !wasSharing;
 		if (sharing != wasSharing)
 		{
 			wasSharing = sharing;
@@ -601,15 +650,21 @@ public class GroupSync
 			}
 			notifyStatus();
 		}
-		presence.tick(sharing);
+		// our name went out just before this, and whatever gets there ahead of it is ignored, so it waits a turn
+		presence.tick(safe, sharing && !justStarted);
+		if (justStarted)
+		{
+			return;
+		}
 		SyncEngine engine = this.engine;
-		if (engine == null || !sharing)
+		long now = System.currentTimeMillis();
+		boolean finishing = safe && isFinishingAfterLogout(client.getGameState(), now - loginScreenSince);
+		if (engine == null || !(sharing || finishing))
 		{
 			return;
 		}
 
-		long now = System.currentTimeMillis();
-		if (summaryWanted && now - lastSummaryAt >= SUMMARY_INTERVAL_MS)
+		if (sharing && summaryWanted && now - lastSummaryAt >= SUMMARY_INTERVAL_MS)
 		{
 			summaryWanted = false;
 			lastSummaryAt = now;

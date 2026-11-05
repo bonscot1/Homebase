@@ -25,6 +25,7 @@ import com.homebase.overlay.CollectionLogOverlay;
 import com.homebase.overlay.GroupHudOverlay;
 import com.homebase.overlay.GroupTileOverlay;
 import com.homebase.party.GroupSync;
+import com.homebase.party.LiveSharing;
 import com.homebase.party.Presence;
 import com.homebase.pings.GroupHighlightOverlay;
 import com.homebase.pings.GroupHighlights;
@@ -67,20 +68,16 @@ import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
 import net.runelite.api.GameState;
-import net.runelite.api.Skill;
 import net.runelite.api.events.GameTick;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.EventBus;
 import net.runelite.client.eventbus.Subscribe;
+import net.runelite.client.events.ClientShutdown;
 import net.runelite.client.events.ConfigChanged;
-import net.runelite.client.party.PartyDataService;
-import net.runelite.client.party.PartyDataType;
-import net.runelite.client.party.PartyMember;
 import net.runelite.client.party.PartyService;
 import net.runelite.client.party.events.UserJoin;
 import net.runelite.client.party.messages.PartyData;
-import net.runelite.client.party.messages.UserSync;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.ClientToolbar;
@@ -144,7 +141,7 @@ public class HomebasePlugin extends Plugin
 	private PartyService partyService;
 
 	@Inject
-	private PartyDataService partyDataService;
+	private LiveSharing liveSharing;
 
 	@Inject
 	private ScheduledExecutorService executor;
@@ -261,16 +258,6 @@ public class HomebasePlugin extends Plugin
 	private volatile boolean updatesToAnnounce;
 
 	/**
-	 * Whether run energy, special attack, hitpoints and prayer are being shared through the party service.
-	 */
-	private boolean liveShared;
-
-	/**
-	 * Whether position is too, which the player can turn off by itself.
-	 */
-	private boolean positionShared;
-
-	/**
 	 * When the latest request messages went to chat.
 	 */
 	private final Deque<Long> recentAnnouncements = new ArrayDeque<>();
@@ -329,10 +316,7 @@ public class HomebasePlugin extends Plugin
 		collector.setSharePolicy(this::belongsToGroup);
 		collector.start();
 		activityCollector.start();
-
-		// RuneLite's party service shares live stats; our own sync handles everything that persists. Names
-		// are always sent, so the group can tell who's in the party; the rest only once that's checked.
-		partyDataService.subscribe(this, PartyDataType.CHARACTER_NAME);
+		liveSharing.start(this);
 
 		updateTracker.addListener(updateListener);
 		panel = injector.getInstance(HomebasePanel.class);
@@ -357,8 +341,8 @@ public class HomebasePlugin extends Plugin
 
 		flushTask = executor.scheduleWithFixedDelay(() -> clientThread.invokeLater(() ->
 		{
+			liveSharing.update();
 			groupSync.flush();
-			updateLiveSharing();
 		}), FLUSH_INTERVAL_SECONDS, FLUSH_INTERVAL_SECONDS, TimeUnit.SECONDS);
 		saveTask = executor.scheduleWithFixedDelay(this::saveCurrent, SAVE_INTERVAL_SECONDS, SAVE_INTERVAL_SECONDS, TimeUnit.SECONDS);
 	}
@@ -406,10 +390,7 @@ public class HomebasePlugin extends Plugin
 		groupSync.stop();
 		presence.stop();
 
-		partyDataService.unsubscribe(this, PartyDataType.values());
-		partyDataService.unsubscribe(this, Skill.values());
-		liveShared = false;
-		positionShared = false;
+		liveSharing.stop();
 
 		overlayManager.remove(collectionLogOverlay);
 		overlayManager.remove(hudOverlay);
@@ -742,56 +723,11 @@ public class HomebasePlugin extends Plugin
 		return true;
 	}
 
-	/**
-	 * Share position, run energy, special attack, hitpoints and prayer through RuneLite's party service
-	 * only while connected to the group with nobody else in the party. Runs on the client thread.
-	 */
-	private void updateLiveSharing()
-	{
-		boolean share = groupSync.isGroupParty() && groupSync.isShareSafe();
-		boolean sharePosition = share && config.sharePosition();
-		if (sharePosition != positionShared)
-		{
-			positionShared = sharePosition;
-			if (sharePosition)
-			{
-				partyDataService.subscribe(this, PartyDataType.COORD);
-			}
-			else
-			{
-				partyDataService.unsubscribe(this, PartyDataType.COORD);
-			}
-		}
-		if (share == liveShared)
-		{
-			return;
-		}
-		liveShared = share;
-		if (share)
-		{
-			partyDataService.subscribe(this, PartyDataType.ENERGY, PartyDataType.SPEC);
-			partyDataService.subscribe(this, Skill.HITPOINTS, Skill.PRAYER);
-			// the party only sends stats when they change, so ask everyone, us included, to send theirs now
-			PartyMember local = partyService.getLocalMember();
-			if (local != null)
-			{
-				UserSync sync = new UserSync();
-				sync.setMemberId(local.getMemberId());
-				partyService.send(sync);
-			}
-		}
-		else
-		{
-			partyDataService.unsubscribe(this, PartyDataType.ENERGY, PartyDataType.SPEC);
-			partyDataService.unsubscribe(this, Skill.HITPOINTS, Skill.PRAYER);
-		}
-	}
-
 	@Subscribe
 	public void onUserJoin(UserJoin event)
 	{
 		// whoever arrived isn't checked yet, so stop sharing straight away rather than on the next flush
-		clientThread.invokeLater(this::updateLiveSharing);
+		clientThread.invokeLater(liveSharing::update);
 	}
 
 	private void closeGroup()
@@ -867,6 +803,15 @@ public class HomebasePlugin extends Plugin
 			log.warn("Couldn't read saved updates", e);
 			return null;
 		}
+	}
+
+	/**
+	 * RuneLite doesn't stop plugins when it closes, so this saves what the regular save hasn't got to yet.
+	 */
+	@Subscribe
+	public void onClientShutdown(ClientShutdown event)
+	{
+		event.waitFor(executor.submit(this::saveCurrent));
 	}
 
 	private void saveCurrent()

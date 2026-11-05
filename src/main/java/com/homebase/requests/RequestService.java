@@ -95,7 +95,7 @@ public class RequestService
 	 * @return the requests an item in group storage is kept for, if any. Cheap enough to call for
 	 * every menu entry and every frame.
 	 */
-	public List<Reservation> reservationsFor(int itemId)
+	public synchronized List<Reservation> reservationsFor(int itemId)
 	{
 		if (dirty)
 		{

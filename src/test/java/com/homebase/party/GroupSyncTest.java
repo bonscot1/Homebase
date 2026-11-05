@@ -4,6 +4,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
+import net.runelite.api.GameState;
 import org.junit.Test;
 
 public class GroupSyncTest
@@ -18,18 +19,26 @@ public class GroupSyncTest
 	}
 
 	@Test
-	public void silentNamelessConnectionsAreTakenToBeClosed()
+	public void aLoggedOutMemberOnlyFinishesSendingBeforeGoingQuiet()
 	{
-		long listed = 1_000_000;
-		long later = listed + GroupSync.SILENT_CONNECTION_MS;
+		assertTrue(GroupSync.isFinishingAfterLogout(GameState.LOGIN_SCREEN, 0));
+		assertTrue(GroupSync.isFinishingAfterLogout(GameState.LOGIN_SCREEN, GroupSync.LOGOUT_SEND_MS - 1));
+		assertFalse(GroupSync.isFinishingAfterLogout(GameState.LOGIN_SCREEN, GroupSync.LOGOUT_SEND_MS));
+		// logged in again, even on another account, there's nothing to finish
+		assertFalse(GroupSync.isFinishingAfterLogout(GameState.LOGGED_IN, 0));
+	}
+
+	@Test
+	public void quietNamelessConnectionsAreTakenToBeClosed()
+	{
+		long lastSign = 1_000_000;
+		long later = lastSign + GroupSync.SILENT_CONNECTION_MS;
 		// still within the time anyone actually there would answer in, so it counts as a stranger
-		assertFalse(GroupSync.isClosedConnection(false, false, listed, listed + 1_000));
-		// silent all that time, with no name: an old connection the server hasn't dropped yet
-		assertTrue(GroupSync.isClosedConnection(false, false, listed, later));
-		// said something, so it's open, and someone without a name is a stranger
-		assertFalse(GroupSync.isClosedConnection(false, true, listed, later));
-		// anyone with a name is judged by the name
-		assertFalse(GroupSync.isClosedConnection(true, false, listed, later));
+		assertFalse(GroupSync.isClosedConnection(false, lastSign, lastSign + 1_000));
+		// no name, and nothing said for long enough
+		assertTrue(GroupSync.isClosedConnection(false, lastSign, later));
+		// a name means they're really there, however quiet
+		assertFalse(GroupSync.isClosedConnection(true, lastSign, later));
 	}
 
 	@Test

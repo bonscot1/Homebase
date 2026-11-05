@@ -188,8 +188,15 @@ public class GroupHudOverlay extends OverlayPanel
 			return false;
 		}
 		MenuEntry[] entries = client.getMenu().getMenuEntries();
-		// the last entry is the one a left-click would choose, so this is only true if it would just walk
-		return entries.length > 0 && entries[entries.length - 1].getType() == MenuAction.WALK;
+		// the last entry is the one a left-click would choose, leaving out what overlays add for right-clicks
+		for (int i = entries.length - 1; i >= 0; i--)
+		{
+			if (entries[i].getType() != MenuAction.RUNELITE_OVERLAY)
+			{
+				return entries[i].getType() == MenuAction.WALK;
+			}
+		}
+		return false;
 	}
 
 	/**
@@ -231,7 +238,7 @@ public class GroupHudOverlay extends OverlayPanel
 		}
 	}
 
-	private List<PartyMember> visibleMembers()
+	public List<PartyMember> visibleMembers()
 	{
 		PartyMember local = partyService.getLocalMember();
 		boolean includeSelf = config.hudIncludeSelf();

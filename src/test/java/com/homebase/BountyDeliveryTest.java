@@ -24,7 +24,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import org.junit.After;
-import org.junit.Ignore;
 import org.junit.Test;
 
 /**
@@ -261,7 +260,6 @@ public class BountyDeliveryTest
 	}
 
 	@Test
-	@Ignore("A member connected at the login screen has no name for anyone who joins later, so the newcomer pauses and never asks for what it missed")
 	public void aMemberAtTheLoginScreenDoesntStopANewcomerCatchingUp()
 	{
 		connect(alice, bob);
@@ -280,7 +278,6 @@ public class BountyDeliveryTest
 	}
 
 	@Test
-	@Ignore("Reconnecting after a dropped connection forgets everyone's names, so a member at the login screen pauses whoever reconnected, the same as a newcomer")
 	public void aDroppedConnectionDoesntPauseAMemberWhileSomeoneIsAtTheLoginScreen()
 	{
 		connect(alice, bob);
@@ -423,6 +420,7 @@ public class BountyDeliveryTest
 		bob.disconnect();
 
 		// a group's party is named after the group, which anyone can look up
+		mallory.turnOnPartyPlugin();
 		mallory.joinPartyDirectly(HomebasePlugin.gimPassphrase(party.groupName(), null));
 		party.run(5 * SECOND);
 		assertEquals(GroupSync.Status.PAUSED, alice.status());
@@ -440,7 +438,7 @@ public class BountyDeliveryTest
 	}
 
 	@Test
-	public void anAltOnAConnectedClientStopsEveryoneUntilItsGone()
+	public void anAltOnAConnectedClientSaysNothingAndStopsNobody()
 	{
 		connect(alice, bob);
 		aliceSetsABountyOnCoal();
@@ -448,19 +446,25 @@ public class BountyDeliveryTest
 
 		// a logout doesn't leave the party, so whoever logs in next is in it
 		bob.logInOnAnotherAccount("BobsAlt");
-		party.run(5 * SECOND);
-		assertEquals(GroupSync.Status.PAUSED, alice.status());
-		assertEquals(Collections.singletonList("BobsAlt"), alice.groupSync().strangers());
+		party.run(CATCH_UP);
+		assertEquals(GroupSync.Status.CONNECTED, alice.status());
+		assertTrue(alice.groupSync().strangers().isEmpty());
+		assertEquals(GroupSync.Status.NOT_IN_GROUP, bob.status());
 
 		bountyFrom(alice, alice.goals().list().get(0).getId(), LOBSTER, bob);
 		carol.connect();
 		party.run(CATCH_UP);
-		assertTrue(carol.bounties().list().isEmpty());
+		assertEquals(GroupSync.Status.CONNECTED, carol.status());
+		assertEquals(2, carol.bounties().list().size());
 
+		// back on the group's account, with no Connect needed, and known by name even to who joined since
 		bob.logInOnAnotherAccount("Bob");
 		party.run(CATCH_UP);
+		assertEquals(GroupSync.Status.CONNECTED, bob.status());
+		assertEquals(2, bob.bounties().list().size());
 		assertEquals(GroupSync.Status.CONNECTED, alice.status());
-		assertEquals(2, carol.bounties().list().size());
+		assertEquals(GroupSync.Status.CONNECTED, carol.status());
+		assertTrue(carol.groupSync().strangers().isEmpty());
 	}
 
 	@Test
@@ -583,11 +587,10 @@ public class BountyDeliveryTest
 		assertNull(alice.goals().get(goal));
 		assertEquals("the bounty itself is still held", 1, alice.bounties().list().size());
 		assertFalse("and no longer holds anything back", bob.bounties().isLocked(bob.bounties().list().get(0).getData(), bob.id()));
-		assertFalse(bob.bounties().lockFor(COAL).isLocked());
+		assertNull(bob.bounties().lockFor(COAL));
 	}
 
 	@Test
-	@Ignore("Deleting a goal leaves its bounties behind for good, with a padlock on the item and nowhere in the panel to remove them")
 	public void deletingAGoalLeavesNoPadlockBehind()
 	{
 		connect(alice, bob);
@@ -600,6 +603,23 @@ public class BountyDeliveryTest
 		party.run(5 * SECOND);
 
 		assertNull(bob.bounties().lockFor(COAL));
+	}
+
+	@Test
+	public void deletingAGoalsBountiesRemovesThemForEveryone()
+	{
+		connect(alice, bob);
+		party.run(5 * SECOND);
+		String goal = goalFrom(alice);
+		bountyFrom(alice, goal, COAL, bob);
+		party.run(5 * SECOND);
+
+		bob.goals().delete(goal);
+		bob.bounties().deleteForGoal(goal);
+		party.run(5 * SECOND);
+
+		assertTrue(alice.bounties().list().isEmpty());
+		assertTrue(bob.bounties().list().isEmpty());
 	}
 
 	@Test
@@ -619,7 +639,7 @@ public class BountyDeliveryTest
 		bob.engine().onRecords(Arrays.asList(profile, bountyRecord));
 		assertEquals(1, bob.bounties().list().size());
 		assertNull(bob.goals().get(goal));
-		assertFalse("nothing holds the coal back for now", bob.bounties().lockFor(COAL).isLocked());
+		assertNull("nothing holds the coal back for now", bob.bounties().lockFor(COAL));
 
 		bob.engine().onRecords(Collections.singletonList(goalRecord));
 		assertTrue(bob.bounties().lockFor(COAL).isLocked());
@@ -641,7 +661,7 @@ public class BountyDeliveryTest
 		assertNotNull(bob.store().get(Keys.shared(GoalService.TYPE, "newer")));
 		assertTrue(bob.goals().list().isEmpty());
 		assertEquals(1, bob.bounties().list().size());
-		assertFalse(bob.bounties().lockFor(COAL).isLocked());
+		assertNull(bob.bounties().lockFor(COAL));
 	}
 
 	@Test
@@ -733,7 +753,6 @@ public class BountyDeliveryTest
 	}
 
 	@Test
-	@Ignore("Closing RuneLite doesn't save, so anything from the last 30 seconds that nobody else received is gone for good")
 	public void aBountySetJustBeforeClosingRuneLiteIsStillThere()
 	{
 		aliceSetsABountyOnCoal();

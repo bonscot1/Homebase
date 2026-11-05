@@ -683,7 +683,7 @@ public class GroupSyncSimulationTest
 		SimulatedParty.assertSameRecords(alice, bob);
 		assertNull(alice.goals().get(goal));
 		assertEquals(1, alice.bounties().list().size());
-		assertFalse(alice.bounties().lockFor(COAL).isLocked());
+		assertNull(alice.bounties().lockFor(COAL));
 	}
 
 	@Test
@@ -881,7 +881,7 @@ public class GroupSyncSimulationTest
 	}
 
 	@Test
-	public void closingRuneLiteLosesOnlyWhatWasntSavedAndPeersFillItBackIn()
+	public void closingRuneLiteSavesWhatTheRegularSaveHadntGotTo()
 	{
 		connect(alice, bob);
 		String goal = setGoal(alice);
@@ -895,11 +895,10 @@ public class GroupSyncSimulationTest
 		party.run(5 * SECOND);
 
 		assertNotNull("saved by then", alice.goals().get(goal));
-		assertNull("too recent to have been saved", alice.goals().get(lateGoal));
+		assertNotNull("saved on the way out", alice.goals().get(lateGoal));
 
 		alice.connect();
 		party.run(CATCH_UP);
-		assertNotNull("Bob still had it", alice.goals().get(lateGoal));
 		SimulatedParty.assertSameRecords(alice, bob);
 	}
 
