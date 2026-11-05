@@ -1,99 +1,66 @@
 # The Group Ironman Homebase
 
-One home for your group in RuneLite. See what everyone has and where they're up to, ask each other for items, set goals together, and point things out to each other in game. There's no website to sign up to and no server to run.
+One home for your group in RuneLite, with no website or server to set up. Made for Group Ironman groups, and works for any group of friends.
 
-It's made for Group Ironman groups, and works for any group of friends too.
+## Features
 
-## What it does
+**See your group**
+- **Member cards:** who's online and on which world, with live hitpoints, prayer, run energy and special attack.
+- **Progress:** skills, quests, diaries, combat achievements, collection log and boss kill counts.
+- **Items:** inventory, equipment, bank, seed vault, looting bag, house furniture and costume room.
+- **Item search:** who has an item, how many and where.
+- **Collection log dots:** which other members have each item.
+- **Updates:** a tab and chat lines for levels, quests, achievements, collection log slots, kill counts, valuable drops, pets and deaths, including what you missed.
 
-**See your whole group**
-- A card for each member, with a green dot and their world while they're online, and live hitpoints, prayer, run energy and special attack bars.
-- Their skills, laid out like the in-game skills tab, plus quests, achievement diaries, combat achievements, collection log pages and boss kill counts (read from the hiscores when you log in, and kept up to date as you play).
-- Their inventory and equipment, and their bank, seed vault and looting bag as they were last time they opened them.
-- **Storage tab:** your group storage in one place, with who saw it last, what's owed back, the bounties on it, what's held for requests, and who put in or took out what, how many and when.
-- **Owed back:** right-click an item on the **Storage** tab to say it needs returning. Anyone who takes it out from then on is listed as owing it until they put it back. Everything else is free to take and keep, as it's only in the history.
-- Useful furniture built in their house, and what's in their costume room.
-- An **Updates** tab, plus a chat line as it happens or when you next log in, saying what everyone did: "Magic 15 → 32, completed The Restless Ghost, got Dragon warhammer from Lizardman shaman (41.2M)". It covers levels, quests, diaries, combat achievements, the collection log, kill counts, valuable drops, pets and deaths.
-- **Item search:** type in the box above the tabs to find who has an item, and how many, across everyone's inventory, equipment, bank, seed vault and looting bag, and the group storage.
-- **Who has what in the collection log:** while you browse your collection log, each item shows a dot in the colour of every other member who has it, with their names when you hover over it.
+**Share group storage**
+- **Storage tab:** what's in it, who saw it last, what's owed back, bounties, what's held for requests, and who put in or took out what.
+- **Owed back:** mark an item as needing returning, and anyone who takes it is listed until they put it back.
 
 **Play together**
-- A **Group HUD** in the corner of the screen with each member's hitpoints, prayer, run energy, special attack, combat level and where they are ("Varrock", "near Catherby", "Wilderness (level 11)").
-- Group members on the world map, each as an arrow in their colour with their name. Anyone off the part of the map you're looking at waits at the edge, with their arrow pointing the way.
-- **Map pins:** right-click the world map and choose **Pin for group** to show everyone a spot. You have one pin at a time, and pins last 24 hours unless you change **Pins last (hours)**.
-- **Pings:** middle-click the ground or a monster, and everyone on your world sees it flash in your colour with your name for a few seconds.
-- **Group highlights:** outline a monster for everyone on your world until it dies, or, with **Keep highlights after death** on, through every respawn until you change world. You can have 20 at once, and a new one replaces your oldest.
-- **Group tiles:** mark tiles that the whole group sees, including inside raids.
+- **Group HUD:** each member's bars, combat level and location, including Sailing's islands.
+- **World map:** members as named arrows, and pins everyone can see.
+- **Find on map:** choose a member in the HUD, and your world map goes to them when you open it.
+- **Pings, highlights and tiles:** point out the ground or a monster, outline a monster (through respawns if you like) and mark tiles, all in your colour.
 
-**Organise the group**
-- **Requests:** ask for an item ("Rune scimitar ×1, for Barrows"). Someone takes it on and gets it to you, either by putting it in group storage, where it's kept for you until you take it out, or by trading it to you. Nobody can just mark it done, and everyone gets a chat message along the way.
-- **Goals:** set targets for everyone or one member, such as 50 Firemaking before Wintertodt, 100 Vorkath kills or the Varrock Hard diary. Each member's progress shows as a bar, and the group gets a message when someone gets there.
-- **Bank bounties:** put a bounty on some of an item in group storage, tied to a goal. Members it's locked for can't withdraw that many until they reach the goal.
+**Organise**
+- **Requests:** ask for an item, and someone gets it to you by trade or through group storage, where it's kept for you.
+- **Goals:** targets for everyone or one member, such as a level, kill count or diary, with progress bars.
+- **Bank bounties:** lock some of a storage item until a member reaches a goal.
 
 ## Getting started
 
-**Group Ironman:** turn the plugin on, log in, open the house icon in the sidebar and click **Connect**. The plugin reads your group's name from the game, so there's nothing to set up. Click **Connect** once each time you start RuneLite.
+**Group Ironman:** turn the plugin on, log in, open the house icon in the sidebar and click **Connect**. There's nothing to set up.
 
-**Any other group:** one of you opens the house icon in the sidebar, clicks **Create group** and then **Copy passphrase**, and sends the passphrase to the others. Everyone pastes it into **Group passphrase** in the plugin's settings and clicks **Connect**.
+**Any other group:** one of you clicks **Create group**, then **Copy passphrase**. Everyone pastes it into **Group passphrase** in the settings and clicks **Connect**.
 
-You stay connected when you log out, so you can switch worlds or characters without connecting again. After 30 minutes at the login screen you're disconnected, the same as with RuneLite's Party plugin.
-
-The house icon in the sidebar opens the panel, with five tabs: **Members**, **Storage**, **Updates**, **Requests** and **Goals**.
+Click **Connect** each time you start RuneLite. You stay connected through logouts, for up to 30 minutes at the login screen.
 
 ## Controls
 
 | To | Do this |
 | --- | --- |
-| Ping a spot or a monster | Middle-click it (a quick click; dragging still turns the camera) |
-| Highlight a monster for the group | Shift + right-click it, **Group highlight** |
-| Mark a tile for the group | Shift + right-click the tile, **Group mark** |
-| Pin a spot on the world map | Right-click the world map, **Pin for group** (or **Remove your pin**) |
-| Find a member on the world map | Click them in the **Group HUD**, or right-click it and choose **Find on map**, then open your world map within a minute |
-| Say a storage item needs returning | Right-click it on the **Storage** tab |
-| Put a bounty on a group storage item | **Goals** tab, **Add bounty** on a goal |
+| Ping a spot or a monster | Middle-click it |
+| Highlight a monster | Shift + right-click it, **Group highlight** |
+| Mark a tile | Shift + right-click it, **Group mark** |
+| Pin a spot | Right-click the world map, **Pin for group** |
+| Find a member | Click them in the **Group HUD**, or right-click it and choose **Find on map**, then open your world map within a minute |
+| Say an item needs returning | Right-click it on the **Storage** tab |
+| Add a bounty | **Goals** tab, **Add bounty** on a goal |
 
-Under **Pings and highlights** in the settings you can switch pings to a key + left-click (choose the key under **Ping key**, as none is set at first), change how long they last, or turn off the sound. **Your colour** sets the colour of your arrow, pin, pings, highlights and tiles.
+The plugin's settings cover the rest, such as what the HUD shows, your colour, the ping key and which updates you get.
 
-## Settings
+## Privacy
 
-Open the plugin's settings to choose:
-
-- **Group HUD:** which bars and details show, whether it lists only your world, the order (by name, or lowest hitpoints first), its size, and whether clicking it finds someone on the map.
-- **Map and tiles:** names on markers, marker size, whether off-screen members and pins wait at the edge, map pins and how long they last.
-- **Pings and highlights:** the ping button, length and sound, and whether pings show on the minimap.
-- **Sidebar panel:** the item search box, whether offline members are listed and in what order, live bars on cards, and the collection log dots.
-- **Updates and chat:** which chat messages you get, and what your group's updates include: levels (from a level you choose), quests and achievements, the collection log, kill counts, deaths, and drops worth at least an amount you choose, from 10,000 coins up. These only affect news that arrives after you change them.
-- **What you share:** your position, inventory, equipment, bank, seed vault, looting bag, drops and pets, and deaths. These all start on. Turning one off stops sharing it. Your position and containers are also removed for your group, but drops and deaths they've already seen stay, and your card still shows your world. Members on an older version of the plugin keep the last position they got.
-
-## Privacy and how sharing works
-
-- You share only your own character's details, and only with your group. **What you share** in the settings turns off your position, your containers, or news of your drops and deaths.
-- Your group's data goes through RuneLite's own party service, and only after you click **Connect**. The plugin also looks up your own name on the game's hiscores when you log in, for your kill counts. Nothing else is sent to any other server.
-- Each member keeps a copy of the group's data on their own computer. When two members are online together, they fill in each other's gaps, so news reaches members who are never online at the same time.
-- Group Ironman group names are public on the hiscores, so someone else could join your group's party. The plugin checks everyone in the party against your group's member list in the game. While anyone else is there, it shares nothing but your character's name, ignores whatever they send, and the panel says who it is. A modified client could still pretend to be one of your group, so to rule that out, everyone in the group can enter the same word in **Group Ironman secret**.
-- If RuneLite's own Party plugin is turned on, it shares your position and stats with whatever party you're in. That's separate from this plugin.
-- An account that isn't in your Group Ironman group, such as an alt, shares nothing.
+- You share only your own character's details, only with your group, and only after clicking **Connect**. **What you share** in the settings turns off each kind. They all start on.
+- Data goes through RuneLite's party service and is kept on each member's computer. The plugin also looks up your own name on the hiscores at login, for your kill counts. Nothing else goes to any other server.
+- Everyone in a Group Ironman party is checked against your group's member list. If anyone else is there, only your character's name is shared, and the panel says who it is. **Group Ironman secret** guards against modified clients. An account outside the group, such as an alt, shares nothing.
+- RuneLite's own Party plugin, if it's on, shares your position and stats with whatever party you're in. That's separate from this plugin.
 
 ## Good to know
 
-- Data only moves while at least two members are online at once.
-- RuneLite allows one party at a time. If you join someone else's party, syncing pauses until you click **Switch to group**.
-- Bank bounties and items kept for requests only stop withdrawals for members using RuneLite with this plugin turned on, and only count when someone in your group set them up. To see the padlocks without the plugin hiding any Withdraw options, turn off **Hold items in group storage**.
-- Only the amount asked for is held back. If 5 are kept for someone and there are 8 in group storage, anyone can take the other 3, with Withdraw-1, -5 or -10 when the amount fits. Withdraw-X is hidden while any of an item is held back, because the plugin can't see the number you type.
-- On the world map, someone in a dungeon is shown above it, and someone somewhere the map doesn't cover, such as a player-owned house, stays where they were last on it. If you have a dungeon's own map open, members on the surface don't appear until you switch back to the surface map.
-- Drops are valued at Grand Exchange prices, so untradeable drops don't count as valuable; new collection log slots are reported separately. Loot from chests and clue caskets relies on RuneLite's Loot Tracker plugin being on, which it is by default.
-- Item search and the collection log dots only know what members have shared, so they can be out of date.
-- Clicking a member in the **Group HUD** doesn't walk you to the ground behind it. Monsters, objects and interfaces still get the click. Turn off **Click to find on map** if you'd rather it walked.
-- Banks, the seed vault, the looting bag and group storage update when someone opens them. To share your whole collection log, open it and click **Search** once; browsing a page also updates that page.
-- The group storage history only shows what was saved, so putting something in and taking it back before saving leaves no line. It only knows about changes made by members using RuneLite with this version of the plugin or later turned on, and each member keeps their latest 100 lines. The tab shows the newest 30. Saving storage on a fresh install or a second computer before connecting starts that member's log again, for everyone.
-- **Owed back** only counts items marked as needing returning, and only what's been taken out since they were marked. It's what a member has taken out, less what they've put in themselves, so taking back your own deposit doesn't count. Someone else putting the same item in doesn't settle it. A withdrawal that has dropped off those 100 lines no longer counts. To clear a line, right-click it and choose **Doesn't need returning**. That clears the item for everyone who owes it, and anyone in the group can do it.
+- Data only moves while two members are online together, and reaches everyone else through them.
+- Banks, the seed vault, the looting bag and group storage update when opened. To share your whole collection log, click **Search** in it once.
+- Bounties and items held for requests only stop withdrawals for members with the plugin on. Withdraw-X is hidden while any of an item is held back. **Hold items in group storage** turns off hiding Withdraw options.
+- Clicking the HUD over open ground doesn't walk you there. Turn off **Click to find on map** if you'd rather it did.
 
-## Feedback
-
-Found a bug or have an idea? Open an issue at https://github.com/bonscot1/Homebase/issues.
-
-Working on the plugin? See [DEVELOPMENT.md](DEVELOPMENT.md).
-
-## Licence
-
-BSD 2-Clause. See [LICENSE](LICENSE).
+Found a bug or have an idea? [Open an issue](https://github.com/bonscot1/Homebase/issues). Working on the plugin? See [DEVELOPMENT.md](DEVELOPMENT.md). Licensed under BSD 2-Clause: see [LICENSE](LICENSE).

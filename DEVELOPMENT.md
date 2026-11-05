@@ -31,6 +31,25 @@ Example: I have bonscott1's data from 5pm and mundell's from 1pm. Fred has munde
 - While group storage is open, `INV_GROUP_TEMP` is a temporary copy, and changes can still be lost until the game saves them, so entries are only added when the game's "Saving..." message (`LOADING_ICON_MODAL`) appears. Each save is compared with what storage held when it was opened or last saved. An empty container is only believed when the interface was just drawn from it (`GROUP_IRONMAN_STORAGE_BUILD`), because other plugins have found it can report empty at other times. A save that seems to move over 40 kinds of item in one direction is dropped, since nobody can carry that many.
 - Received messages are limited: no nesting past 32 levels, at most 2,000 records a message, and every record from another client is checked (missing lists become empty, numbers kept in range) before use. Request chat lines are limited to 3 every 10 seconds, and ping sounds to one a second.
 
+## How things behave
+
+The finer points for players, which the README leaves out.
+
+- **What you share:** your position, inventory, equipment, bank, seed vault, looting bag, drops and pets, and deaths. These all start on. Turning one off stops sharing it. Your position and containers are also removed for your group, but drops and deaths they've already seen stay, and your card still shows your world. Members on an older version of the plugin keep the last position they got.
+- **Map pins:** right-click the world map and choose **Pin for group** to show everyone a spot. You have one pin at a time, and pins last 24 hours unless you change **Pins last (hours)**.
+- **Group highlights:** outline a monster for everyone on your world until it dies, or, with **Keep highlights after death** on, through every respawn until you change world. You can have 20 at once, and a new one replaces your oldest.
+- Data only moves while at least two members are online at once.
+- RuneLite allows one party at a time. If you join someone else's party, syncing pauses until you click **Switch to group**.
+- Bank bounties and items kept for requests only stop withdrawals for members using RuneLite with this plugin turned on, and only count when someone in your group set them up. To see the padlocks without the plugin hiding any Withdraw options, turn off **Hold items in group storage**.
+- Only the amount asked for is held back. If 5 are kept for someone and there are 8 in group storage, anyone can take the other 3, with Withdraw-1, -5 or -10 when the amount fits. Withdraw-X is hidden while any of an item is held back, because the plugin can't see the number you type.
+- On the world map, someone in a dungeon is shown above it, and someone somewhere the map doesn't cover, such as a player-owned house, stays where they were last on it. If you have a dungeon's own map open, members on the surface don't appear until you switch back to the surface map.
+- Drops are valued at Grand Exchange prices, so untradeable drops don't count as valuable; new collection log slots are reported separately. Loot from chests and clue caskets relies on RuneLite's Loot Tracker plugin being on, which it is by default.
+- Item search and the collection log dots only know what members have shared, so they can be out of date.
+- Clicking a member in the **Group HUD** doesn't walk you to the ground behind it. Monsters, objects and interfaces still get the click. Turn off **Click to find on map** if you'd rather it walked.
+- Banks, the seed vault, the looting bag and group storage update when someone opens them. To share your whole collection log, open it and click **Search** once; browsing a page also updates that page.
+- The group storage history only shows what was saved, so putting something in and taking it back before saving leaves no line. It only knows about changes made by members using RuneLite with this version of the plugin or later turned on, and each member keeps their latest 100 lines. The tab shows the newest 30. Saving storage on a fresh install or a second computer before connecting starts that member's log again, for everyone.
+- **Owed back** only counts items marked as needing returning, and only what's been taken out since they were marked. It's what a member has taken out, less what they've put in themselves, so taking back your own deposit doesn't count. Someone else putting the same item in doesn't settle it. A withdrawal that has dropped off those 100 lines no longer counts. To clear a line, right-click it and choose **Doesn't need returning**. That clears the item for everyone who owes it, and anyone in the group can do it.
+
 ## Testing it in RuneLite
 
 You need a JDK (Java 11 or 17, for example [Eclipse Temurin](https://adoptium.net/)).
