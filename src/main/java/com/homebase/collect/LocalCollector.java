@@ -44,6 +44,7 @@ import net.runelite.api.events.ItemContainerChanged;
 import net.runelite.api.events.StatChanged;
 import net.runelite.api.events.VarbitChanged;
 import net.runelite.api.gameval.InventoryID;
+import net.runelite.api.gameval.VarPlayerID;
 import net.runelite.client.eventbus.Subscribe;
 
 /**
@@ -529,6 +530,7 @@ public class LocalCollector
 				data.getQuests().put(quest.getName(), QuestsData.STARTED);
 			}
 		}
+		data.setPoints(client.getVarpValue(VarPlayerID.QP));
 		return data;
 	}
 

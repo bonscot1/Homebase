@@ -15,6 +15,7 @@ import com.homebase.data.QuestsData;
 import com.homebase.data.Section;
 import com.homebase.data.SkillsData;
 import com.homebase.data.UpdateEntry;
+import com.homebase.data.UpdateLine;
 import com.homebase.sync.GroupStore;
 import com.homebase.sync.Keys;
 import com.homebase.sync.SyncRecord;
@@ -29,13 +30,14 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Skill;
 
 /**
- * Turns other members' new data into short summaries of what changed since the copy we had, such as
+ * Turns members' new data into short summaries of what changed since the copy we had, such as
  * "bonscott1: Magic 15 → 32, completed The Restless Ghost, completed the Varrock Easy diary".
  * <p>
  * Changes for a member are gathered for a few seconds before summarising, so catching up on everything
@@ -126,11 +128,24 @@ public class UpdateTracker
 	}
 
 	/**
-	 * @return summaries, newest first
+	 * @return summaries, newest first, leaving out your own unless Your own updates is on
 	 */
 	public List<UpdateEntry> getEntries()
 	{
-		return Collections.unmodifiableList(entries);
+		String me = collector.getMemberId();
+		if (config.updatesShowOwn() || me == null)
+		{
+			return Collections.unmodifiableList(entries);
+		}
+		List<UpdateEntry> out = new ArrayList<>();
+		for (UpdateEntry entry : entries)
+		{
+			if (!me.equals(entry.getMemberId()))
+			{
+				out.add(entry);
+			}
+		}
+		return out;
 	}
 
 	/**
@@ -162,7 +177,8 @@ public class UpdateTracker
 		}
 		String memberId = Keys.memberOf(current.getKey());
 		String section = Keys.sectionOf(current.getKey());
-		if (memberId == null || memberId.equals(collector.getMemberId()) || !isTracked(section))
+		boolean own = memberId != null && memberId.equals(collector.getMemberId());
+		if (memberId == null || (own && !config.updatesShowOwn()) || !isTracked(section))
 		{
 			return;
 		}
@@ -194,14 +210,16 @@ public class UpdateTracker
 			before = p.before;
 		}
 
-		List<String> changes = describeChanges(memberId, before, store);
-		if (changes.isEmpty())
+		List<UpdateLine> lines = describeChanges(memberId, before, store);
+		if (lines.isEmpty())
 		{
 			return;
 		}
 		ProfileData profile = decodeCurrent(store, memberId, Section.PROFILE, ProfileData.class);
 		String name = profile == null ? null : Clean.text(profile.getName(), MAX_PLAYER_NAME);
-		UpdateEntry entry = new UpdateEntry(memberId, name == null ? "Someone" : name, System.currentTimeMillis(), changes, false);
+		// your own updates never go to chat, so they start out as announced
+		UpdateEntry entry = new UpdateEntry(memberId, name == null ? "Someone" : name, System.currentTimeMillis(),
+			UpdateDiff.texts(lines), lines, memberId.equals(collector.getMemberId()));
 		synchronized (this)
 		{
 			if (store != this.store)
@@ -215,7 +233,7 @@ public class UpdateTracker
 				entries.remove(entries.size() - 1);
 			}
 		}
-		log.debug("Update for {}: {}", entry.getName(), changes);
+		log.debug("Update for {}: {}", entry.getName(), entry.getChanges());
 		for (Consumer<UpdateEntry> listener : listeners)
 		{
 			listener.accept(entry);
@@ -226,9 +244,9 @@ public class UpdateTracker
 	 * @return what changed in each section, from the copy we had before the batch to the one in the
 	 * store now
 	 */
-	private List<String> describeChanges(String memberId, Map<String, SyncRecord> before, GroupStore store)
+	private List<UpdateLine> describeChanges(String memberId, Map<String, SyncRecord> before, GroupStore store)
 	{
-		List<String> changes = new ArrayList<>();
+		List<UpdateLine> changes = new ArrayList<>();
 		SyncRecord skillsBefore = before.get(Section.SKILLS.getKey());
 		if (skillsBefore != null && config.updateLevels())
 		{
@@ -277,9 +295,10 @@ public class UpdateTracker
 		SyncRecord killsBefore = before.get(Section.KILL_COUNTS.getKey());
 		if (killsBefore != null && config.updateKillCounts())
 		{
-			changes.addAll(UpdateDiff.killCounts(
-				kills(decode(killsBefore, KillCountsData.class)),
-				kills(decodeCurrent(store, memberId, Section.KILL_COUNTS, KillCountsData.class))));
+			KillCountsData was = decode(killsBefore, KillCountsData.class);
+			KillCountsData now = decodeCurrent(store, memberId, Section.KILL_COUNTS, KillCountsData.class);
+			changes.addAll(UpdateDiff.killCounts(kills(was), kills(now)));
+			changes.addAll(UpdateDiff.bestTimes(bestTimes(was), bestTimes(now)));
 		}
 		SyncRecord feedBefore = before.get(Section.FEED.getKey());
 		if (feedBefore != null)
@@ -324,7 +343,7 @@ public class UpdateTracker
 	private static Map<String, Integer> levels(SkillsData skills)
 	{
 		Map<String, Integer> out = new LinkedHashMap<>();
-		if (skills != null && skills.getXp() != null)
+		if (skills != null)
 		{
 			for (Skill skill : Skill.values())
 			{
@@ -339,19 +358,7 @@ public class UpdateTracker
 
 	private static Map<String, String> quests(QuestsData quests)
 	{
-		Map<String, String> out = new HashMap<>();
-		if (quests != null && quests.getQuests() != null)
-		{
-			for (Map.Entry<String, String> e : quests.getQuests().entrySet())
-			{
-				String name = Clean.text(e.getKey(), MAX_QUEST_NAME);
-				if (name != null)
-				{
-					out.put(name, e.getValue());
-				}
-			}
-		}
-		return out;
+		return quests == null ? Collections.emptyMap() : cleanNames(quests.getQuests(), MAX_QUEST_NAME, state -> true);
 	}
 
 	/**
@@ -360,32 +367,40 @@ public class UpdateTracker
 	private static List<String> itemNames(List<String> raw)
 	{
 		List<String> out = new ArrayList<>();
-		if (raw != null)
+		for (String name : raw)
 		{
-			for (String name : raw)
+			String clean = Clean.text(name, MAX_ITEM_NAME);
+			if (clean != null)
 			{
-				String clean = Clean.text(name, MAX_ITEM_NAME);
-				if (clean != null)
-				{
-					out.add(clean);
-				}
+				out.add(clean);
 			}
 		}
 		return out;
 	}
 
+	private static Map<String, Double> bestTimes(KillCountsData kills)
+	{
+		return kills == null ? Collections.emptyMap() : cleanNames(kills.getBestTimes(), MAX_BOSS_NAME, seconds -> seconds > 0);
+	}
+
 	private static Map<String, Integer> kills(KillCountsData kills)
 	{
-		Map<String, Integer> out = new HashMap<>();
-		if (kills != null && kills.getCounts() != null)
+		return kills == null ? Collections.emptyMap() : cleanNames(kills.getCounts(), MAX_BOSS_NAME, count -> true);
+	}
+
+	/**
+	 * Quest or boss names written by other players' clients, cleaned before they're shown, with the
+	 * values {@code keep} accepts.
+	 */
+	private static <V> Map<String, V> cleanNames(Map<String, V> raw, int maxLength, Predicate<V> keep)
+	{
+		Map<String, V> out = new HashMap<>();
+		for (Map.Entry<String, V> e : raw.entrySet())
 		{
-			for (Map.Entry<String, Integer> e : kills.getCounts().entrySet())
+			String name = Clean.text(e.getKey(), maxLength);
+			if (name != null && keep.test(e.getValue()))
 			{
-				String name = Clean.text(e.getKey(), MAX_BOSS_NAME);
-				if (name != null && e.getValue() != null)
-				{
-					out.put(name, e.getValue());
-				}
+				out.put(name, e.getValue());
 			}
 		}
 		return out;
@@ -398,6 +413,6 @@ public class UpdateTracker
 
 	private static Map<String, Integer> diaries(DiariesData diaries)
 	{
-		return diaries == null || diaries.getDone() == null ? Collections.emptyMap() : diaries.getDone();
+		return diaries == null ? Collections.emptyMap() : diaries.getDone();
 	}
 }

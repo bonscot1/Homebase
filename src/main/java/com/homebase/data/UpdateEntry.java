@@ -20,6 +20,12 @@ public class UpdateEntry
 	private List<String> changes;
 
 	/**
+	 * The same changes with what each is about, for its picture. Updates saved by older versions of the
+	 * plugin don't have them.
+	 */
+	private List<UpdateLine> lines;
+
+	/**
 	 * Whether it has been shown in the chat box yet.
 	 */
 	private transient boolean announced;

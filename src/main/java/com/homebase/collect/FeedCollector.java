@@ -94,7 +94,7 @@ public class FeedCollector
 	@Subscribe
 	public void onPlayerLootReceived(PlayerLootReceived event)
 	{
-		// the player's name stays out of it: this only shares what's our own
+		// the other player's name is left out, since it isn't ours to share
 		recordDrops(null, event.getItems());
 	}
 
@@ -159,7 +159,7 @@ public class FeedCollector
 			if (value >= MIN_SHARED_VALUE)
 			{
 				String name = Clean.text(itemManager.getItemComposition(itemId).getName(), MAX_TEXT);
-				add(new FeedData.Entry(now, FeedData.DROP, name, (int) Math.min(quantity, Integer.MAX_VALUE), value, from));
+				add(new FeedData.Entry(now, FeedData.DROP, name, (int) Math.min(quantity, Integer.MAX_VALUE), value, from, itemId));
 			}
 		});
 	}

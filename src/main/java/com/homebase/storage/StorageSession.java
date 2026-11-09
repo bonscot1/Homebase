@@ -31,10 +31,10 @@ final class StorageSession
 	private int closedTicks;
 
 	/**
-	 * True until the tick it was opened on ends. The first look can be the copy left from last time it
-	 * was open, with the game's fresh one just behind it, and nobody can change anything that quickly,
-	 * so everything until then is just what storage holds. Otherwise another member's save made while
-	 * it was closed would be counted as ours.
+	 * True until the end of the tick storage was opened on. The first look can be the copy left from when
+	 * it was last open, with the game's fresh copy just behind it. Nobody can change anything that quickly,
+	 * so until then every look is taken as what storage holds, or another member's save made while it was
+	 * closed would be counted as ours.
 	 */
 	private boolean opening;
 

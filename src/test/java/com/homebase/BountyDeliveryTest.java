@@ -91,10 +91,15 @@ public class BountyDeliveryTest
 		return out;
 	}
 
-	private void aliceSetsABountyOnCoal()
+	/**
+	 * @return the id of the goal the bounty is on
+	 */
+	private String aliceSetsABountyOnCoal()
 	{
 		party.run(5 * SECOND);
-		bountyFrom(alice, goalFrom(alice), COAL, bob);
+		String goal = goalFrom(alice);
+		bountyFrom(alice, goal, COAL, bob);
+		return goal;
 	}
 
 	@Test
@@ -183,13 +188,13 @@ public class BountyDeliveryTest
 		party.run(5 * MINUTE);
 
 		// still connected through a short logout, so it reaches them at the login screen
-		aliceSetsABountyOnCoal();
+		String goal = aliceSetsABountyOnCoal();
 		party.run(5 * SECOND);
 		assertEquals(1, bob.bounties().list().size());
 
 		party.run(30 * MINUTE);
 		assertFalse("should have left the party", bob.groupSync().isGroupParty());
-		bountyFrom(alice, alice.goals().list().get(0).getId(), LOBSTER, bob);
+		bountyFrom(alice, goal, LOBSTER, bob);
 		party.run(10 * SECOND);
 		assertEquals(1, bob.bounties().list().size());
 
@@ -205,7 +210,7 @@ public class BountyDeliveryTest
 	}
 
 	@Test
-	public void anotherPartyPausesItUntilSwitchingBack()
+	public void beingInAnotherPartyPausesBountiesUntilSwitchingBack()
 	{
 		connect(alice);
 		aliceSetsABountyOnCoal();
@@ -441,7 +446,7 @@ public class BountyDeliveryTest
 	public void anAltOnAConnectedClientSaysNothingAndStopsNobody()
 	{
 		connect(alice, bob);
-		aliceSetsABountyOnCoal();
+		String goal = aliceSetsABountyOnCoal();
 		party.run(5 * SECOND);
 
 		// a logout doesn't leave the party, so whoever logs in next is in it
@@ -451,7 +456,7 @@ public class BountyDeliveryTest
 		assertTrue(alice.groupSync().strangers().isEmpty());
 		assertEquals(GroupSync.Status.NOT_IN_GROUP, bob.status());
 
-		bountyFrom(alice, alice.goals().list().get(0).getId(), LOBSTER, bob);
+		bountyFrom(alice, goal, LOBSTER, bob);
 		carol.connect();
 		party.run(CATCH_UP);
 		assertEquals(GroupSync.Status.CONNECTED, carol.status());
@@ -470,10 +475,10 @@ public class BountyDeliveryTest
 	@Test
 	public void namesMatchTheGroupsMemberListHoweverTheGameWritesThem()
 	{
-		// the party has the name as the game wrote it, and the member list spells the space differently
+		// the character's name has a non-breaking space, and the member list an ordinary one
 		party.roster().add("Bonscott Kid");
-		SimulatedClient kid = party.member("Bonscott Kid");
-		party.roster().remove("Bonscott Kid");
+		SimulatedClient kid = party.member("Bonscott\u00A0Kid");
+		party.roster().remove("Bonscott\u00A0Kid");
 		SimulatedClient dashed = party.member("Mun-dell");
 		party.roster().remove("Mun-dell");
 		party.roster().add("mun dell");
@@ -500,7 +505,7 @@ public class BountyDeliveryTest
 		assertEquals(1, alice.bounties().list().size());
 		assertTrue(bob.bounties().list().isEmpty());
 
-		// Bob's own bounties still reach Alice, so it looks one sided
+		// Bob's own bounties still reach Alice, so it looks one-sided
 		bountyFrom(bob, goalFrom(bob), LOBSTER, alice);
 		party.run(10 * SECOND);
 		assertEquals(2, alice.bounties().list().size());
@@ -572,9 +577,7 @@ public class BountyDeliveryTest
 	public void deletingAGoalLeavesItsBountiesHeldButOutOfSightOfTheGoalsTab()
 	{
 		connect(alice, bob);
-		party.run(5 * SECOND);
-		String goal = goalFrom(alice);
-		bountyFrom(alice, goal, COAL, bob);
+		String goal = aliceSetsABountyOnCoal();
 		party.run(5 * SECOND);
 		assertTrue(bob.bounties().lockFor(COAL).isLocked());
 
@@ -594,9 +597,7 @@ public class BountyDeliveryTest
 	public void deletingAGoalLeavesNoPadlockBehind()
 	{
 		connect(alice, bob);
-		party.run(5 * SECOND);
-		String goal = goalFrom(alice);
-		bountyFrom(alice, goal, COAL, bob);
+		String goal = aliceSetsABountyOnCoal();
 		party.run(5 * SECOND);
 
 		bob.goals().delete(goal);
@@ -609,9 +610,7 @@ public class BountyDeliveryTest
 	public void deletingAGoalsBountiesRemovesThemForEveryone()
 	{
 		connect(alice, bob);
-		party.run(5 * SECOND);
-		String goal = goalFrom(alice);
-		bountyFrom(alice, goal, COAL, bob);
+		String goal = aliceSetsABountyOnCoal();
 		party.run(5 * SECOND);
 
 		bob.goals().delete(goal);
@@ -626,9 +625,7 @@ public class BountyDeliveryTest
 	public void aBountyDoesNothingUntilItsGoalArrivesToo()
 	{
 		connect(alice);
-		party.run(5 * SECOND);
-		String goal = goalFrom(alice);
-		bountyFrom(alice, goal, COAL, bob);
+		String goal = aliceSetsABountyOnCoal();
 		party.run(5 * SECOND);
 
 		SyncRecord goalRecord = recordFor(alice, GoalService.TYPE, goal);

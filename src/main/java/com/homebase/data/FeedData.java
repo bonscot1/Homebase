@@ -58,6 +58,17 @@ public class FeedData implements Checkable
 		 * What dropped it, such as "Vorkath".
 		 */
 		private String source;
+
+		/**
+		 * The dropped item's id, for its picture, or 0 for anything else. Older versions of the plugin
+		 * don't send it.
+		 */
+		private int item;
+
+		public Entry(long at, String type, String name, int quantity, long value, String source)
+		{
+			this(at, type, name, quantity, value, source, 0);
+		}
 	}
 
 	public void add(Entry entry)
@@ -73,5 +84,6 @@ public class FeedData implements Checkable
 	public void check()
 	{
 		entries = Checkable.list(entries, MAX_ENTRIES);
+		entries.forEach(entry -> entry.setItem(Math.max(0, entry.getItem())));
 	}
 }

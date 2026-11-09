@@ -8,6 +8,37 @@ import org.junit.Test;
 public class KillCountsDataTest
 {
 	@Test
+	public void timesAreWrittenTheWayTheGameWritesThem()
+	{
+		assertEquals("1:23.40", KillCountsData.formatTime(83.4));
+		assertEquals("0:59", KillCountsData.formatTime(59));
+		assertEquals("1:02:05", KillCountsData.formatTime(3725));
+		assertEquals("25:31.20", KillCountsData.formatTime(1531.2));
+	}
+
+	@Test
+	public void bestTimesAreFoundHoweverTheBossIsNamed()
+	{
+		KillCountsData kills = new KillCountsData();
+		kills.getBestTimes().put("The Gauntlet", 400.0);
+		assertEquals(Double.valueOf(400.0), kills.bestTimeFor("Gauntlet"));
+		assertNull(kills.bestTimeFor("Vorkath"));
+	}
+
+	@Test
+	public void badTimesFromAnotherClientAreKeptInRange()
+	{
+		KillCountsData kills = new KillCountsData();
+		kills.getBestTimes().put("Vorkath", -5.0);
+		kills.getBestTimes().put("Zulrah", Double.NaN);
+		kills.getBestTimes().put("Nex", 1e12);
+		kills.check();
+		assertEquals(Double.valueOf(0), kills.getBestTimes().get("Vorkath"));
+		assertEquals(Double.valueOf(0), kills.getBestTimes().get("Zulrah"));
+		assertEquals(Double.valueOf(KillCountsData.MAX_SECONDS), kills.getBestTimes().get("Nex"));
+	}
+
+	@Test
 	public void hiscoreAndChatNamesMatch()
 	{
 		// the hiscores' name first, then what the game's messages call the same boss

@@ -14,10 +14,12 @@ import com.homebase.requests.RequestService;
 import com.homebase.storage.ReturnTags;
 import com.homebase.storage.StorageHistory;
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.Component;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -28,7 +30,6 @@ import javax.swing.JPanel;
 import javax.swing.border.EmptyBorder;
 import net.runelite.api.Item;
 import net.runelite.client.ui.ColorScheme;
-import net.runelite.client.util.QuantityFormatter;
 
 /**
  * Everything about group storage in one place: what's owed back, what's under a bounty or held for a
@@ -38,6 +39,12 @@ import net.runelite.client.util.QuantityFormatter;
 class StorageView extends JPanel
 {
 	private static final int MAX_NAME = 20;
+
+	/**
+	 * The colours of the padlocks in group storage, for a bounty that's holding items back and one that isn't.
+	 */
+	private static final Color LOCKED = new Color(0xEF5350);
+	private static final Color FREE = new Color(0x66BB6A);
 
 	private static final String BOUNTIES_ID = "storage:bounties";
 	private static final String HELD_ID = "storage:held";
@@ -84,8 +91,10 @@ class StorageView extends JPanel
 		Map<String, String> names = memberNames(view);
 		List<StorageHistory.MemberLog> logs = logs(view);
 		List<StorageHistory.Owed> owed = StorageHistory.owed(logs, marked);
-		List<String> bountyLines = bountyLines(names);
-		List<String> heldLines = heldLines(slots);
+		List<ItemBlocks.Block> bountyBlocks = bountyBlocks(names, storedCounts(slots));
+		List<ItemBlocks.Block> heldBlocks = heldBlocks(slots);
+		int bountyCount = ItemBlocks.itemsIn(bountyBlocks);
+		int heldCount = ItemBlocks.itemsIn(heldBlocks);
 
 		JPanel card = new JPanel();
 		card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
@@ -94,20 +103,20 @@ class StorageView extends JPanel
 		card.setAlignmentX(Component.LEFT_ALIGNMENT);
 
 		card.add(header(view, ItemGrid.countFilled(slots)));
-		String summary = summary(owed.size(), bountyLines.size(), heldLines.size());
+		String summary = summary(owed.size(), bountyCount, heldCount);
 		if (summary != null)
 		{
 			card.add(Ui.wrapped(summary, ColorScheme.LIGHT_GRAY_COLOR, StorageHistoryView.TEXT_WIDTH));
 		}
 
 		StorageHistoryView.addOwed(card, owed, canMark ? returnTags::unmark : null, context, onNamesFound);
-		if (!bountyLines.isEmpty() && MemberCard.addFoldRow(card, "Bounties", String.valueOf(bountyLines.size()), BOUNTIES_ID, context))
+		if (!bountyBlocks.isEmpty() && MemberCard.addFoldRow(card, "Bounties", String.valueOf(bountyCount), BOUNTIES_ID, context))
 		{
-			StorageHistoryView.addRows(card, bountyLines);
+			MemberCard.addContent(card, ItemBlocks.list(bountyBlocks, context.itemSprites));
 		}
-		if (!heldLines.isEmpty() && MemberCard.addFoldRow(card, "Held for requests", String.valueOf(heldLines.size()), HELD_ID, context))
+		if (!heldBlocks.isEmpty() && MemberCard.addFoldRow(card, "Held for requests", String.valueOf(heldCount), HELD_ID, context))
 		{
-			StorageHistoryView.addRows(card, heldLines);
+			MemberCard.addContent(card, ItemBlocks.list(heldBlocks, context.itemSprites));
 		}
 
 		if (MemberCard.addFoldRow(card, "Items", String.valueOf(ItemGrid.countFilled(slots)), ITEMS_ID, context))
@@ -133,7 +142,7 @@ class StorageView extends JPanel
 		header.add(Ui.small(ItemGrid.itemCount(filled), ColorScheme.LIGHT_GRAY_COLOR), BorderLayout.EAST);
 		String author = view.authorOf(null, Section.GROUP_STORAGE);
 		ProfileData seenBy = author == null ? null : view.get(author, Section.PROFILE, ProfileData.class);
-		header.add(Ui.muted("Seen " + Ago.format(view.updatedAt(null, Section.GROUP_STORAGE))
+		header.add(Ui.muted("Updated " + Ago.format(view.updatedAt(null, Section.GROUP_STORAGE))
 			+ (seenBy == null ? "" : " by " + Clean.text(seenBy.getName(), MAX_NAME))), BorderLayout.SOUTH);
 		header.setBorder(new EmptyBorder(0, 0, 4, 0));
 		return header;
@@ -191,11 +200,14 @@ class StorageView extends JPanel
 	}
 
 	/**
-	 * @return a line for each bounty that's in force, such as "Rune scimitar: Mundell, until 70 Attack"
+	 * @param inStorage how many of each item group storage holds, for a bounty on all of an item
+	 * @return the bounties in force, gathered by goal and by who they're locked for, with those still
+	 * holding something back first
 	 */
-	private List<String> bountyLines(Map<String, String> names)
+	private List<ItemBlocks.Block> bountyBlocks(Map<String, String> names, Map<Integer, Integer> inStorage)
 	{
-		List<String> out = new ArrayList<>();
+		Map<String, ItemBlocks.Block> locked = new LinkedHashMap<>();
+		Map<String, ItemBlocks.Block> free = new LinkedHashMap<>();
 		for (BountyService.Bounty bounty : bounties.list())
 		{
 			BountyData data = bounty.getData();
@@ -205,27 +217,31 @@ class StorageView extends JPanel
 			{
 				continue;
 			}
-			Set<String> locked = new LinkedHashSet<>();
+			List<String> who = new ArrayList<>();
 			for (String id : data.getLocked())
 			{
 				if (bounties.isLocked(data, id))
 				{
-					locked.add(names.getOrDefault(id, "someone"));
+					who.add(names.getOrDefault(id, "someone"));
 				}
 			}
-			String item = data.getItemName();
-			out.add(Ui.escapeHtml((item == null ? "item " + data.getItemId() : item)
-				+ (data.getQuantity() > 0 ? " ×" + QuantityFormatter.formatNumber(data.getQuantity()) : "")
-				+ ": " + (locked.isEmpty() ? "lifted for everyone" : String.join(", ", locked))
-				+ ", until " + GoalService.title(goal.getData())));
+			boolean lifted = who.isEmpty();
+			String detail = lifted ? "Reached, so anyone can take these" : "Locked for " + String.join(", ", who);
+			int quantity = data.getQuantity() > 0 ? data.getQuantity() : Math.max(1, inStorage.getOrDefault(data.getItemId(), 1));
+			Map<String, ItemBlocks.Block> blocks = lifted ? free : locked;
+			blocks.computeIfAbsent(goal.getId() + "|" + detail,
+				key -> ItemBlocks.of("Until " + GoalService.title(goal.getData()), detail, lifted ? FREE : LOCKED, new ArrayList<>()))
+				.getItems().add(new Item(data.getItemId(), quantity));
 		}
+		List<ItemBlocks.Block> out = new ArrayList<>(locked.values());
+		out.addAll(free.values());
 		return out;
 	}
 
 	/**
-	 * @return a line for each request waiting in storage, such as "Rune scimitar ×2 for Mundell"
+	 * @return what's waiting in storage for each member's requests
 	 */
-	private List<String> heldLines(List<Item> slots)
+	private List<ItemBlocks.Block> heldBlocks(List<Item> slots)
 	{
 		Set<Integer> items = new LinkedHashSet<>();
 		for (Item item : slots)
@@ -235,16 +251,27 @@ class StorageView extends JPanel
 				items.add(item.getId());
 			}
 		}
-		List<String> out = new ArrayList<>();
+		Map<String, ItemBlocks.Block> out = new LinkedHashMap<>();
 		for (int item : items)
 		{
 			for (RequestService.Reservation held : requests.reservationsFor(item))
 			{
-				String name = held.getItem();
-				String who = held.getRequestedByName();
-				out.add(Ui.escapeHtml((name == null ? "item " + item : name)
-					+ (held.getQuantity() > 1 ? " ×" + QuantityFormatter.formatNumber(held.getQuantity()) : "")
-					+ " for " + (who == null ? "someone" : who)));
+				String who = held.getRequestedByName() == null ? "someone" : held.getRequestedByName();
+				out.computeIfAbsent(who, key -> ItemBlocks.of("For " + key, null, null, new ArrayList<>()))
+					.getItems().add(new Item(item, Math.max(1, held.getQuantity())));
+			}
+		}
+		return new ArrayList<>(out.values());
+	}
+
+	private static Map<Integer, Integer> storedCounts(List<Item> slots)
+	{
+		Map<Integer, Integer> out = new HashMap<>();
+		for (Item item : slots)
+		{
+			if (item != null)
+			{
+				out.merge(item.getId(), item.getQuantity(), Integer::sum);
 			}
 		}
 		return out;

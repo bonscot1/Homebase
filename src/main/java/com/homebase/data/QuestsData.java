@@ -14,6 +14,11 @@ public class QuestsData implements Checkable
 	public static final String STARTED = "S";
 
 	/**
+	 * More quest points than the game has ever given, so a bad client's number is kept sensible.
+	 */
+	static final int MAX_POINTS = 1_000;
+
+	/**
 	 * Miniquests, which the game counts apart from quests. RuneLite's quest list doesn't say which
 	 * are which.
 	 */
@@ -37,6 +42,11 @@ public class QuestsData implements Checkable
 	 * name rather than RuneLite's quest list so members on different RuneLite versions still agree.
 	 */
 	private Map<String, String> quests = new HashMap<>();
+
+	/**
+	 * Quest points, or 0 from older versions of the plugin, which don't send them.
+	 */
+	private int points;
 
 	/**
 	 * @return how many quests, not counting miniquests, are in the given state
@@ -76,5 +86,6 @@ public class QuestsData implements Checkable
 	public void check()
 	{
 		quests = Checkable.map(quests);
+		points = Math.max(0, Math.min(MAX_POINTS, points));
 	}
 }

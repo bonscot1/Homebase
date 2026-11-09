@@ -2,11 +2,20 @@ package com.homebase.overlay;
 
 import java.awt.Color;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import org.junit.Test;
 
 public class GroupHudOverlayTest
 {
+	@Test
+	public void aBossPageIsKnownByItsKillCountLine()
+	{
+		assertEquals("Vorkath", CollectionLogOverlay.bossOf("Vorkath kills: 1,234"));
+		assertEquals("Chambers of Xeric", CollectionLogOverlay.bossOf("Chambers of Xeric kills: 5"));
+		assertNull(CollectionLogOverlay.bossOf("Obtained: 5/7"));
+	}
+
 	private static double brightness(Color c)
 	{
 		return 0.299 * c.getRed() + 0.587 * c.getGreen() + 0.114 * c.getBlue();

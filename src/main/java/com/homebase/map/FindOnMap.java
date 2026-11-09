@@ -152,8 +152,8 @@ public class FindOnMap
 	}
 
 	/**
-	 * Keeps the box's right-click menu up to date. It works even with a monster behind the box, where a
-	 * left-click goes to the monster.
+	 * Keep the box's right-click menu up to date. The menu works even with a monster behind the box,
+	 * where a left-click goes to the monster.
 	 */
 	@Subscribe
 	public void onGameTick(GameTick event)

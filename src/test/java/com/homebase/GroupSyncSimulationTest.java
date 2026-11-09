@@ -21,8 +21,8 @@ import com.homebase.sync.SyncRecord;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import net.runelite.api.Skill;
@@ -61,12 +61,20 @@ public class GroupSyncSimulationTest
 	@Before
 	public void setUp()
 	{
-		for (SimulatedClient member : Arrays.asList(alice, bob, carol))
-		{
-			member.onGroupOpened(client -> client.get(ReturnTags.class).setEngine(client.engine()));
-		}
+		addReturnMarks(Arrays.asList(alice, bob, carol));
 		// the game takes a few ticks to say which group an account is in
 		party.run(5 * SECOND);
+	}
+
+	/**
+	 * {@link SimulatedClient} leaves return marks out, as older versions don't have them.
+	 */
+	private static void addReturnMarks(List<SimulatedClient> members)
+	{
+		for (SimulatedClient member : members)
+		{
+			member.onGroupOpened(client -> marks(client).setEngine(client.engine()));
+		}
 	}
 
 	@After
@@ -406,7 +414,9 @@ public class GroupSyncSimulationTest
 	// offline, then catching up
 
 	/**
-	 * Something of everything for two members to have, with a goal and bounty on it.
+	 * One of everything there is to share, with the bounty holding something back from {@code other}.
+	 *
+	 * @return the ids of the goal and the request
 	 */
 	private String[] shareSomeOfEverything(SimulatedClient who, SimulatedClient other)
 	{
@@ -707,14 +717,7 @@ public class GroupSyncSimulationTest
 		party.run(CATCH_UP);
 
 		SimulatedParty.assertSameRecords(alice, bob);
-		assertEquals(Arrays.asList(COAL, SHARK), sorted(marks(bob).marked()));
-	}
-
-	private static List<Integer> sorted(Map<Integer, Long> items)
-	{
-		List<Integer> out = new ArrayList<>(items.keySet());
-		out.sort((a, b) -> Integer.compare(b, a));
-		return out;
+		assertEquals(new HashSet<>(Arrays.asList(COAL, SHARK)), marks(bob).marked().keySet());
 	}
 
 	@Test
@@ -757,7 +760,7 @@ public class GroupSyncSimulationTest
 	}
 
 	@Test
-	@Ignore("Two clients holding the same version of a key by different authors never settle it, as summaries only compare version numbers")
+	@Ignore("Two different changes with the same version never settle, as summaries only compare version numbers")
 	public void twoChangesWithTheSameVersionEndUpTheSameEverywhere()
 	{
 		connect(alice, bob);
@@ -795,7 +798,8 @@ public class GroupSyncSimulationTest
 
 		// all there before connecting, from the save file
 		assertEquals(beforeRestart, bob.recordsAsText());
-		assertEquals(GroupSync.Status.DISCONNECTED, statusOnceLoggedIn(bob));
+		party.run(5 * SECOND);
+		assertEquals(GroupSync.Status.DISCONNECTED, bob.status());
 		assertEquals(1, bob.bounties().list().size());
 		assertNotNull(bob.goals().get(ids[0]));
 		assertEquals(1, logOf(bob, alice).getEntries().size());
@@ -810,12 +814,6 @@ public class GroupSyncSimulationTest
 		SimulatedParty.assertSameRecords(alice, bob);
 		assertNotNull(bob.goals().get(newGoal));
 		assertTrue(bob.bounties().list().isEmpty());
-	}
-
-	private GroupSync.Status statusOnceLoggedIn(SimulatedClient who)
-	{
-		party.run(5 * SECOND);
-		return who.status();
 	}
 
 	@Test
@@ -943,13 +941,13 @@ public class GroupSyncSimulationTest
 		SimulatedParty.assertSameRecords(alice, bob);
 	}
 
-	// a peer running the version on the Plugin Hub, which knows none of the newer sections or return marks
+	// a member on an older version, which knows none of the newer sections or return marks
 
 	@Test
-	public void aMemberOnTheReleasedVersionPassesOnWhatItCantRead()
+	public void aMemberOnAnOlderVersionPassesOnWhatItCantRead()
 	{
-		// SyncEngine, GroupStore, OutboundQueue, Keys, SyncRecord and WireCodec are unchanged from that version,
-		// and nothing in them looks at what a section means, so Bob stands in for it just by what he doesn't do
+		// passing records on never looks at what a section means, so Bob stands in for an older version just
+		// by doing nothing with them
 		connect(alice, bob);
 		marks(alice).mark(SHARK);
 		saveStorage(alice, COAL, -5);
@@ -970,7 +968,7 @@ public class GroupSyncSimulationTest
 	}
 
 	@Test
-	public void aProfileFromTheReleasedVersionHasNoColourAndStillCounts()
+	public void aProfileFromAnOlderVersionHasNoColourAndStillCounts()
 	{
 		connect(alice, bob);
 		JsonObject profile = new JsonObject();
@@ -1068,7 +1066,6 @@ public class GroupSyncSimulationTest
 		big.addProperty("text", text.toString());
 		String key = Keys.member(alice.id(), "clog");
 
-		party.forgetSent();
 		setGoal(alice);
 		alice.engine().publish(key, alice.id(), big);
 		setGoal(alice);
@@ -1134,10 +1131,7 @@ public class GroupSyncSimulationTest
 	{
 		SimulatedParty party = new SimulatedParty();
 		List<SimulatedClient> members = Arrays.asList(party.member("Alice"), party.member("Bob"), party.member("Carol"));
-		for (SimulatedClient member : members)
-		{
-			member.onGroupOpened(client -> client.get(ReturnTags.class).setEngine(client.engine()));
-		}
+		addReturnMarks(members);
 		party.setLatency(seed % 2 == 0 ? 0 : 400);
 		party.setStayListed(seed % 3 == 0 ? 20 * SECOND : 0);
 		party.run(5 * SECOND);
@@ -1256,11 +1250,11 @@ public class GroupSyncSimulationTest
 			case 11:
 				if (random.nextBoolean())
 				{
-					member.get(ReturnTags.class).mark(COAL + random.nextInt(5));
+					marks(member).mark(COAL + random.nextInt(5));
 				}
 				else
 				{
-					member.get(ReturnTags.class).unmark(COAL + random.nextInt(5));
+					marks(member).unmark(COAL + random.nextInt(5));
 				}
 				break;
 			case 12:

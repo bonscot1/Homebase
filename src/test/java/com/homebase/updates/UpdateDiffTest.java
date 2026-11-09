@@ -1,10 +1,12 @@
 package com.homebase.updates;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import com.homebase.data.CombatAchievementsData;
 import com.homebase.data.FeedData;
 import com.homebase.data.QuestsData;
+import com.homebase.data.UpdateLine;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -34,8 +36,8 @@ public class UpdateDiffTest
 		after.put("Attack", 41);
 		after.put("Magic", 90);
 
-		assertEquals(Arrays.asList("Attack 40 → 41", "Magic 89 → 90"), UpdateDiff.skills(before, after));
-		assertEquals(Collections.singletonList("Magic 89 → 90"), UpdateDiff.skills(before, after, 50));
+		assertEquals(Arrays.asList("Attack 40 → 41", "Magic 89 → 90"), UpdateDiff.texts(UpdateDiff.skills(before, after)));
+		assertEquals(Collections.singletonList("Magic 89 → 90"), UpdateDiff.texts(UpdateDiff.skills(before, after, 50)));
 	}
 
 	@Test
@@ -49,7 +51,7 @@ public class UpdateDiffTest
 			new FeedData.Entry(400, FeedData.DEATH, "Wilderness (level 11)", 0, 0, null));
 
 		assertEquals(Arrays.asList("got Dragon warhammer from Lizardman shaman (41.2M)", "got a pet!", "died: Wilderness (level 11)"),
-			UpdateDiff.feed(before, after, true, 100_000, true));
+			UpdateDiff.texts(UpdateDiff.feed(before, after, true, 100_000, true)));
 	}
 
 	@Test
@@ -60,7 +62,7 @@ public class UpdateDiffTest
 			drop(200, "Runite ore", 10, 110_000, "Rune dragon"));
 
 		assertEquals(Collections.singletonList("got 10 x Runite ore from Rune dragon (110K)"),
-			UpdateDiff.feed(Collections.emptyList(), after, true, 100_000, true));
+			UpdateDiff.texts(UpdateDiff.feed(Collections.emptyList(), after, true, 100_000, true)));
 	}
 
 	@Test
@@ -71,9 +73,9 @@ public class UpdateDiffTest
 			new FeedData.Entry(200, FeedData.PET, null, 0, 0, null),
 			new FeedData.Entry(300, FeedData.DEATH, null, 0, 0, null));
 
-		assertEquals(Collections.singletonList("died"), UpdateDiff.feed(Collections.emptyList(), after, false, 0, true));
+		assertEquals(Collections.singletonList("died"), UpdateDiff.texts(UpdateDiff.feed(Collections.emptyList(), after, false, 0, true)));
 		assertEquals(Arrays.asList("got Abyssal whip from Abyssal demon (2M)", "got a pet!"),
-			UpdateDiff.feed(Collections.emptyList(), after, true, 0, false));
+			UpdateDiff.texts(UpdateDiff.feed(Collections.emptyList(), after, true, 0, false)));
 	}
 
 	@Test
@@ -85,7 +87,7 @@ public class UpdateDiffTest
 			after.add(drop(i, "Item " + i, 1, 200_000, "Boss"));
 		}
 		assertEquals(Collections.singletonList("got 7 valuable drops"),
-			UpdateDiff.feed(Collections.emptyList(), after, true, 100_000, true));
+			UpdateDiff.texts(UpdateDiff.feed(Collections.emptyList(), after, true, 100_000, true)));
 	}
 
 	@Test
@@ -99,7 +101,7 @@ public class UpdateDiffTest
 		after.add(new FeedData.Entry(8, FeedData.PET, null, 0, 0, null));
 
 		assertEquals(Arrays.asList("got 7 valuable drops", "got a pet!"),
-			UpdateDiff.feed(Collections.emptyList(), after, true, 100_000, true));
+			UpdateDiff.texts(UpdateDiff.feed(Collections.emptyList(), after, true, 100_000, true)));
 	}
 
 	@Test
@@ -116,7 +118,7 @@ public class UpdateDiffTest
 			drop(400, "<img=1>Sword", 1, 500_000, "<col=ff0000>Boss"));
 
 		assertEquals(Collections.singletonList("got img=1Sword from col=ff0000Boss (500K)"),
-			UpdateDiff.feed(Collections.emptyList(), after, true, 100_000, true));
+			UpdateDiff.texts(UpdateDiff.feed(Collections.emptyList(), after, true, 100_000, true)));
 	}
 
 	@Test
@@ -136,9 +138,9 @@ public class UpdateDiffTest
 		Map<String, Integer> diariesAfter = Collections.singletonMap("Varrock", 0b0001);
 
 		List<String> changes = new ArrayList<>();
-		changes.addAll(UpdateDiff.skills(skillsBefore, skillsAfter));
-		changes.addAll(UpdateDiff.quests(questsBefore, questsAfter));
-		changes.addAll(UpdateDiff.diaries(diariesBefore, diariesAfter, REGIONS, TIERS));
+		changes.addAll(UpdateDiff.texts(UpdateDiff.skills(skillsBefore, skillsAfter)));
+		changes.addAll(UpdateDiff.texts(UpdateDiff.quests(questsBefore, questsAfter)));
+		changes.addAll(UpdateDiff.texts(UpdateDiff.diaries(diariesBefore, diariesAfter, REGIONS, TIERS)));
 
 		assertEquals(Arrays.asList("Magic 15 → 32", "completed The Restless Ghost", "completed the Varrock Easy diary"), changes);
 		assertEquals("bonscott1: Magic 15 -> 32, completed The Restless Ghost, completed the Varrock Easy diary.",
@@ -149,23 +151,23 @@ public class UpdateDiffTest
 	public void xpWithoutALevelIsNotNews()
 	{
 		Map<String, Integer> levels = Collections.singletonMap("Magic", 32);
-		assertTrue(UpdateDiff.skills(levels, levels).isEmpty());
+		assertTrue(UpdateDiff.texts(UpdateDiff.skills(levels, levels)).isEmpty());
 	}
 
 	@Test
 	public void aSkillMissingFromTheOldCopyIsNotAGain()
 	{
 		// a skill added in a game update shouldn't read as going from nothing to its level
-		assertTrue(UpdateDiff.skills(Collections.emptyMap(), Collections.singletonMap("Sailing", 1)).isEmpty());
+		assertTrue(UpdateDiff.texts(UpdateDiff.skills(Collections.emptyMap(), Collections.singletonMap("Sailing", 1))).isEmpty());
 	}
 
 	@Test
 	public void startingAQuestIsNotNewsButFinishingItIs()
 	{
 		Map<String, String> before = Collections.singletonMap("Cook's Assistant", QuestsData.STARTED);
-		assertTrue(UpdateDiff.quests(Collections.emptyMap(), before).isEmpty());
+		assertTrue(UpdateDiff.texts(UpdateDiff.quests(Collections.emptyMap(), before)).isEmpty());
 		assertEquals(Collections.singletonList("completed Cook's Assistant"),
-			UpdateDiff.quests(before, Collections.singletonMap("Cook's Assistant", QuestsData.FINISHED)));
+			UpdateDiff.texts(UpdateDiff.quests(before, Collections.singletonMap("Cook's Assistant", QuestsData.FINISHED))));
 	}
 
 	@Test
@@ -176,7 +178,7 @@ public class UpdateDiffTest
 		{
 			after.put("Quest " + i, QuestsData.FINISHED);
 		}
-		assertEquals(Collections.singletonList("completed 12 quests"), UpdateDiff.quests(Collections.emptyMap(), after));
+		assertEquals(Collections.singletonList("completed 12 quests"), UpdateDiff.texts(UpdateDiff.quests(Collections.emptyMap(), after)));
 	}
 
 	@Test
@@ -187,23 +189,23 @@ public class UpdateDiffTest
 		after.put("Varrock", 0b0011);
 		after.put("Wilderness", 0b0001);
 		assertEquals(Arrays.asList("completed the Varrock Medium diary", "completed the Wilderness Easy diary"),
-			UpdateDiff.diaries(before, after, REGIONS, TIERS));
+			UpdateDiff.texts(UpdateDiff.diaries(before, after, REGIONS, TIERS)));
 	}
 
 	@Test
 	public void combatAchievementTasksAndTier()
 	{
 		assertEquals(Arrays.asList("completed 3 combat achievements", "reached Medium combat achievements"),
-			UpdateDiff.combatAchievements(10, 13, 0, 1, CombatAchievementsData.TIERS));
+			UpdateDiff.texts(UpdateDiff.combatAchievements(10, 13, 0, 1, CombatAchievementsData.TIERS)));
 		assertEquals(Collections.singletonList("completed a combat achievement"),
-			UpdateDiff.combatAchievements(10, 11, 1, 1, CombatAchievementsData.TIERS));
+			UpdateDiff.texts(UpdateDiff.combatAchievements(10, 11, 1, 1, CombatAchievementsData.TIERS)));
 	}
 
 	@Test
 	public void noCombatAchievementLineFromNothing()
 	{
 		// tasks that hadn't loaded yet shouldn't look like a huge burst of completions
-		assertTrue(UpdateDiff.combatAchievements(0, 300, -1, 4, CombatAchievementsData.TIERS).isEmpty());
+		assertTrue(UpdateDiff.texts(UpdateDiff.combatAchievements(0, 300, -1, 4, CombatAchievementsData.TIERS)).isEmpty());
 	}
 
 	@Test
@@ -212,15 +214,70 @@ public class UpdateDiffTest
 		List<String> before = Collections.singletonList("Abyssal whip");
 		List<String> after = Arrays.asList("Dragon pickaxe", "Draconic visage", "Abyssal whip");
 		assertEquals(Arrays.asList("new collection log slot: Draconic visage", "new collection log slot: Dragon pickaxe"),
-			UpdateDiff.collectionLog(100, 102, before, after));
+			UpdateDiff.texts(UpdateDiff.collectionLog(100, 102, before, after)));
 	}
 
 	@Test
 	public void collectionLogFallsBackToCount()
 	{
 		assertEquals(Collections.singletonList("filled 3 collection log slots"),
-			UpdateDiff.collectionLog(100, 103, Collections.emptyList(), Collections.emptyList()));
-		assertTrue(UpdateDiff.collectionLog(0, 103, Collections.emptyList(), Collections.emptyList()).isEmpty());
+			UpdateDiff.texts(UpdateDiff.collectionLog(100, 103, Collections.emptyList(), Collections.emptyList())));
+		assertTrue(UpdateDiff.texts(UpdateDiff.collectionLog(0, 103, Collections.emptyList(), Collections.emptyList())).isEmpty());
+	}
+
+	@Test
+	public void eachLineSaysWhatItsAboutForItsPicture()
+	{
+		UpdateLine level = UpdateDiff.skills(Collections.singletonMap("Magic", 15), Collections.singletonMap("Magic", 32)).get(0);
+		assertEquals(UpdateLine.Kind.LEVEL, level.getKind());
+		assertEquals("Magic", level.getSubject());
+
+		UpdateLine kills = UpdateDiff.killCounts(Collections.singletonMap("Vorkath", 10), Collections.singletonMap("Vorkath", 12)).get(0);
+		assertEquals(UpdateLine.Kind.KILL_COUNT, kills.getKind());
+		assertEquals("Vorkath", kills.getSubject());
+
+		FeedData.Entry drop = new FeedData.Entry(10, FeedData.DROP, "Dragon warhammer", 1, 41_000_000, "Lizardman shaman", 13576);
+		UpdateLine dropped = UpdateDiff.feed(Collections.emptyList(), Collections.singletonList(drop), true, 1, true).get(0);
+		assertEquals(UpdateLine.Kind.DROP, dropped.getKind());
+		assertEquals(13576, dropped.getItem());
+	}
+
+	@Test
+	public void olderSavedLinesAreRecognisedByTheirWords()
+	{
+		assertEquals(UpdateLine.Kind.LEVEL, UpdateDiff.fromText("Magic 15 → 32").getKind());
+		assertEquals("Magic", UpdateDiff.fromText("Magic 15 → 32").getSubject());
+		assertEquals("Vorkath", UpdateDiff.fromText("Vorkath kill count 10 → 12").getSubject());
+		assertEquals(UpdateLine.Kind.BEST_TIME, UpdateDiff.fromText("Brutus best time 0:25 → 0:22").getKind());
+		assertEquals(UpdateLine.Kind.DIARY, UpdateDiff.fromText("completed the Varrock Easy diary").getKind());
+		assertEquals(UpdateLine.Kind.QUEST, UpdateDiff.fromText("completed The Restless Ghost").getKind());
+		assertEquals(UpdateLine.Kind.COMBAT_ACHIEVEMENT, UpdateDiff.fromText("completed 3 combat achievements").getKind());
+		assertEquals(UpdateLine.Kind.COLLECTION_LOG, UpdateDiff.fromText("new collection log slot: Dragon pickaxe").getKind());
+		assertEquals(UpdateLine.Kind.PET, UpdateDiff.fromText("got a pet!").getKind());
+		assertEquals(UpdateLine.Kind.DROP, UpdateDiff.fromText("got Dragon warhammer from Lizardman shaman (41.2M)").getKind());
+		assertEquals(UpdateLine.Kind.DEATH, UpdateDiff.fromText("died: Wilderness (level 11)").getKind());
+		assertNull(UpdateDiff.fromText("something new").getKind());
+	}
+
+	@Test
+	public void beatenBestTimes()
+	{
+		Map<String, Double> before = new HashMap<>();
+		before.put("Vorkath", 90.0);
+		before.put("Zulrah", 60.0);
+		Map<String, Double> after = new HashMap<>(before);
+		after.put("Vorkath", 83.4);
+		after.put("Nex", 600.0);
+		assertEquals(Arrays.asList("Nex best time 10:00", "Vorkath best time 1:30 → 1:23.40"), UpdateDiff.texts(UpdateDiff.bestTimes(before, after)));
+	}
+
+	@Test
+	public void timesSharedForTheFirstTimeArentNews()
+	{
+		Map<String, Double> after = new HashMap<>();
+		after.put("Vorkath", 83.4);
+		after.put("Zulrah", 60.0);
+		assertTrue(UpdateDiff.texts(UpdateDiff.bestTimes(new HashMap<>(), after)).isEmpty());
 	}
 
 	@Test
@@ -233,7 +290,7 @@ public class UpdateDiffTest
 		after.put("Vorkath", 12);
 		after.put("Barrows", 300);
 		// Barrows is new to us, so its whole count isn't announced
-		assertEquals(Collections.singletonList("Vorkath kill count 10 → 12"), UpdateDiff.killCounts(before, after));
+		assertEquals(Collections.singletonList("Vorkath kill count 10 → 12"), UpdateDiff.texts(UpdateDiff.killCounts(before, after)));
 	}
 
 	@Test
@@ -246,6 +303,6 @@ public class UpdateDiffTest
 			before.put("Boss " + i, 1);
 			after.put("Boss " + i, 2);
 		}
-		assertEquals(Collections.singletonList("kill counts went up for 6 bosses"), UpdateDiff.killCounts(before, after));
+		assertEquals(Collections.singletonList("kill counts went up for 6 bosses"), UpdateDiff.texts(UpdateDiff.killCounts(before, after)));
 	}
 }

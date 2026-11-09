@@ -6,26 +6,39 @@ import java.awt.Color;
 import java.awt.Component;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.IntConsumer;
+import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.border.EmptyBorder;
+import lombok.Value;
+import net.runelite.api.Item;
 import net.runelite.client.ui.ColorScheme;
-import net.runelite.client.util.ColorUtil;
-import net.runelite.client.util.QuantityFormatter;
 
 /**
- * The lists on the storage tab: what's owed back, and who put in or took out what.
+ * The lists on the storage tab: what's owed back, and who put in or took out what, in blocks of item
+ * pictures like the bounties.
  */
 final class StorageHistoryView
 {
 	static final String UNMARK = "Doesn't need returning";
 
-	private static final int MAX_OWED_SHOWN = 8;
-	private static final int MAX_LINES_SHOWN = 30;
+	/**
+	 * Visits to storage shown in the history, newest first. Anything older is counted underneath.
+	 */
+	private static final int MAX_VISITS_SHOWN = 10;
+
+	/**
+	 * Saves by one member the same way this close together count as one visit, as when putting things
+	 * in a few at a time.
+	 */
+	static final long SAME_VISIT_MS = 10 * 60_000;
 
 	/**
 	 * Narrower than other wrapped text, since these rows sit inside the storage section and a list.
@@ -33,15 +46,18 @@ final class StorageHistoryView
 	static final int TEXT_WIDTH = Ui.TEXT_WIDTH - 9;
 
 	/**
-	 * Longest player and item names shown. Player names come from other members' data.
+	 * Longest player names shown. They come from other members' data.
 	 */
 	private static final int MAX_NAME = 20;
 
 	private static final String OWED_ID = "storage:owed";
 	private static final String HISTORY_ID = "storage:history";
 
-	private static final String WHO_COLOR = ColorUtil.toHexColor(Color.WHITE);
-	private static final String TIME_COLOR = ColorUtil.toHexColor(ColorScheme.MEDIUM_GRAY_COLOR);
+	/**
+	 * Green for what went into storage and red for what came out, the same as the bounties' padlocks.
+	 */
+	private static final Color PUT_IN = new Color(0x66BB6A);
+	private static final Color TOOK_OUT = new Color(0xEF5350);
 
 	private StorageHistoryView()
 	{
@@ -61,27 +77,43 @@ final class StorageHistoryView
 		{
 			return;
 		}
-		Set<Integer> shownItems = new HashSet<>();
-		JPanel list = new JPanel();
-		list.setLayout(new BoxLayout(list, BoxLayout.Y_AXIS));
-		list.setOpaque(false);
-		for (StorageHistory.Owed entry : owed.subList(0, Math.min(MAX_OWED_SHOWN, owed.size())))
+		MemberCard.addContent(parent, ItemBlocks.list(owedBlocks(owed, unmark), context.itemSprites));
+		Set<Integer> items = new HashSet<>();
+		owed.forEach(entry -> items.add(entry.getItem()));
+		lookUpMissingNames(items, context, onNamesFound);
+	}
+
+	/**
+	 * @param unmark called when an item here is right-clicked and said not to need returning, or null if
+	 * it can't be. All of an item can be out, so it may not be in the storage grid to right-click there.
+	 * @return a block for each member with what they owe back
+	 */
+	static List<ItemBlocks.Block> owedBlocks(List<StorageHistory.Owed> owed, IntConsumer unmark)
+	{
+		Map<String, List<StorageHistory.Owed>> byMember = new LinkedHashMap<>();
+		for (StorageHistory.Owed entry : owed)
 		{
-			shownItems.add(entry.getItem());
-			JLabel row = Ui.wrapped(text(entry), ColorScheme.LIGHT_GRAY_COLOR, TEXT_WIDTH);
-			// all of an item can be out, so it may not be in the grid to right-click there
-			if (unmark != null)
+			byMember.computeIfAbsent(name(entry.getWho()), who -> new ArrayList<>()).add(entry);
+		}
+		List<ItemBlocks.Block> out = new ArrayList<>();
+		byMember.forEach((who, entries) ->
+		{
+			List<Item> items = new ArrayList<>();
+			Set<Integer> ids = new HashSet<>();
+			long latest = 0;
+			for (StorageHistory.Owed entry : entries)
 			{
-				row.setComponentPopupMenu(Ui.rightClickMenu(UNMARK, () -> unmark.accept(entry.getItem())));
+				items.add(new Item(entry.getItem(), (int) Math.min(Integer.MAX_VALUE, entry.getAmount())));
+				ids.add(entry.getItem());
+				latest = Math.max(latest, entry.getAt());
 			}
-			addRow(list, row);
-		}
-		if (owed.size() > MAX_OWED_SHOWN)
-		{
-			addRow(list, Ui.muted("and " + (owed.size() - MAX_OWED_SHOWN) + " more"));
-		}
-		MemberCard.addContent(parent, list);
-		lookUpMissingNames(shownItems, context, onNamesFound);
+			// they're all marked, so a right-click can only say one doesn't need returning
+			ItemGrid.Marks marks = unmark == null ? ItemGrid.NO_MARKS : new ItemGrid.Marks(ids, item ->
+			{
+			}, unmark);
+			out.add(new ItemBlocks.Block(who, "Owes these back · " + Ago.format(latest), Ui.WARNING, items, marks));
+		});
+		return out;
 	}
 
 	/**
@@ -96,15 +128,97 @@ final class StorageHistoryView
 		{
 			return;
 		}
-		Set<Integer> shownItems = new HashSet<>();
-		List<String> rows = new ArrayList<>();
-		for (StorageHistory.Line line : lines.subList(0, Math.min(MAX_LINES_SHOWN, lines.size())))
+		Shown shown = historyBlocks(lines, MAX_VISITS_SHOWN);
+		List<ItemBlocks.Block> blocks = shown.getBlocks();
+		JPanel list = ItemBlocks.list(blocks, context.itemSprites);
+		if (shown.getOlder() > 0)
 		{
-			shownItems.add(line.getItem());
-			rows.add(text(line));
+			list.add(Box.createVerticalStrut(6));
+			list.add(Ui.muted("and " + shown.getOlder() + " older"));
+			Ui.alignChildrenLeft(list);
 		}
-		addRows(parent, rows, lines.size() - rows.size());
-		lookUpMissingNames(shownItems, context, onNamesFound);
+		MemberCard.addContent(parent, list);
+		Set<Integer> items = new HashSet<>();
+		blocks.forEach(block -> block.getItems().forEach(item -> items.add(item.getId())));
+		lookUpMissingNames(items, context, onNamesFound);
+	}
+
+	/**
+	 * What the history shows: a block for each visit to storage, and how many changes are too old to fit.
+	 */
+	@Value
+	static class Shown
+	{
+		List<ItemBlocks.Block> blocks;
+		int older;
+	}
+
+	/**
+	 * @param lines the history, newest first
+	 * @return a block for each of the newest visits, newest first. A visit is a member putting in, or
+	 * taking out, over saves no more than {@link #SAME_VISIT_MS} apart.
+	 */
+	static Shown historyBlocks(List<StorageHistory.Line> lines, int maxVisits)
+	{
+		List<Visit> visits = new ArrayList<>();
+		int older = 0;
+		for (StorageHistory.Line line : lines)
+		{
+			boolean putIn = line.getAmount() > 0;
+			Visit visit = null;
+			for (Visit candidate : visits)
+			{
+				if (Objects.equals(candidate.who, line.getWho()) && candidate.putIn == putIn && candidate.oldest - line.getAt() <= SAME_VISIT_MS)
+				{
+					visit = candidate;
+					break;
+				}
+			}
+			if (visit == null)
+			{
+				if (visits.size() >= maxVisits)
+				{
+					older++;
+					continue;
+				}
+				visit = new Visit(line.getWho(), putIn, line.getAt());
+				visits.add(visit);
+			}
+			visit.oldest = Math.min(visit.oldest, line.getAt());
+			visit.items.merge(line.getItem(), Math.abs((long) line.getAmount()), Long::sum);
+		}
+		List<ItemBlocks.Block> blocks = new ArrayList<>();
+		for (Visit visit : visits)
+		{
+			List<Item> items = new ArrayList<>();
+			visit.items.forEach((item, amount) -> items.add(new Item(item, (int) Math.min(Integer.MAX_VALUE, amount))));
+			blocks.add(ItemBlocks.of(name(visit.who), (visit.putIn ? "Put in" : "Took out") + " · " + Ago.format(visit.newest),
+				visit.putIn ? PUT_IN : TOOK_OUT, items));
+		}
+		return new Shown(blocks, older);
+	}
+
+	private static final class Visit
+	{
+		final String who;
+		final boolean putIn;
+		final long newest;
+		long oldest;
+		final Map<Integer, Long> items = new LinkedHashMap<>();
+
+		Visit(String who, boolean putIn, long at)
+		{
+			this.who = who;
+			this.putIn = putIn;
+			newest = at;
+			oldest = at;
+		}
+	}
+
+	private static String name(String who)
+	{
+		String clean = Clean.text(who, MAX_NAME);
+		return clean == null ? "Someone" : clean;
 	}
 
 	private static void lookUpMissingNames(Set<Integer> items, MemberCard.Context context, Runnable onNamesFound)
@@ -118,62 +232,16 @@ final class StorageHistoryView
 
 	static void addRows(JPanel parent, List<String> rows)
 	{
-		addRows(parent, rows, 0);
-	}
-
-	private static void addRows(JPanel parent, List<String> rows, int older)
-	{
 		JPanel list = new JPanel();
 		list.setLayout(new BoxLayout(list, BoxLayout.Y_AXIS));
 		list.setOpaque(false);
 		for (String row : rows)
 		{
-			addRow(list, Ui.wrapped(row, ColorScheme.LIGHT_GRAY_COLOR, TEXT_WIDTH));
-		}
-		if (older > 0)
-		{
-			addRow(list, Ui.muted("and " + older + " older"));
+			JLabel label = Ui.wrapped(row, ColorScheme.LIGHT_GRAY_COLOR, TEXT_WIDTH);
+			label.setBorder(new EmptyBorder(1, 0, 1, 0));
+			label.setAlignmentX(Component.LEFT_ALIGNMENT);
+			list.add(label);
 		}
 		MemberCard.addContent(parent, list);
-	}
-
-	private static void addRow(JPanel list, JLabel row)
-	{
-		row.setBorder(new EmptyBorder(1, 0, 1, 0));
-		row.setAlignmentX(Component.LEFT_ALIGNMENT);
-		list.add(row);
-	}
-
-	/**
-	 * @return the history line as HTML, such as "Mundell took out Shark ×5 · 2h ago"
-	 */
-	static String text(StorageHistory.Line line)
-	{
-		return who(line.getWho()) + (line.getAmount() > 0 ? " put in " : " took out ")
-			+ thing(line.getItem(), Math.abs((long) line.getAmount())) + when(line.getAt());
-	}
-
-	/**
-	 * @return the owed line as HTML, such as "Mundell: Shark ×5 · 2h ago"
-	 */
-	static String text(StorageHistory.Owed owed)
-	{
-		return who(owed.getWho()) + ": " + thing(owed.getItem(), owed.getAmount()) + when(owed.getAt());
-	}
-
-	private static String who(String name)
-	{
-		String clean = Clean.text(name, MAX_NAME);
-		return "<span style='color:" + WHO_COLOR + "'>" + (clean == null ? "Someone" : Ui.escapeHtml(clean)) + "</span>";
-	}
-
-	private static String thing(int item, long amount)
-	{
-		return Ui.escapeHtml(ItemNames.get(item)) + (amount > 1 ? " ×" + QuantityFormatter.formatNumber(amount) : "");
-	}
-
-	private static String when(long at)
-	{
-		return " <nobr><span style='color:" + TIME_COLOR + "'>· " + Ago.format(at) + "</span></nobr>";
 	}
 }
