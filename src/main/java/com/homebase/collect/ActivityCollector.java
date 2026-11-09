@@ -449,7 +449,7 @@ public class ActivityCollector
 			}
 			catch (IOException e)
 			{
-				log.debug("Couldn't read the hiscores", e);
+				log.debug("Couldn't read kill counts from the hiscores", e);
 				return;
 			}
 			if (result == null || result.getSkills() == null)

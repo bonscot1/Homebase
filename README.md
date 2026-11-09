@@ -1,6 +1,6 @@
 # The Group Ironman Homebase
 
-Made for Group Ironman groups, so you can stop asking each other who has what. It puts the whole group in one sidebar panel: what everyone's carrying and banking, who took what out of group storage and how close you all are to your goals. It'll also settle who has the fastest Brutus. There's no website or account to sign up for, just the plugin.
+Made for Group Ironman groups, so you can stop asking each other who has what. It puts the whole group in one sidebar panel: what everyone's carrying and banking, who took what out of group storage and how close you all are to your goals. It'll also settle who has the fastest Brutus, and show what it'd take to pass the next group on the hiscores. There's no website or account to sign up for, just the plugin.
 
 ## Features
 
@@ -27,7 +27,7 @@ Made for Group Ironman groups, so you can stop asking each other who has what. I
 | Goals tab | Goals | Targets for everyone or for one of you: a skill level, total level, quest, diary, kill count, combat achievement points or collection log slots. Everyone's progress shows as a bar. |
 | Goals tab | Bounties | Lock some of an item in group storage until someone reaches a goal. |
 | Compare tab | Players | Any two of you side by side, from levels and quest points to kill counts and PBs. It tells you who's winning. |
-| Compare tab | Group | Your group's rank on the Group Ironman hiscores, or the Hardcore ones for a hardcore group. It compares you with the group one place above, or any group you type in, skill by skill, and says what it'd take to pass them. |
+| Compare tab | Group | Your group's rank on the Group Ironman hiscores, or the hardcore ones while you're still a hardcore group. It puts you next to the group one place above, or any group you type in, skill by skill, and says what it'd take to pass them. |
 | In game | Group HUD | Everyone's bars, combat level and location in the corner of the screen, Sailing islands included. Pick what shows, its size and order, compact mode, and whether it only lists your world. |
 | In game | Find on map | Click or right-click someone in the HUD, then open your world map to see where they are. |
 | In game | World map | Your group shows as named arrows. Anyone off screen sits at the edge, pointing the way. |
@@ -62,6 +62,7 @@ Not a GIM group? One of you presses **Create group** and sends round the passphr
 - Banks and group storage update when someone opens them.
 - PBs come from RuneLite's Chat Commands plugin, which is on by default.
 - Bounties and items held for requests only stop withdrawals for groupmates who run the plugin.
+- The Group view reads Jagex's hiscores website, so it can take a few seconds, or longer when the site's busy.
 
 ## Privacy
 
