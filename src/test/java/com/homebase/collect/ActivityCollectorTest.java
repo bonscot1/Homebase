@@ -1,9 +1,14 @@
 package com.homebase.collect;
 
 import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import java.util.EnumMap;
+import java.util.Map;
+import net.runelite.client.hiscore.HiscoreSkill;
+import net.runelite.client.hiscore.Skill;
 import org.junit.Test;
 
 public class ActivityCollectorTest
@@ -28,6 +33,29 @@ public class ActivityCollectorTest
 		assertNull(ActivityCollector.parseKillCount("Your Seers' Village Rooftop lap count is: 50."));
 		assertNull(ActivityCollector.parseKillCount("You have completed 10 medium Treasure Trails."));
 		assertNull(ActivityCollector.parseKillCount("Welcome to Old School RuneScape."));
+	}
+
+	@Test
+	public void readsKillCountsAndRanksFromTheHiscores()
+	{
+		Map<HiscoreSkill, Skill> hiscores = new EnumMap<>(HiscoreSkill.class);
+		hiscores.put(HiscoreSkill.OVERALL, new Skill(152_334, 1_870, 98_000_000L));
+		hiscores.put(HiscoreSkill.ATTACK, new Skill(90_120, 99, 13_100_000L));
+		hiscores.put(HiscoreSkill.CLUE_SCROLL_ALL, new Skill(41_002, 212, -1));
+		hiscores.put(HiscoreSkill.VORKATH, new Skill(20_455, 340, -1));
+		hiscores.put(HiscoreSkill.ZULRAH, new Skill(-1, -1, -1));
+
+		Map<String, Integer> kills = ActivityCollector.hiscoreKills(hiscores);
+		assertEquals(1, kills.size());
+		assertEquals(Integer.valueOf(340), kills.get("Vorkath"));
+
+		Map<String, Integer> ranks = ActivityCollector.hiscoreRanks(hiscores);
+		assertEquals(4, ranks.size());
+		assertEquals(Integer.valueOf(152_334), ranks.get(HiscoreSkill.OVERALL.getName()));
+		assertEquals(Integer.valueOf(90_120), ranks.get(HiscoreSkill.ATTACK.getName()));
+		assertEquals(Integer.valueOf(41_002), ranks.get(HiscoreSkill.CLUE_SCROLL_ALL.getName()));
+		assertEquals(Integer.valueOf(20_455), ranks.get("Vorkath"));
+		assertFalse(ranks.containsKey(HiscoreSkill.ZULRAH.getName()));
 	}
 
 	@Test

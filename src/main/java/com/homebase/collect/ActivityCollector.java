@@ -5,6 +5,7 @@ import com.homebase.data.CollectionLogData;
 import com.homebase.data.CombatAchievementsData;
 import com.homebase.data.HouseData;
 import com.homebase.data.KillCountsData;
+import com.homebase.data.RanksData;
 import com.homebase.data.Section;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -46,7 +47,9 @@ import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.hiscore.HiscoreEndpoint;
 import net.runelite.client.hiscore.HiscoreManager;
 import net.runelite.client.hiscore.HiscoreResult;
+import net.runelite.client.hiscore.HiscoreSkill;
 import net.runelite.client.hiscore.HiscoreSkillType;
+import net.runelite.client.hiscore.Skill;
 import net.runelite.client.util.Text;
 
 /**
@@ -245,7 +248,7 @@ public class ActivityCollector
 			String name = collector.getLocalName();
 			if (name != null)
 			{
-				fetchHiscoreKills(name);
+				fetchHiscores(name);
 			}
 		}
 		if (collector.getMemberId() == null)
@@ -433,10 +436,10 @@ public class ActivityCollector
 	}
 
 	/**
-	 * Fill in kill counts from the hiscores, which covers bosses killed before the plugin was installed.
-	 * Bosses only appear there once a player is ranked, so ones never killed stay hidden.
+	 * Read the player's hiscores. They fill in kill counts for bosses killed before the plugin was
+	 * installed, and give the player's ranks.
 	 */
-	private void fetchHiscoreKills(String player)
+	private void fetchHiscores(String player)
 	{
 		executor.execute(() ->
 		{
@@ -448,31 +451,63 @@ public class ActivityCollector
 			}
 			catch (IOException e)
 			{
-				log.debug("Couldn't read kill counts from the hiscores", e);
+				log.debug("Couldn't read the hiscores", e);
 				return;
 			}
 			if (result == null || result.getSkills() == null)
 			{
 				return;
 			}
-			Map<String, Integer> counts = new HashMap<>();
-			result.getSkills().forEach((boss, entry) ->
-			{
-				// unranked bosses come back as -1
-				if (boss.getType() == HiscoreSkillType.BOSS && entry != null && entry.getLevel() > 0)
-				{
-					counts.put(boss.getName(), entry.getLevel());
-				}
-			});
+			Map<String, Integer> counts = hiscoreKills(result.getSkills());
+			RanksData ranks = new RanksData();
+			ranks.setRanks(hiscoreRanks(result.getSkills()));
 			clientThread.invokeLater(() ->
 			{
 				// they may have logged out, or into another account, while the hiscores answered
 				if (player.equals(collector.getLocalName()))
 				{
 					recordKills(counts, true);
+					if (!ranks.equals(collector.shared(Section.RANKS, RanksData.class)))
+					{
+						collector.share(Section.RANKS, ranks);
+					}
 				}
 			});
 		});
+	}
+
+	/**
+	 * @return the kill count of every boss on the hiscores. A boss only shows up there once the player
+	 * is ranked on it, so ones never killed stay hidden.
+	 */
+	static Map<String, Integer> hiscoreKills(Map<HiscoreSkill, Skill> hiscores)
+	{
+		Map<String, Integer> counts = new HashMap<>();
+		hiscores.forEach((boss, entry) ->
+		{
+			// unranked bosses come back as -1
+			if (boss.getType() == HiscoreSkillType.BOSS && entry != null && entry.getLevel() > 0)
+			{
+				counts.put(boss.getName(), entry.getLevel());
+			}
+		});
+		return counts;
+	}
+
+	/**
+	 * @return the player's rank on every hiscores table they're ranked on, under the hiscores' own names
+	 */
+	static Map<String, Integer> hiscoreRanks(Map<HiscoreSkill, Skill> hiscores)
+	{
+		Map<String, Integer> ranks = new HashMap<>();
+		hiscores.forEach((table, entry) ->
+		{
+			if (entry != null && entry.getRank() > 0)
+			{
+				ranks.put(table.getName(), entry.getRank());
+			}
+		});
+		return ranks;
 	}
 
 	/**

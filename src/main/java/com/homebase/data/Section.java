@@ -30,7 +30,8 @@ public enum Section
 	FEED("feed", false, 1_000),
 	PIN("pin", false, 500),
 	GROUP_STORAGE("storage", true, 2_000),
-	STORAGE_LOG("storagelog", false, 2_000);
+	STORAGE_LOG("storagelog", false, 2_000),
+	RANKS("ranks", false, 5_000);
 
 	/**
 	 * Part of the record key. Records are saved and sent under it, so it can't change.

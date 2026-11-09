@@ -26,7 +26,7 @@ Made for Group Ironman groups, so you can stop asking each other who has what. I
 | Requests tab | Item requests | Ask the group for an item. Whoever takes it on trades it to you or leaves it in group storage, where it's kept for you. |
 | Goals tab | Goals | Targets for everyone or for one of you: a skill level, total level, quest, diary, kill count, combat achievement points or collection log slots. Everyone's progress shows as a bar. |
 | Goals tab | Bounties | Lock some of an item in group storage until someone reaches a goal. |
-| Compare tab | Compare | Any two of you side by side, from levels and quest points to kill counts and PBs. It tells you who's winning. |
+| Compare tab | Compare | Any two of you side by side, from levels and quest points to kill counts, PBs and hiscore ranks. It tells you who's winning. |
 | In game | Group HUD | Everyone's bars, combat level and location in the corner of the screen, Sailing islands included. Pick what shows, its size and order, compact mode, and whether it only lists your world. |
 | In game | Find on map | Click or right-click someone in the HUD, then open your world map to see where they are. |
 | In game | World map | Your group shows as named arrows. Anyone off screen sits at the edge, pointing the way. |
@@ -64,6 +64,6 @@ Not a GIM group? One of you presses **Create group** and sends round the passphr
 
 ## Privacy
 
-Everything goes through RuneLite's own party service, and only to your group. If you want to be sure nobody can pretend to be one of you, everyone can set the same word in **Group Ironman secret**. The only other thing the plugin does is look up your own name on the hiscores when you log in, for your kill counts. Nothing goes anywhere else.
+Everything goes through RuneLite's own party service, and only to your group. If you want to be sure nobody can pretend to be one of you, everyone can set the same word in **Group Ironman secret**. The only other thing the plugin does is look up your own name on the hiscores when you log in, for your kill counts and ranks. Nothing goes anywhere else.
 
 Found a bug or got an idea? [Open an issue](https://github.com/bonscot1/Homebase/issues). If you want to work on the plugin, see [DEVELOPMENT.md](DEVELOPMENT.md). BSD 2-Clause licence.
