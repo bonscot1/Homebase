@@ -19,6 +19,7 @@ import org.junit.Test;
 public class GroupHiscoresTest
 {
 	private static final int PER_PAGE = 20;
+	private static final String SITE = "https://secure.runescape.com/m=hiscore_oldschool_hardcore_ironman/group-ironman/view-group?name=";
 
 	@Test
 	public void readsAGroupsPage()
@@ -46,13 +47,30 @@ public class GroupHiscoresTest
 	@Test
 	public void readsABoardPage()
 	{
-		Page page = GroupHiscores.parsePage(boardPage(1005, Arrays.asList(new Row(1, "barrow &amp; co", 11_770, 1_684_997_520L),
-			new Row(3, "sea snail&#39;s", 11_723, 1_552_582_052L))));
+		Page page = GroupHiscores.parsePage(boardPage(1005, Arrays.asList(
+			new Row(1, "barrow &amp; co", 11_770, 1_684_997_520L, SITE + "barrow co", false),
+			new Row(3, "sea snail&#39;s", 11_723, 1_552_582_052L, SITE + "sea snails", false))));
 
 		assertEquals(1005, page.getLastPage());
 		assertEquals(2, page.getRows().size());
-		assertEquals(new Row(1, "barrow & co", 11_770, 1_684_997_520L), page.getRows().get(0));
+		assertEquals(new Row(1, "barrow & co", 11_770, 1_684_997_520L, SITE + "barrow co", false), page.getRows().get(0));
 		assertEquals("sea snail's", page.getRows().get(1).getName());
+	}
+
+	@Test
+	public void readsStarredAndSkulledLines()
+	{
+		// a star marks a prestiged group, and a skull a hardcore group that has lost a member
+		Page page = GroupHiscores.parsePage(boardPage(3, Arrays.asList(
+			new Row(5, "starry", 7_917, 480_927_008L, SITE + "starry", false),
+			new Row(6, "Group name not set", 7_910, 1_112_761_452L, "https://secure.runescape.com/m=x/view-group?id=164939", true),
+			new Row(7, "plain", 7_903, 566_573_391L, SITE + "plain", false))));
+
+		assertEquals(3, page.getRows().size());
+		assertEquals("starry", page.getRows().get(0).getName());
+		assertTrue(page.getRows().get(1).isPerished());
+		assertEquals("https://secure.runescape.com/m=x/view-group?id=164939", page.getRows().get(1).getLink());
+		assertEquals(7_903, page.getRows().get(2).getLevel());
 	}
 
 	@Test
@@ -107,18 +125,27 @@ public class GroupHiscoresTest
 	}
 
 	@Test
-	public void saysWhatItTakesToPassTheGroupAbove()
+	public void saysWhatItTakesToPassAGroupAhead()
 	{
 		Group us = new Group("us", 4, 2_725, 8_120_331L, Collections.emptyMap(), Collections.emptyMap());
 
-		assertEquals("2 more total levels puts you ahead, as you have more XP.",
-			GroupHiscores.toPass(us, new Row(3_046, "them", 2_727, 4_975_274L)));
-		assertEquals("3 more total levels puts you ahead, or 2 if you also pass their XP.",
-			GroupHiscores.toPass(us, new Row(3_046, "them", 2_727, 9_000_000L)));
-		assertEquals("1 more total level puts you ahead, as you have more XP.",
-			GroupHiscores.toPass(us, new Row(3_046, "them", 2_726, 1_000L)));
-		assertEquals("You're level on total level, so 879,670 more XP puts you ahead.",
-			GroupHiscores.toPass(us, new Row(3_046, "them", 2_725, 9_000_000L)));
+		// with more XP than them, drawing level is enough
+		assertEquals("2 levels to pass", GroupHiscores.gap(us, 2_727, 4_975_274L));
+		assertEquals("3 levels to pass", GroupHiscores.gap(us, 2_727, 9_000_000L));
+		assertEquals("1 level to pass", GroupHiscores.gap(us, 2_726, 1_000L));
+		assertEquals("879,670 XP to pass", GroupHiscores.gap(us, 2_725, 9_000_000L));
+		assertEquals("6,109 levels to pass", GroupHiscores.gap(us, 8_833, 1_000_000_000L));
+	}
+
+	@Test
+	public void saysHowFarAheadOfAGroupBehindWeAre()
+	{
+		Group us = new Group("us", 4, 2_725, 8_120_331L, Collections.emptyMap(), Collections.emptyMap());
+
+		assertEquals("1 level ahead", GroupHiscores.gap(us, 2_724, 90_000_000L));
+		assertEquals("25 levels ahead", GroupHiscores.gap(us, 2_700, 1_000L));
+		assertEquals("Ahead on XP", GroupHiscores.gap(us, 2_725, 8_000_000L));
+		assertEquals("Tied", GroupHiscores.gap(us, 2_725, 8_120_331L));
 	}
 
 	@Test
@@ -138,7 +165,7 @@ public class GroupHiscoresTest
 			// a few groups share each total level, ordered by XP
 			int level = 10_000 - i / 3;
 			long xp = 1_000_000L * (3 - i % 3);
-			rows.add(new Row(i + 1, "group " + i, level, xp));
+			rows.add(new Row(i + 1, "group " + i, level, xp, SITE + "group " + i, i % 7 == 0));
 		}
 		return rows;
 	}
@@ -164,10 +191,16 @@ public class GroupHiscoresTest
 		StringBuilder html = new StringBuilder("<table><tbody>");
 		for (Row row : rows)
 		{
-			html.append("<tr class='uc-scroll__table-row' data-test='group-").append(row.getRank() + 100).append("'>\n")
+			boolean starred = row.getRank() % 5 == 0;
+			html.append("<tr class='uc-scroll__table-row").append(row.isPerished() ? " uc-scroll__table-row--type-death" : "")
+				.append("' data-test='group-").append(row.getRank() + 100).append("'>\n")
 				.append("  <td class='uc-scroll__table-cell' style='text-align: right;'>").append(String.format(Locale.ROOT, "%,d", row.getRank())).append("</td>\n")
-				.append("  <td class='uc-scroll__table-cell'>\n    <a class='uc-scroll__link' href='view-group?name=x'>").append(row.getName()).append("</a>\n  </td>\n")
-				.append("  <td class='uc-scroll__table-cell'>\n    <span>").append(String.format(Locale.ROOT, "%,d", row.getLevel())).append("</span>\n  </td>\n")
+				.append("  <td class='uc-scroll__table-cell'>\n    ")
+				.append(starred ? "<img class='uc-prestige-icon' src='prestige_icon.svg' alt=\"star icon\" title=\"Group Prestiged\" />" : "")
+				.append("<a class='uc-scroll__link' href='").append(row.getLink()).append("'>").append(row.getName()).append("</a>\n  </td>\n")
+				.append("  <td class='uc-scroll__table-cell'>\n    ")
+				.append(row.isPerished() ? "<img class='ua-death-icon' src='skull.svg' alt=\"skull icon\" title=\"Group Perished\" />" : "")
+				.append("<span>").append(String.format(Locale.ROOT, "%,d", row.getLevel())).append("</span>\n  </td>\n")
 				.append("  <td class='uc-scroll__table-cell'>").append(String.format(Locale.ROOT, "%,d", row.getXp())).append("</td>\n")
 				.append("</tr>\n");
 		}
