@@ -10,6 +10,7 @@ import com.homebase.data.ItemsData;
 import com.homebase.data.ProfileData;
 import com.homebase.data.Section;
 import com.homebase.goals.GoalService;
+import com.homebase.hiscores.GroupHiscores;
 import com.homebase.party.GroupSync;
 import com.homebase.party.PartyMembers;
 import com.homebase.party.Presence;
@@ -210,7 +211,7 @@ public class HomebasePanel extends PluginPanel
 	private HomebasePanel(HomebasePlugin plugin, HomebaseConfig config, GroupSync groupSync, PartyService partyService, Presence presence, LocalCollector collector,
 		RequestService requestService, UpdateTracker updateTracker, GoalService goalService, BountyService bountyService,
 		ReturnTags returnTags, ItemManager itemManager, SkillIconManager skillIconManager, SpriteManager spriteManager,
-		ClientThread clientThread)
+		ClientThread clientThread, GroupHiscores groupHiscores)
 	{
 		this.plugin = plugin;
 		this.config = config;
@@ -233,7 +234,7 @@ public class HomebasePanel extends PluginPanel
 			rebuild();
 		}, config::cardBars);
 
-		this.compareView = new CompareView(plugin, () -> view, collector::getMemberId, cardContext);
+		this.compareView = new CompareView(plugin, () -> view, collector::getMemberId, cardContext, groupHiscores, plugin::getGimGroup);
 		this.storageView = new StorageView(plugin, () -> view, returnTags, bountyService, goalService, requestService,
 			cardContext, this::scheduleRebuild);
 
