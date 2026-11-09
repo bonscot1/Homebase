@@ -34,7 +34,7 @@ import okhttp3.ResponseBody;
 public class GroupHiscores
 {
 	/**
-	 * The boards a group can be on. Hardcore groups are only listed on the hardcore one, so it's tried first.
+	 * The boards a group can be on. Hardcore groups are listed on both, so the hardcore one is tried first.
 	 */
 	@Getter
 	@RequiredArgsConstructor
@@ -82,6 +82,16 @@ public class GroupHiscores
 		String name;
 		int level;
 		long xp;
+
+		/**
+		 * The group's own page. Groups without a name are linked by number, so this finds them too.
+		 */
+		String link;
+
+		/**
+		 * True for a hardcore group that has lost a member, which the hardcore board marks with a skull.
+		 */
+		boolean perished;
 	}
 
 	/**
@@ -115,6 +125,10 @@ public class GroupHiscores
 		State state;
 		Board board;
 		Group group;
+
+		/**
+		 * The group's line on its board, or null if the board doesn't list it.
+		 */
 		Row row;
 
 		/**
@@ -125,8 +139,8 @@ public class GroupHiscores
 		Group aboveGroup;
 	}
 
-	private static final String SITE = "https://secure.runescape.com/m=";
-	private static final String UNNAMED = "Group name not set";
+	private static final String HOST = "secure.runescape.com";
+	private static final String SITE = "https://" + HOST + "/m=";
 
 	/**
 	 * How long a lookup is kept, and how soon one that couldn't reach the hiscores is tried again.
@@ -152,20 +166,45 @@ public class GroupHiscores
 	private static final Pattern SKILL = Pattern.compile("<span class='ua-skill-icon ua-skill-icon--[a-z_]+'>([^<]+)</span>\\s*</dt>"
 		+ "\\s*<dd class='um-detail-list__value um-detail-list__value--type-(level|xp)'[^>]*>([\\d,]+)</dd>");
 	private static final Pattern TITLE = Pattern.compile("<title>[^<]*- Hiscores - ([^<]*)</title>");
-	private static final Pattern ROW = Pattern.compile("<tr class='uc-scroll__table-row' data-test='group-\\d+'>"
-		+ "\\s*<td[^>]*>([\\d,]+)</td>\\s*<td[^>]*>\\s*<a[^>]*>([^<]*)</a>\\s*</td>"
-		+ "\\s*<td[^>]*>\\s*<span>([\\d,]+)</span>\\s*</td>\\s*<td[^>]*>([\\d,]+)</td>");
+	/**
+	 * A line of a board: its rank, link, name, level and XP. Prestiged groups have a star before their
+	 * name, and perished hardcore groups a skull before their level.
+	 */
+	private static final Pattern ROW = Pattern.compile("<tr class='uc-scroll__table-row[^']*' data-test='group-\\d+'>"
+		+ "\\s*<td[^>]*>([\\d,]+)</td>"
+		+ "\\s*<td[^>]*>\\s*(?:<img[^>]*>\\s*)*<a[^>]*href='([^']*)'[^>]*>([^<]*)</a>\\s*</td>"
+		+ "\\s*<td[^>]*>\\s*((?:<img[^>]*>\\s*)*)<span>([\\d,]+)</span>\\s*</td>"
+		+ "\\s*<td[^>]*>([\\d,]+)</td>");
 	private static final Pattern LAST_PAGE = Pattern.compile("max='(\\d+)'\\s+name='page'");
+
+	/**
+	 * Most groups whose lookups are kept, for when someone tries a few names to compare with.
+	 */
+	private static final int MAX_KEPT = 16;
+
+	/**
+	 * A lookup of one group, what it found and when.
+	 */
+	private static final class Lookup
+	{
+		Standing standing;
+		long foundAt;
+		boolean running;
+	}
 
 	private final OkHttpClient http;
 
 	/**
-	 * The group last asked about, in lower case, what was found and when.
+	 * Lookups by group name, oldest used first.
 	 */
-	private String asked;
-	private Standing standing;
-	private long foundAt;
-	private boolean running;
+	private final Map<String, Lookup> lookups = new LinkedHashMap<String, Lookup>(MAX_KEPT, 0.75f, true)
+	{
+		@Override
+		protected boolean removeEldestEntry(Map.Entry<String, Lookup> eldest)
+		{
+			return size() > MAX_KEPT;
+		}
+	};
 
 	@Inject
 	GroupHiscores(OkHttpClient http)
@@ -174,47 +213,53 @@ public class GroupHiscores
 	}
 
 	/**
-	 * @return what's known about the group, starting a lookup if there's nothing recent. When a lookup
-	 * finishes, {@code onChange} runs on the Swing thread.
+	 * @return what's known about our own group, including the group one place above it, starting a
+	 * lookup if there's nothing recent. When a lookup finishes, {@code onChange} runs on the Swing thread.
 	 */
-	public synchronized Standing standing(String groupName, Runnable onChange)
+	public Standing standing(String groupName, Runnable onChange)
 	{
-		String key = normalize(groupName);
-		if (!key.equals(asked))
-		{
-			asked = key;
-			standing = null;
-		}
-		long age = System.currentTimeMillis() - foundAt;
+		return get(groupName, true, onChange);
+	}
+
+	/**
+	 * @return the same for any other group, without the group above it
+	 */
+	public Standing other(String groupName, Runnable onChange)
+	{
+		return get(groupName, false, onChange);
+	}
+
+	private synchronized Standing get(String groupName, boolean withAbove, Runnable onChange)
+	{
+		Lookup lookup = lookups.computeIfAbsent((withAbove ? "+" : "-") + normalize(groupName), key -> new Lookup());
+		long age = System.currentTimeMillis() - lookup.foundAt;
+		Standing standing = lookup.standing;
 		boolean due = standing == null || age > (standing.getState() == State.FAILED ? RETRY_MS : KEEP_MS);
-		if (due && !running)
+		if (due && !lookup.running)
 		{
-			running = true;
+			lookup.running = true;
 			// OkHttp's own threads, so a slow hiscores site never holds up RuneLite's shared executor
-			http.dispatcher().executorService().execute(() -> finish(key, lookUp(groupName), onChange));
+			http.dispatcher().executorService().execute(() -> finish(lookup, lookUp(groupName, withAbove), onChange));
 		}
 		return standing == null ? Standing.LOOKING : standing;
 	}
 
-	private void finish(String key, Standing found, Runnable onChange)
+	private void finish(Lookup lookup, Standing found, Runnable onChange)
 	{
 		synchronized (this)
 		{
-			running = false;
-			if (!key.equals(asked))
-			{
-				return;
-			}
-			standing = found;
-			foundAt = System.currentTimeMillis();
+			lookup.running = false;
+			lookup.standing = found;
+			lookup.foundAt = System.currentTimeMillis();
 		}
 		SwingUtilities.invokeLater(onChange);
 	}
 
-	private Standing lookUp(String groupName)
+	private Standing lookUp(String groupName, boolean withAbove)
 	{
 		try
 		{
+			Standing fallback = Standing.NOT_FOUND;
 			for (Board board : Board.values())
 			{
 				Group group = parseGroup(fetch(groupUrl(board, groupName)));
@@ -223,16 +268,21 @@ public class GroupHiscores
 					continue;
 				}
 				Place place = locate(group, page -> parsePage(fetch(pageUrl(board, group.getSize(), page))));
-				if (place == null)
+				Row above = place == null || !withAbove ? null : place.getAbove();
+				Standing standing = new Standing(State.FOUND, board, group, place == null ? null : place.getRow(), above,
+					above == null ? null : details(above));
+				// a hardcore group that has lost a member counts as a regular group, so it's ranked on the regular board
+				if (place != null && !place.getRow().isPerished())
 				{
-					// a hardcore group that has lost its status may only be listed on the regular board
-					continue;
+					return standing;
 				}
-				Row above = place.getAbove();
-				Group aboveGroup = above == null || above.getName().equals(UNNAMED) ? null : parseGroup(fetch(groupUrl(board, above.getName())));
-				return new Standing(State.FOUND, board, group, place.getRow(), above, aboveGroup);
+				if (fallback.getState() == State.NOT_FOUND)
+				{
+					fallback = standing;
+				}
 			}
-			return Standing.NOT_FOUND;
+			// otherwise it's shown where it was found, even without a rank
+			return fallback;
 		}
 		catch (IOException | RuntimeException e)
 		{
@@ -245,6 +295,15 @@ public class GroupHiscores
 	 * Read a page, trying again after a pause if the site is busy. The hiscores often time out on one
 	 * page in a few, and a search reads around a dozen.
 	 */
+	/**
+	 * @return the group on a board line's own page, or null if the line doesn't link to the hiscores
+	 */
+	private Group details(Row row) throws IOException
+	{
+		HttpUrl url = HttpUrl.parse(row.getLink());
+		return url == null || !url.host().equals(HOST) ? null : parseGroup(fetch(url));
+	}
+
 	private String fetch(HttpUrl url) throws IOException
 	{
 		for (int attempt = 1; ; attempt++)
@@ -419,37 +478,40 @@ public class GroupHiscores
 		Matcher row = ROW.matcher(html);
 		while (row.find())
 		{
-			rows.add(new Row((int) number(row.group(1)), unescape(row.group(2)).trim(), (int) number(row.group(3)), number(row.group(4))));
+			rows.add(new Row((int) number(row.group(1)), unescape(row.group(3)).trim(), (int) number(row.group(5)), number(row.group(6)),
+				unescape(row.group(2)), row.group(4).contains("death")));
 		}
 		Matcher last = LAST_PAGE.matcher(html);
 		return new Page(rows, last.find() ? Integer.parseInt(last.group(1)) : 1);
 	}
 
 	/**
-	 * @return what it'd take to pass the group one place above, which is a higher total level, or the
-	 * same total level and more XP
+	 * @return in a few words, how our group stands against another with this total level and XP, or what
+	 * it'd take to pass them. Groups are ranked by total level, then by XP, so with more XP than them,
+	 * drawing level on total level is enough.
 	 */
-	public static String toPass(Group group, Row above)
+	public static String gap(Group us, int level, long xp)
 	{
-		int levels = above.getLevel() - group.getTotalLevel();
-		if (levels < 0 || (levels == 0 && group.getTotalXp() > above.getXp()))
+		int levels = level - us.getTotalLevel();
+		long xpBehind = xp - us.getTotalXp();
+		if (levels < 0)
 		{
-			return "You've caught them up since the hiscores were read.";
+			return plural(-levels, "level") + " ahead";
 		}
 		if (levels == 0)
 		{
-			return "You're level on total level, so " + formatted(above.getXp() - group.getTotalXp() + 1) + " more XP puts you ahead.";
+			if (xpBehind == 0)
+			{
+				return "Tied";
+			}
+			return xpBehind < 0 ? "Ahead on XP" : formatted(xpBehind + 1) + " XP to pass";
 		}
-		if (group.getTotalXp() > above.getXp())
-		{
-			return plural(levels, "more total level") + " puts you ahead, as you have more XP.";
-		}
-		return plural(levels + 1, "more total level") + " puts you ahead, or " + levels + " if you also pass their XP.";
+		return plural(xpBehind < 0 ? levels : levels + 1, "level") + " to pass";
 	}
 
 	private static String plural(int count, String what)
 	{
-		return count + " " + what + (count == 1 ? "" : "s");
+		return formatted(count) + " " + what + (count == 1 ? "" : "s");
 	}
 
 	private static String formatted(long number)
@@ -462,7 +524,10 @@ public class GroupHiscores
 		return Long.parseLong(text.replace(",", ""));
 	}
 
-	static String normalize(String name)
+	/**
+	 * @return a group name the way the hiscores match it: lower case, with single plain spaces
+	 */
+	public static String normalize(String name)
 	{
 		return name.replace(' ', ' ').replaceAll("\\s+", " ").trim().toLowerCase(Locale.ROOT);
 	}

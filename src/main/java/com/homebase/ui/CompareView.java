@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.TreeSet;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.ImageIcon;
@@ -33,17 +34,21 @@ import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.SwingConstants;
+import javax.swing.border.CompoundBorder;
 import javax.swing.border.EmptyBorder;
 import net.runelite.api.Experience;
 import net.runelite.api.Skill;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.FontManager;
+import net.runelite.client.ui.components.IconTextField;
 import net.runelite.client.util.QuantityFormatter;
 
 /**
- * Any two members side by side: levels, quests, diaries, combat achievements, the collection log, kill
- * counts and best times, with whoever is ahead in green and a winner at the top. Above them, a Group
- * Ironman group's place on the group hiscores, against the group one place above.
+ * Two ways to compare. Players puts any two members side by side: levels, quests, diaries, combat
+ * achievements, the collection log, kill counts and best times, with whoever is ahead in green and a
+ * winner at the top. Group shows a Group Ironman group's place on the group hiscores, against the group
+ * one place above or any group typed in.
  */
 class CompareView extends JPanel
 {
@@ -51,6 +56,10 @@ class CompareView extends JPanel
 	private static final int VALUE_WIDTH = 38;
 	private static final Color AHEAD = ColorScheme.PROGRESS_COMPLETE_COLOR;
 	private static final String NONE = "-";
+	private static final int MAX_GROUP_NAME = 30;
+	private static final int FIELD_HEIGHT = 26;
+	private static final String DOT = "  ·  ";
+	private static final String TRY_AGAIN = "Couldn't reach the hiscores. It'll try again in a few minutes.";
 
 	private static final String OVERVIEW_ID = "compare:overview";
 	private static final String SKILLS_ID = "compare:skills";
@@ -74,6 +83,24 @@ class CompareView extends JPanel
 	 */
 	private String left;
 	private String right;
+
+	/**
+	 * Whether the Group button is chosen, and the group typed in to compare with, or null for the group
+	 * one place above ours.
+	 */
+	private boolean showGroup;
+	private String other;
+
+	private final JPanel modes = new JPanel(new GridLayout(1, 2, 1, 0));
+	private final JLabel playersButton = modeButton("Players");
+	private final JLabel groupButton = modeButton("Group");
+	private final JPanel groupCard = new JPanel();
+	private final JPanel otherCard = new JPanel();
+	private final IconTextField otherField = new IconTextField();
+	private final JPanel otherBody = new JPanel();
+	private final JPanel players = new JPanel();
+	private final Component modesGap = Box.createVerticalStrut(6);
+	private final Component groupGap = Box.createVerticalStrut(6);
 
 	/**
 	 * One row: what's compared, each member's value as shown, and who's ahead.
@@ -122,25 +149,137 @@ class CompareView extends JPanel
 		this.gimGroup = gimGroup;
 		setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
 		setOpaque(false);
+
+		// the bar shows through the gap between the buttons, like the tabs above
+		modes.setBackground(ColorScheme.MEDIUM_GRAY_COLOR);
+		modes.setBorder(BorderFactory.createLineBorder(ColorScheme.MEDIUM_GRAY_COLOR));
+		modes.add(playersButton);
+		modes.add(groupButton);
+		playersButton.setToolTipText("Compare any two of you");
+		groupButton.setToolTipText("Compare your group with another on the Group Ironman hiscores");
+		Ui.clickable(playersButton, () -> showGroup(false));
+		Ui.clickable(groupButton, () -> showGroup(true));
+
+		JPanel otherRow = new JPanel(new BorderLayout(4, 0));
+		otherRow.setOpaque(false);
+		otherRow.add(otherField, BorderLayout.CENTER);
+		otherRow.add(Ui.button("Compare", this::compareWithTyped), BorderLayout.EAST);
+		otherField.setIcon(IconTextField.Icon.SEARCH);
+		otherField.setBackground(ColorScheme.DARK_GRAY_COLOR);
+		otherField.setHoverBackgroundColor(ColorScheme.DARK_GRAY_HOVER_COLOR);
+		otherField.setPreferredSize(new Dimension(0, FIELD_HEIGHT));
+		otherField.addActionListener(e -> compareWithTyped());
+		// the cross that empties the box goes back to the group above
+		otherField.addClearListener(this::compareWithTyped);
+		otherField.setToolTipText("Any group's name. Leave it empty for the group one place above yours.");
+
+		otherCard.setLayout(new BoxLayout(otherCard, BoxLayout.Y_AXIS));
+		otherCard.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+		otherCard.setBorder(new EmptyBorder(7, 8, 8, 8));
+		otherCard.add(Ui.field("Compare with", otherRow));
+		otherCard.add(Box.createVerticalStrut(2));
+		otherCard.add(Ui.muted("Empty for the group above yours"));
+		otherCard.add(Box.createVerticalStrut(8));
+		otherBody.setLayout(new BoxLayout(otherBody, BoxLayout.Y_AXIS));
+		otherBody.setOpaque(false);
+		otherCard.add(otherBody);
+		Ui.alignChildrenLeft(otherCard);
+
+		groupCard.setLayout(new BoxLayout(groupCard, BoxLayout.Y_AXIS));
+		groupCard.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+		groupCard.setBorder(new EmptyBorder(7, 8, 8, 8));
+		players.setLayout(new BoxLayout(players, BoxLayout.Y_AXIS));
+		players.setOpaque(false);
+
+		for (JComponent part : new JComponent[]{modes, groupCard, otherCard, players})
+		{
+			part.setAlignmentX(Component.LEFT_ALIGNMENT);
+		}
+		add(modes);
+		add(modesGap);
+		add(groupCard);
+		add(groupGap);
+		add(otherCard);
+		add(players);
 	}
 
+	/**
+	 * Redraw the comparison. The box for a group's name is left alone so typing isn't interrupted.
+	 */
 	void refresh()
 	{
-		removeAll();
 		String group = gimGroup.get();
-		if (group != null)
+		boolean showingGroup = group != null && showGroup;
+		modes.setVisible(group != null);
+		modesGap.setVisible(group != null);
+		styleMode(playersButton, !showingGroup);
+		styleMode(groupButton, showingGroup);
+		modes.setMaximumSize(new Dimension(Integer.MAX_VALUE, modes.getPreferredSize().height));
+
+		groupCard.removeAll();
+		otherBody.removeAll();
+		players.removeAll();
+		groupCard.setVisible(showingGroup);
+		groupGap.setVisible(false);
+		otherCard.setVisible(false);
+		players.setVisible(!showingGroup);
+		if (showingGroup)
 		{
-			add(groupCard(group));
-			add(Box.createVerticalStrut(6));
+			buildGroup(group);
 		}
+		else
+		{
+			buildPlayers();
+		}
+		revalidate();
+		repaint();
+	}
+
+	private void showGroup(boolean group)
+	{
+		if (showGroup != group)
+		{
+			showGroup = group;
+			refresh();
+		}
+	}
+
+	private void compareWithTyped()
+	{
+		String typed = Clean.text(otherField.getText(), MAX_GROUP_NAME);
+		other = typed == null || typed.isEmpty() ? null : typed;
+		refresh();
+	}
+
+	private static JLabel modeButton(String text)
+	{
+		JLabel label = new JLabel(text, SwingConstants.CENTER);
+		label.setOpaque(true);
+		label.setFont(FontManager.getRunescapeSmallFont());
+		return label;
+	}
+
+	/**
+	 * The chosen button is white with an orange line under it, the same as the tabs.
+	 */
+	private static void styleMode(JLabel label, boolean selected)
+	{
+		Color background = selected ? ColorScheme.DARKER_GRAY_HOVER_COLOR : ColorScheme.DARKER_GRAY_COLOR;
+		label.setForeground(selected ? Color.WHITE : ColorScheme.LIGHT_GRAY_COLOR);
+		label.setBackground(background);
+		label.setBorder(new CompoundBorder(
+			BorderFactory.createMatteBorder(0, 0, 2, 0, selected ? ColorScheme.BRAND_ORANGE : background),
+			new EmptyBorder(5, 1, 3, 1)));
+	}
+
+	private void buildPlayers()
+	{
 		GroupView view = views.get();
 		Map<String, String> members = view == null ? new LinkedHashMap<>() : members(view);
 		if (members.size() < 2)
 		{
-			add(Ui.empty("Nobody to compare yet", "Once someone else in your group has shared their details, you can "
+			players.add(Ui.empty("Nobody to compare yet", "Once someone else in your group has shared their details, you can "
 				+ "compare any two of you here."));
-			revalidate();
-			repaint();
 			return;
 		}
 		List<String> ids = new ArrayList<>(members.keySet());
@@ -177,71 +316,131 @@ class CompareView extends JPanel
 		addSection(card, "Best times", times, TIMES_ID);
 		Ui.alignChildrenLeft(card);
 		card.setAlignmentX(Component.LEFT_ALIGNMENT);
-		add(card);
-		revalidate();
-		repaint();
+		players.add(card);
 	}
 
 	/**
-	 * The group's place on the Group Ironman hiscores, what it'd take to pass the group one place above,
-	 * and the two groups side by side.
+	 * Our group's place on the Group Ironman hiscores, then our group against the one above it or any
+	 * group typed in.
 	 */
-	private JPanel groupCard(String groupName)
+	private void buildGroup(String groupName)
 	{
 		GroupHiscores.Standing standing = hiscores.standing(groupName, this::refresh);
-		JPanel card = new JPanel();
-		card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
-		card.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-		card.setBorder(new EmptyBorder(7, 8, 8, 8));
-
 		JPanel header = new JPanel(new BorderLayout(6, 0));
 		header.setOpaque(false);
 		header.setBorder(new EmptyBorder(0, 0, 2, 0));
 		header.add(Ui.title(Clean.text(groupName, MAX_NAME)), BorderLayout.CENTER);
-		card.add(header);
+		groupCard.add(header);
 
 		switch (standing.getState())
 		{
 			case LOOKING:
-				card.add(Ui.muted("Looking your group up on the hiscores..."));
+				groupCard.add(Ui.muted("Looking your group up on the hiscores..."));
 				break;
 			case NOT_FOUND:
-				card.add(Ui.wrapped("Your group isn't on the Group Ironman hiscores.", ColorScheme.MEDIUM_GRAY_COLOR));
+				groupCard.add(Ui.wrapped("Your group isn't on the Group Ironman hiscores.", ColorScheme.MEDIUM_GRAY_COLOR));
 				break;
 			case FAILED:
-				card.add(Ui.wrapped("Couldn't reach the hiscores. It'll try again in a few minutes.", ColorScheme.MEDIUM_GRAY_COLOR));
+				groupCard.add(Ui.wrapped(TRY_AGAIN, ColorScheme.MEDIUM_GRAY_COLOR));
 				break;
 			default:
-				addStanding(card, header, standing);
+				addPlace(header, standing);
+				groupGap.setVisible(true);
+				otherCard.setVisible(true);
+				if (other == null)
+				{
+					addNextUp(standing);
+				}
+				else
+				{
+					addOther(standing.getGroup(), standing.getBoard(), groupName, other);
+				}
 		}
-		Ui.alignChildrenLeft(card);
-		card.setAlignmentX(Component.LEFT_ALIGNMENT);
-		return card;
+		Ui.alignChildrenLeft(groupCard);
+		Ui.alignChildrenLeft(otherBody);
 	}
 
-	private void addStanding(JPanel card, JPanel header, GroupHiscores.Standing standing)
+	private void addPlace(JPanel header, GroupHiscores.Standing standing)
 	{
-		GroupHiscores.Group group = standing.getGroup();
-		GroupHiscores.Row above = standing.getAbove();
 		String board = standing.getBoard().getTitle();
-		JLabel rank = Ui.title("#" + QuantityFormatter.formatNumber(standing.getRow().getRank()));
-		rank.setToolTipText("Your rank on the " + board + " hiscores for groups of " + group.getSize());
-		header.add(rank, BorderLayout.EAST);
-		card.add(Ui.muted(board + ", groups of " + group.getSize()));
-		card.add(Box.createVerticalStrut(6));
-		if (above == null)
+		int size = standing.getGroup().getSize();
+		if (standing.getRow() == null)
 		{
-			card.add(Ui.wrapped("You're top of the board.", Color.WHITE));
+			groupCard.add(Ui.wrapped("On the " + board + " hiscores, but not listed on the board for groups of " + size + " right now.",
+				ColorScheme.MEDIUM_GRAY_COLOR));
+			return;
+		}
+		JLabel rank = Ui.title("#" + QuantityFormatter.formatNumber(standing.getRow().getRank()));
+		rank.setToolTipText("Your rank on the " + board + " hiscores for groups of " + size);
+		header.add(rank, BorderLayout.EAST);
+		groupCard.add(Ui.muted(board + ", groups of " + size));
+	}
+
+	/**
+	 * Our group against the group one place above it.
+	 */
+	private void addNextUp(GroupHiscores.Standing standing)
+	{
+		GroupHiscores.Row above = standing.getAbove();
+		if (standing.getRow() == null || above == null)
+		{
+			otherBody.add(Ui.wrapped(standing.getRow() == null ? "Not listed on the board right now" : "Top of the board", Color.WHITE));
 			return;
 		}
 		String name = Clean.text(above.getName(), MAX_NAME);
-		card.add(Ui.wrapped("Next up is <b>" + Ui.escapeHtml(name) + "</b> at #" + QuantityFormatter.formatNumber(above.getRank()) + ". "
-			+ GroupHiscores.toPass(group, above), Color.WHITE));
-		card.add(Box.createVerticalStrut(6));
+		otherBody.add(Ui.wrapped("Next up: <b>" + Ui.escapeHtml(name) + "</b> #" + QuantityFormatter.formatNumber(above.getRank()) + DOT
+			+ GroupHiscores.gap(standing.getGroup(), above.getLevel(), above.getXp()), Color.WHITE));
+		addComparison(standing.getGroup(), name, above.getLevel(), above.getXp(), standing.getAboveGroup());
+	}
 
-		List<Line> lines = groupLines(group, above, standing.getAboveGroup());
+	/**
+	 * Our group against a group typed in.
+	 */
+	private void addOther(GroupHiscores.Group us, GroupHiscores.Board ourBoard, String ourName, String otherName)
+	{
+		if (GroupHiscores.normalize(otherName).equals(GroupHiscores.normalize(ourName)))
+		{
+			otherBody.add(Ui.wrapped("That's your group", Color.WHITE));
+			return;
+		}
+		GroupHiscores.Standing them = hiscores.other(otherName, this::refresh);
+		String typed = Ui.escapeHtml(otherName);
+		switch (them.getState())
+		{
+			case LOOKING:
+				otherBody.add(Ui.wrapped("Looking up <b>" + typed + "</b>...", ColorScheme.MEDIUM_GRAY_COLOR));
+				return;
+			case NOT_FOUND:
+				otherBody.add(Ui.wrapped("No group called <b>" + typed + "</b> on the hiscores", Color.WHITE));
+				return;
+			case FAILED:
+				otherBody.add(Ui.wrapped(TRY_AGAIN, ColorScheme.MEDIUM_GRAY_COLOR));
+				return;
+			default:
+		}
+		GroupHiscores.Group group = them.getGroup();
+		String name = Clean.text(group.getName(), MAX_NAME);
+		String where = them.getRow() == null ? " not listed" : " #" + QuantityFormatter.formatNumber(them.getRow().getRank());
+		boolean otherBoard = them.getBoard() != ourBoard || group.getSize() != us.getSize();
+		otherBody.add(Ui.wrapped("<b>" + Ui.escapeHtml(name) + "</b>" + where + DOT
+			+ GroupHiscores.gap(us, group.getTotalLevel(), group.getTotalXp()), Color.WHITE));
+		if (otherBoard)
+		{
+			// a rank on another board, or among groups of another size, isn't comparable with ours
+			otherBody.add(Ui.muted(them.getBoard().getTitle() + ", groups of " + group.getSize()));
+		}
+		addComparison(us, name, group.getTotalLevel(), group.getTotalXp(), group);
+	}
+
+	/**
+	 * Both groups side by side in a section that folds away, with its own score.
+	 */
+	private void addComparison(GroupHiscores.Group us, String name, int level, long xp, GroupHiscores.Group them)
+	{
+		otherBody.add(Box.createVerticalStrut(6));
+		List<Line> lines = groupLines(us, level, xp, them);
 		int[] score = score(lines);
-		if (!MemberCard.addFoldRow(card, "You and " + name, score[0] + " – " + score[1], GROUP_ID, context))
+		if (!MemberCard.addFoldRow(otherBody, "You and " + name, score[0] + " – " + score[1], GROUP_ID, context))
 		{
 			return;
 		}
@@ -252,19 +451,19 @@ class CompareView extends JPanel
 		{
 			rows.add(row(line));
 		}
-		MemberCard.addContent(card, rows);
+		MemberCard.addContent(otherBody, rows);
 	}
 
 	/**
-	 * Our group against the group above: total level and XP, then each skill when we know theirs.
+	 * Our group against another: total level and XP, then each skill when we know theirs.
 	 */
-	private List<Line> groupLines(GroupHiscores.Group us, GroupHiscores.Row above, GroupHiscores.Group them)
+	private List<Line> groupLines(GroupHiscores.Group us, int level, long xp, GroupHiscores.Group them)
 	{
 		List<Line> out = new ArrayList<>();
-		out.add(new Line(Ui.small("Total level", ColorScheme.LIGHT_GRAY_COLOR), text(us.getTotalLevel()), text(above.getLevel()),
-			compare(us.getTotalLevel(), above.getLevel())));
-		out.add(new Line(Ui.small("Contributed XP", ColorScheme.LIGHT_GRAY_COLOR), shortNumber(us.getTotalXp()), shortNumber(above.getXp()),
-			xpTip(us.getTotalXp()), xpTip(above.getXp()), Long.compare(us.getTotalXp(), above.getXp())));
+		out.add(new Line(Ui.small("Total level", ColorScheme.LIGHT_GRAY_COLOR), text(us.getTotalLevel()), text(level),
+			compare(us.getTotalLevel(), level)));
+		out.add(new Line(Ui.small("Contributed XP", ColorScheme.LIGHT_GRAY_COLOR), shortNumber(us.getTotalXp()), shortNumber(xp),
+			xpTip(us.getTotalXp()), xpTip(xp), Long.compare(us.getTotalXp(), xp)));
 		if (them == null)
 		{
 			return out;
