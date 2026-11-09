@@ -9,9 +9,9 @@ import com.homebase.data.GroupView;
 import com.homebase.data.KillCountsData;
 import com.homebase.data.ProfileData;
 import com.homebase.data.QuestsData;
-import com.homebase.data.RanksData;
 import com.homebase.data.Section;
 import com.homebase.data.SkillsData;
+import com.homebase.hiscores.GroupHiscores;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.TreeSet;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.ImageIcon;
 import javax.swing.JComboBox;
@@ -35,14 +36,14 @@ import javax.swing.JPanel;
 import javax.swing.border.EmptyBorder;
 import net.runelite.api.Experience;
 import net.runelite.api.Skill;
-import net.runelite.client.hiscore.HiscoreSkill;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.FontManager;
 import net.runelite.client.util.QuantityFormatter;
 
 /**
  * Any two members side by side: levels, quests, diaries, combat achievements, the collection log, kill
- * counts, best times and hiscore ranks, with whoever is ahead in green and a winner at the top.
+ * counts and best times, with whoever is ahead in green and a winner at the top. Above them, a Group
+ * Ironman group's place on the group hiscores, against the group one place above.
  */
 class CompareView extends JPanel
 {
@@ -55,14 +56,18 @@ class CompareView extends JPanel
 	private static final String SKILLS_ID = "compare:skills";
 	private static final String KILLS_ID = "compare:kills";
 	private static final String TIMES_ID = "compare:times";
-	private static final String RANKS_ID = "compare:ranks";
-
-	private static final String RANKS_TIP = "From the hiscores, read when each of you last logged in";
+	private static final String GROUP_ID = "compare:group";
 
 	private final HomebasePlugin plugin;
 	private final Supplier<GroupView> views;
 	private final Supplier<String> me;
 	private final MemberCard.Context context;
+	private final GroupHiscores hiscores;
+
+	/**
+	 * Our Group Ironman group's name, or null for a group that joined with a passphrase.
+	 */
+	private final Supplier<String> gimGroup;
 
 	/**
 	 * The two members chosen, by member id.
@@ -106,12 +111,15 @@ class CompareView extends JPanel
 		}
 	}
 
-	CompareView(HomebasePlugin plugin, Supplier<GroupView> views, Supplier<String> me, MemberCard.Context context)
+	CompareView(HomebasePlugin plugin, Supplier<GroupView> views, Supplier<String> me, MemberCard.Context context,
+		GroupHiscores hiscores, Supplier<String> gimGroup)
 	{
 		this.plugin = plugin;
 		this.views = views;
 		this.me = me;
 		this.context = context;
+		this.hiscores = hiscores;
+		this.gimGroup = gimGroup;
 		setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
 		setOpaque(false);
 	}
@@ -119,6 +127,12 @@ class CompareView extends JPanel
 	void refresh()
 	{
 		removeAll();
+		String group = gimGroup.get();
+		if (group != null)
+		{
+			add(groupCard(group));
+			add(Box.createVerticalStrut(6));
+		}
 		GroupView view = views.get();
 		Map<String, String> members = view == null ? new LinkedHashMap<>() : members(view);
 		if (members.size() < 2)
@@ -143,13 +157,11 @@ class CompareView extends JPanel
 		List<Line> skills = skills(view);
 		List<Line> kills = kills(view);
 		List<Line> times = bestTimes(view);
-		List<Line> ranks = ranks(view);
 		List<Line> all = new ArrayList<>();
 		all.addAll(overview);
 		all.addAll(skills);
 		all.addAll(kills);
 		all.addAll(times);
-		all.addAll(ranks);
 
 		JPanel card = new JPanel();
 		card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
@@ -163,12 +175,152 @@ class CompareView extends JPanel
 		addSection(card, "Skills", skills, SKILLS_ID);
 		addSection(card, "Kill counts", kills, KILLS_ID);
 		addSection(card, "Best times", times, TIMES_ID);
-		addSection(card, "Hiscore ranks", ranks, RANKS_ID);
 		Ui.alignChildrenLeft(card);
 		card.setAlignmentX(Component.LEFT_ALIGNMENT);
 		add(card);
 		revalidate();
 		repaint();
+	}
+
+	/**
+	 * The group's place on the Group Ironman hiscores, what it'd take to pass the group one place above,
+	 * and the two groups side by side.
+	 */
+	private JPanel groupCard(String groupName)
+	{
+		GroupHiscores.Standing standing = hiscores.standing(groupName, this::refresh);
+		JPanel card = new JPanel();
+		card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
+		card.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+		card.setBorder(new EmptyBorder(7, 8, 8, 8));
+
+		JPanel header = new JPanel(new BorderLayout(6, 0));
+		header.setOpaque(false);
+		header.setBorder(new EmptyBorder(0, 0, 2, 0));
+		header.add(Ui.title(Clean.text(groupName, MAX_NAME)), BorderLayout.CENTER);
+		card.add(header);
+
+		switch (standing.getState())
+		{
+			case LOOKING:
+				card.add(Ui.muted("Looking your group up on the hiscores..."));
+				break;
+			case NOT_FOUND:
+				card.add(Ui.wrapped("Your group isn't on the Group Ironman hiscores.", ColorScheme.MEDIUM_GRAY_COLOR));
+				break;
+			case FAILED:
+				card.add(Ui.wrapped("Couldn't reach the hiscores. It'll try again in a few minutes.", ColorScheme.MEDIUM_GRAY_COLOR));
+				break;
+			default:
+				addStanding(card, header, standing);
+		}
+		Ui.alignChildrenLeft(card);
+		card.setAlignmentX(Component.LEFT_ALIGNMENT);
+		return card;
+	}
+
+	private void addStanding(JPanel card, JPanel header, GroupHiscores.Standing standing)
+	{
+		GroupHiscores.Group group = standing.getGroup();
+		GroupHiscores.Row above = standing.getAbove();
+		String board = standing.getBoard().getTitle();
+		JLabel rank = Ui.title("#" + QuantityFormatter.formatNumber(standing.getRow().getRank()));
+		rank.setToolTipText("Your rank on the " + board + " hiscores for groups of " + group.getSize());
+		header.add(rank, BorderLayout.EAST);
+		card.add(Ui.muted(board + ", groups of " + group.getSize()));
+		card.add(Box.createVerticalStrut(6));
+		if (above == null)
+		{
+			card.add(Ui.wrapped("You're top of the board.", Color.WHITE));
+			return;
+		}
+		String name = Clean.text(above.getName(), MAX_NAME);
+		card.add(Ui.wrapped("Next up is <b>" + Ui.escapeHtml(name) + "</b> at #" + QuantityFormatter.formatNumber(above.getRank()) + ". "
+			+ GroupHiscores.toPass(group, above), Color.WHITE));
+		card.add(Box.createVerticalStrut(6));
+
+		List<Line> lines = groupLines(group, above, standing.getAboveGroup());
+		int[] score = score(lines);
+		if (!MemberCard.addFoldRow(card, "You and " + name, score[0] + " – " + score[1], GROUP_ID, context))
+		{
+			return;
+		}
+		JPanel rows = new JPanel(new GridLayout(0, 1, 0, 1));
+		rows.setOpaque(false);
+		rows.add(row(new Line(Ui.small("", Color.WHITE), "You", "Them", 0), ColorScheme.MEDIUM_GRAY_COLOR));
+		for (Line line : lines)
+		{
+			rows.add(row(line));
+		}
+		MemberCard.addContent(card, rows);
+	}
+
+	/**
+	 * Our group against the group above: total level and XP, then each skill when we know theirs.
+	 */
+	private List<Line> groupLines(GroupHiscores.Group us, GroupHiscores.Row above, GroupHiscores.Group them)
+	{
+		List<Line> out = new ArrayList<>();
+		out.add(new Line(Ui.small("Total level", ColorScheme.LIGHT_GRAY_COLOR), text(us.getTotalLevel()), text(above.getLevel()),
+			compare(us.getTotalLevel(), above.getLevel())));
+		out.add(new Line(Ui.small("Contributed XP", ColorScheme.LIGHT_GRAY_COLOR), shortNumber(us.getTotalXp()), shortNumber(above.getXp()),
+			xpTip(us.getTotalXp()), xpTip(above.getXp()), Long.compare(us.getTotalXp(), above.getXp())));
+		if (them == null)
+		{
+			return out;
+		}
+		for (Map.Entry<String, Integer> entry : us.getLevels().entrySet())
+		{
+			String skill = entry.getKey();
+			Integer theirs = them.getLevels().get(skill);
+			JLabel label = Ui.small(skill, ColorScheme.LIGHT_GRAY_COLOR);
+			Skill icon = skillNamed(skill);
+			if (icon != null)
+			{
+				label.setIcon(new ImageIcon(context.skillIconManager.getSkillImage(icon, true)));
+				label.setIconTextGap(4);
+			}
+			out.add(new Line(label, text(entry.getValue()), text(theirs), xpTip(us.getXp().get(skill)), xpTip(them.getXp().get(skill)),
+				compare(entry.getValue(), theirs)));
+		}
+		return out;
+	}
+
+	private static Skill skillNamed(String name)
+	{
+		for (Skill skill : Skill.values())
+		{
+			if (skill.getName().equalsIgnoreCase(name))
+			{
+				return skill;
+			}
+		}
+		return null;
+	}
+
+	private static String xpTip(Long xp)
+	{
+		return xp == null ? NONE : QuantityFormatter.formatNumber(xp) + " XP";
+	}
+
+	/**
+	 * @return a number short enough for its column, such as "84,120", "312K", "8.1M" or "1.6B"
+	 */
+	static String shortNumber(long number)
+	{
+		if (number < 100_000)
+		{
+			return QuantityFormatter.formatNumber(number);
+		}
+		if (number < 1_000_000)
+		{
+			return number / 1_000 + "K";
+		}
+		if (number < 1_000_000_000)
+		{
+			return String.format(Locale.ROOT, "%.1fM", Math.floor(number / 100_000.0) / 10);
+		}
+		return String.format(Locale.ROOT, "%.1fB", Math.floor(number / 100_000_000.0) / 10);
 	}
 
 	/**
@@ -295,15 +447,10 @@ class CompareView extends JPanel
 		CombatAchievementsData cb = view.get(right, Section.COMBAT_ACHIEVEMENTS, CombatAchievementsData.class);
 		CollectionLogData la = view.get(left, Section.COLLECTION_LOG, CollectionLogData.class);
 		CollectionLogData lb = view.get(right, Section.COLLECTION_LOG, CollectionLogData.class);
-		RanksData ra = view.get(left, Section.RANKS, RanksData.class);
-		RanksData rb = view.get(right, Section.RANKS, RanksData.class);
 
 		List<Line> out = new ArrayList<>();
 		out.add(numbers("Combat level", a == null ? null : combatLevel(a), b == null ? null : combatLevel(b)));
 		out.add(numbers("Total level", a == null ? null : a.getTotalLevel(), b == null ? null : b.getTotalLevel()));
-		// older versions of the plugin don't share ranks
-		String overall = HiscoreSkill.OVERALL.getName();
-		out.add(rankLine("Hiscore rank", rank(ra, overall), rank(rb, overall)));
 		out.add(numbers("Quests", qa == null ? null : qa.count(QuestsData.FINISHED), qb == null ? null : qb.count(QuestsData.FINISHED)));
 		// older versions of the plugin don't share quest points
 		out.add(numbers("Quest points", qa == null ? null : positive(qa.getPoints()), qb == null ? null : positive(qb.getPoints())));
@@ -372,84 +519,6 @@ class CompareView extends JPanel
 		return out;
 	}
 
-	/**
-	 * Every hiscores table either member is ranked on, apart from the overall one, in the hiscores' own
-	 * order: skills, then activities like clue scrolls, then bosses.
-	 */
-	private List<Line> ranks(GroupView view)
-	{
-		RanksData a = view.get(left, Section.RANKS, RanksData.class);
-		RanksData b = view.get(right, Section.RANKS, RanksData.class);
-		TreeSet<String> names = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
-		addNames(names, a == null ? null : a.getRanks());
-		addNames(names, b == null ? null : b.getRanks());
-		names.remove(HiscoreSkill.OVERALL.getName());
-
-		List<String> ordered = new ArrayList<>();
-		for (HiscoreSkill table : HiscoreSkill.values())
-		{
-			if (names.remove(table.getName()))
-			{
-				ordered.add(table.getName());
-			}
-		}
-		// tables this version of RuneLite doesn't know yet go last
-		ordered.addAll(names);
-
-		List<Line> out = new ArrayList<>();
-		for (String name : ordered)
-		{
-			out.add(rankLine(name, rank(a, name), rank(b, name)));
-		}
-		return out;
-	}
-
-	private static Integer rank(RanksData ranks, String name)
-	{
-		return ranks == null ? null : ranks.rankFor(name);
-	}
-
-	private static Line rankLine(String label, Integer a, Integer b)
-	{
-		JLabel name = Ui.small(label, ColorScheme.LIGHT_GRAY_COLOR);
-		name.setToolTipText(RANKS_TIP);
-		return new Line(name, rankText(a), rankText(b), rankTip(a), rankTip(b), compareRanks(a, b));
-	}
-
-	/**
-	 * @return a rank short enough for its column, such as "8,412", "312K" or "1.2M"
-	 */
-	static String rankText(Integer rank)
-	{
-		if (rank == null)
-		{
-			return NONE;
-		}
-		if (rank < 100_000)
-		{
-			return QuantityFormatter.formatNumber(rank);
-		}
-		if (rank < 1_000_000)
-		{
-			return rank / 1_000 + "K";
-		}
-		return String.format(Locale.ROOT, "%.1fM", Math.floor(rank / 100_000.0) / 10);
-	}
-
-	private static String rankTip(Integer rank)
-	{
-		return rank == null ? "Not ranked" : "Rank " + QuantityFormatter.formatNumber(rank);
-	}
-
-	/**
-	 * @return above 0 if the first rank is better, which is the lower one, below 0 if the second is, and
-	 * 0 for a tie or if either isn't ranked
-	 */
-	static int compareRanks(Integer a, Integer b)
-	{
-		return compare(b, a);
-	}
-
 	private static void addNames(TreeSet<String> into, Map<String, ?> names)
 	{
 		if (names != null)
@@ -512,13 +581,18 @@ class CompareView extends JPanel
 	 */
 	private static JPanel row(Line line)
 	{
+		return row(line, Color.WHITE);
+	}
+
+	private static JPanel row(Line line, Color color)
+	{
 		JPanel row = new JPanel(new BorderLayout(4, 0));
 		row.setOpaque(false);
 		row.add(line.label, BorderLayout.CENTER);
 		JPanel values = new JPanel(new GridLayout(1, 2, 4, 0));
 		values.setOpaque(false);
-		values.add(value(line.a, line.tipA, line.compare > 0 ? AHEAD : Color.WHITE));
-		values.add(value(line.b, line.tipB, line.compare < 0 ? AHEAD : Color.WHITE));
+		values.add(value(line.a, line.tipA, line.compare > 0 ? AHEAD : color));
+		values.add(value(line.b, line.tipB, line.compare < 0 ? AHEAD : color));
 		row.add(values, BorderLayout.EAST);
 		return row;
 	}

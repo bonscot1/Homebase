@@ -31,23 +31,12 @@ public class CompareViewTest
 	}
 
 	@Test
-	public void theLowerRankIsAhead()
+	public void bigNumbersAreShortenedToFitTheirColumn()
 	{
-		assertTrue(CompareView.compareRanks(1_200, 85_000) > 0);
-		assertTrue(CompareView.compareRanks(85_000, 1_200) < 0);
-		assertEquals(0, CompareView.compareRanks(null, 1_200));
-	}
-
-	@Test
-	public void ranksAreShortenedToFitTheirColumn()
-	{
-		assertEquals("-", CompareView.rankText(null));
-		assertEquals("8,412", CompareView.rankText(8_412));
-		assertEquals("99,999", CompareView.rankText(99_999));
-		assertEquals("100K", CompareView.rankText(100_000));
-		assertEquals("312K", CompareView.rankText(312_987));
-		assertEquals("999K", CompareView.rankText(999_999));
-		assertEquals("1.0M", CompareView.rankText(1_000_000));
-		assertEquals("1.9M", CompareView.rankText(1_999_999));
+		assertEquals("84,120", CompareView.shortNumber(84_120));
+		assertEquals("312K", CompareView.shortNumber(312_987));
+		assertEquals("8.1M", CompareView.shortNumber(8_120_331));
+		assertEquals("999.9M", CompareView.shortNumber(999_999_999));
+		assertEquals("1.6B", CompareView.shortNumber(1_684_997_520L));
 	}
 }

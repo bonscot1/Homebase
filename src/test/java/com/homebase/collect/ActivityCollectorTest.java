@@ -36,7 +36,7 @@ public class ActivityCollectorTest
 	}
 
 	@Test
-	public void readsKillCountsAndRanksFromTheHiscores()
+	public void readsKillCountsFromTheHiscores()
 	{
 		Map<HiscoreSkill, Skill> hiscores = new EnumMap<>(HiscoreSkill.class);
 		hiscores.put(HiscoreSkill.OVERALL, new Skill(152_334, 1_870, 98_000_000L));
@@ -49,13 +49,6 @@ public class ActivityCollectorTest
 		assertEquals(1, kills.size());
 		assertEquals(Integer.valueOf(340), kills.get("Vorkath"));
 
-		Map<String, Integer> ranks = ActivityCollector.hiscoreRanks(hiscores);
-		assertEquals(4, ranks.size());
-		assertEquals(Integer.valueOf(152_334), ranks.get(HiscoreSkill.OVERALL.getName()));
-		assertEquals(Integer.valueOf(90_120), ranks.get(HiscoreSkill.ATTACK.getName()));
-		assertEquals(Integer.valueOf(41_002), ranks.get(HiscoreSkill.CLUE_SCROLL_ALL.getName()));
-		assertEquals(Integer.valueOf(20_455), ranks.get("Vorkath"));
-		assertFalse(ranks.containsKey(HiscoreSkill.ZULRAH.getName()));
 	}
 
 	@Test
