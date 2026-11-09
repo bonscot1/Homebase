@@ -14,9 +14,9 @@ import org.junit.After;
 import org.junit.Test;
 
 /**
- * A member in the middle who has never heard of some of what passes through them, as anyone on an older
- * version hasn't. Records are written here by hand, exactly as a newer version writes them, so this only
- * uses what every version has and can be run against the version on the Plugin Hub as well.
+ * Records passing through a member whose version has never heard of them. They're written here by hand, as a
+ * newer version writes them, so these tests only use what every version has and can also be run against the
+ * version on the Plugin Hub.
  */
 public class UnknownRecordsRelayTest
 {

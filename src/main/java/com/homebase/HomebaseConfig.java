@@ -570,7 +570,8 @@ public interface HomebaseConfig extends Config
 	@ConfigItem(
 		keyName = "logOwners",
 		name = "Who has collection log items",
-		description = "In the collection log, mark items with a dot in the colour of each other group member who has them. Hover over an item for their names.",
+		description = "In the collection log, mark items with a dot in the colour of each other group member who has them, and add "
+			+ "their kill counts and best times to a boss's page. Hover over either for their names.",
 		section = panelSection,
 		position = 405
 	)
@@ -732,6 +733,18 @@ public interface HomebaseConfig extends Config
 	default boolean updateDeaths()
 	{
 		return true;
+	}
+
+	@ConfigItem(
+		keyName = "updatesShowOwn",
+		name = "Your own updates",
+		description = "Show what you've done on the Updates tab too, from when this is turned on. They never go to chat.",
+		section = updatesSection,
+		position = 513
+	)
+	default boolean updatesShowOwn()
+	{
+		return false;
 	}
 
 	@ConfigSection(

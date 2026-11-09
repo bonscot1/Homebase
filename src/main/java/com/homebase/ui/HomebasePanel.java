@@ -22,8 +22,7 @@ import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
-import java.awt.GridBagConstraints;
-import java.awt.GridBagLayout;
+import java.awt.GridLayout;
 import java.awt.RenderingHints;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -51,9 +50,11 @@ import javax.swing.border.EmptyBorder;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import lombok.extern.slf4j.Slf4j;
+import net.runelite.api.gameval.SpriteID;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.game.ItemManager;
 import net.runelite.client.game.SkillIconManager;
+import net.runelite.client.game.SpriteManager;
 import net.runelite.client.party.PartyMember;
 import net.runelite.client.party.PartyService;
 import net.runelite.client.ui.ColorScheme;
@@ -99,7 +100,17 @@ public class HomebasePanel extends PluginPanel
 	private static final int SEARCH_BOX_HEIGHT = 30;
 
 	/**
-	 * A tab's name, with room for a dot in its corner that doesn't take any from the name.
+	 * Size of the tabs' icons in pixels, smaller than the game draws them.
+	 */
+	private static final int TAB_ICON_SIZE = 14;
+
+	/**
+	 * The lines around and between the tabs.
+	 */
+	private static final Color TAB_LINES = ColorScheme.MEDIUM_GRAY_COLOR;
+
+	/**
+	 * A tab's icon and name, with room for a dot in its corner that doesn't take any from the name.
 	 */
 	private static final class TabLabel extends JLabel
 	{
@@ -111,6 +122,7 @@ public class HomebasePanel extends PluginPanel
 		TabLabel(String name)
 		{
 			super(name, SwingConstants.CENTER);
+			setIconTextGap(3);
 		}
 
 		void showDot(boolean dot)
@@ -136,17 +148,24 @@ public class HomebasePanel extends PluginPanel
 
 	private enum Tab
 	{
-		MEMBERS("Members"),
-		STORAGE("Storage"),
-		UPDATES("Updates"),
-		REQUESTS("Requests"),
-		GOALS("Goals");
+		MEMBERS("Members", SpriteID.SideiconsInterface.RAIDING_PARTY),
+		STORAGE("Storage", SpriteID.SideiconsInterface.INVENTORY),
+		UPDATES("Updates", SpriteID.SideiconsInterface.STATS),
+		REQUESTS("Requests", SpriteID.SideiconsInterface.QUESTS),
+		GOALS("Goals", SpriteID.SideiconsInterface.ACHIEVEMENT_DIARIES),
+		COMPARE("Compare", SpriteID.SideiconsInterface.COMBAT);
 
 		final String label;
 
-		Tab(String label)
+		/**
+		 * The game's side panel icon, shown beside the name.
+		 */
+		final int icon;
+
+		Tab(String label, int icon)
 		{
 			this.label = label;
+			this.icon = icon;
 		}
 	}
 
@@ -164,11 +183,12 @@ public class HomebasePanel extends PluginPanel
 	private final JButton secondButton = Ui.button("", () -> runAction(false));
 	private final JPanel statusButtons = new JPanel(new BorderLayout(0, MAIN_BUTTON_GAP));
 	private final Map<Tab, TabLabel> tabLabels = new EnumMap<>(Tab.class);
-	private final JPanel tabBar = new JPanel(new GridBagLayout());
+	private final JPanel tabBar = new JPanel(new GridLayout(2, 3, 1, 1));
 	private final JPanel tabContent = new JPanel();
 	private final RequestsView requestsView;
 	private final UpdatesView updatesView;
 	private final GoalsView goalsView;
+	private final CompareView compareView;
 	private final ItemSearchView itemSearchView;
 	private final IconTextField searchBox = new IconTextField();
 	private final Timer searchTimer = new Timer(SEARCH_DELAY_MS, e -> rebuild());
@@ -189,7 +209,8 @@ public class HomebasePanel extends PluginPanel
 	@Inject
 	private HomebasePanel(HomebasePlugin plugin, HomebaseConfig config, GroupSync groupSync, PartyService partyService, Presence presence, LocalCollector collector,
 		RequestService requestService, UpdateTracker updateTracker, GoalService goalService, BountyService bountyService,
-		ReturnTags returnTags, ItemManager itemManager, SkillIconManager skillIconManager, ClientThread clientThread)
+		ReturnTags returnTags, ItemManager itemManager, SkillIconManager skillIconManager, SpriteManager spriteManager,
+		ClientThread clientThread)
 	{
 		this.plugin = plugin;
 		this.config = config;
@@ -199,7 +220,7 @@ public class HomebasePanel extends PluginPanel
 		this.collector = collector;
 		this.itemSprites = new ItemSprites(itemManager, clientThread);
 		this.requestsView = new RequestsView(requestService);
-		this.updatesView = new UpdatesView(updateTracker);
+		this.updatesView = new UpdatesView(updateTracker, new UpdatePictures(itemSprites, skillIconManager, spriteManager));
 		this.goalsView = new GoalsView(goalService, bountyService, itemManager, clientThread,
 			() -> view == null ? null : view.get(null, Section.GROUP_STORAGE, ItemsData.class));
 		this.itemSearchView = new ItemSearchView(itemSprites, () -> view, plugin::belongsToGroup);
@@ -212,6 +233,7 @@ public class HomebasePanel extends PluginPanel
 			rebuild();
 		}, config::cardBars);
 
+		this.compareView = new CompareView(plugin, () -> view, collector::getMemberId, cardContext);
 		this.storageView = new StorageView(plugin, () -> view, returnTags, bountyService, goalService, requestService,
 			cardContext, this::scheduleRebuild);
 
@@ -246,6 +268,8 @@ public class HomebasePanel extends PluginPanel
 			TabLabel label = new TabLabel(tab.label);
 			label.setFont(FontManager.getRunescapeSmallFont());
 			label.setOpaque(true);
+			spriteManager.getSpriteAsync(tab.icon, 0, icon ->
+				SwingUtilities.invokeLater(() -> label.setIcon(new ImageIcon(ImageUtil.resizeImage(icon, TAB_ICON_SIZE, TAB_ICON_SIZE, true)))));
 			Ui.clickable(label, () ->
 			{
 				selectedTab = tab;
@@ -255,13 +279,11 @@ public class HomebasePanel extends PluginPanel
 				rebuild();
 			});
 			tabLabels.put(tab, label);
-			// shared out by the length of their names, since five don't all fit at the same width
-			GridBagConstraints cell = new GridBagConstraints();
-			cell.fill = GridBagConstraints.BOTH;
-			cell.weightx = label.getPreferredSize().width;
-			tabBar.add(label, cell);
+			tabBar.add(label);
 		}
-		tabBar.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+		// the bar shows through the gaps between the tabs, drawing the lines
+		tabBar.setBackground(TAB_LINES);
+		tabBar.setBorder(BorderFactory.createLineBorder(TAB_LINES));
 
 		searchBox.setIcon(IconTextField.Icon.SEARCH);
 		searchBox.setBackground(ColorScheme.DARKER_GRAY_COLOR);
@@ -438,6 +460,10 @@ public class HomebasePanel extends PluginPanel
 						goalsView.refresh();
 						showTabView(goalsView);
 						break;
+					case COMPARE:
+						compareView.refresh();
+						showTabView(compareView);
+						break;
 					default:
 						tabContent.removeAll();
 						buildMembers();
@@ -485,10 +511,11 @@ public class HomebasePanel extends PluginPanel
 			boolean selected = e.getKey() == selectedTab && !isSearching();
 			JLabel label = e.getValue();
 			label.setForeground(selected ? Color.WHITE : ColorScheme.LIGHT_GRAY_COLOR);
-			label.setBackground(selected ? ColorScheme.DARKER_GRAY_HOVER_COLOR : ColorScheme.DARKER_GRAY_COLOR);
+			Color background = selected ? ColorScheme.DARKER_GRAY_HOVER_COLOR : ColorScheme.DARKER_GRAY_COLOR;
+			label.setBackground(background);
 			label.setBorder(new CompoundBorder(
-				BorderFactory.createMatteBorder(0, 0, 2, 0, selected ? ColorScheme.BRAND_ORANGE : ColorScheme.DARKER_GRAY_COLOR),
-				new EmptyBorder(6, 0, 4, 0)));
+				BorderFactory.createMatteBorder(0, 0, 2, 0, selected ? ColorScheme.BRAND_ORANGE : background),
+				new EmptyBorder(5, 1, 3, 1)));
 		}
 		TabLabel requests = tabLabels.get(Tab.REQUESTS);
 		requests.showDot(open > 0);
@@ -497,7 +524,6 @@ public class HomebasePanel extends PluginPanel
 
 	private void buildMembers()
 	{
-
 		String localId = collector.getMemberId();
 		List<MemberCard> members = new ArrayList<>();
 		Set<MemberCard> online = new HashSet<>();

@@ -12,6 +12,7 @@ import com.homebase.collect.ActivityCollector;
 import com.homebase.collect.CollectionLogSearch;
 import com.homebase.collect.FeedCollector;
 import com.homebase.collect.LocalCollector;
+import com.homebase.collect.PersonalBests;
 import com.homebase.data.GroupIndex;
 import com.homebase.data.GroupView;
 import com.homebase.data.Ids;
@@ -195,6 +196,9 @@ public class HomebasePlugin extends Plugin
 	private FeedCollector feedCollector;
 
 	@Inject
+	private PersonalBests personalBests;
+
+	@Inject
 	private MapPins mapPins;
 
 	@Inject
@@ -299,6 +303,7 @@ public class HomebasePlugin extends Plugin
 		eventBus.register(presence);
 		eventBus.register(collector);
 		eventBus.register(feedCollector);
+		eventBus.register(personalBests);
 		eventBus.register(mapPins);
 		eventBus.register(findOnMap);
 		findOnMap.start(this::addChatLine);
@@ -383,6 +388,7 @@ public class HomebasePlugin extends Plugin
 		findOnMap.stop();
 		eventBus.unregister(findOnMap);
 		eventBus.unregister(mapPins);
+		eventBus.unregister(personalBests);
 		eventBus.unregister(feedCollector);
 		eventBus.unregister(collector);
 		eventBus.unregister(presence);
@@ -806,7 +812,7 @@ public class HomebasePlugin extends Plugin
 	}
 
 	/**
-	 * RuneLite doesn't stop plugins when it closes, so this saves what the regular save hasn't got to yet.
+	 * RuneLite doesn't stop plugins when it closes, so save whatever the regular save hasn't got to yet.
 	 */
 	@Subscribe
 	public void onClientShutdown(ClientShutdown event)

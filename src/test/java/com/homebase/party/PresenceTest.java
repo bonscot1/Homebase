@@ -131,12 +131,12 @@ public class PresenceTest
 	}
 
 	@Test
-	public void notBeingLoadedYetIsNotHidingWhereWeAre()
+	public void aPositionNotKnownYetIsntSentAsHidden()
 	{
+		WorldPoint here = new WorldPoint(3222, 3218, 0);
 		assertEquals(Integer.valueOf(HomebasePresence.NO_POSITION), Presence.coordToSend(false, null));
-		assertEquals(Integer.valueOf(HomebasePresence.NO_POSITION), Presence.coordToSend(false, new WorldPoint(3222, 3218, 0)));
+		assertEquals(Integer.valueOf(HomebasePresence.NO_POSITION), Presence.coordToSend(false, here));
 		assertNull(Presence.coordToSend(true, null));
-		assertEquals(Integer.valueOf(HomebasePresence.packCoord(new WorldPoint(3222, 3218, 0))),
-			Presence.coordToSend(true, new WorldPoint(3222, 3218, 0)));
+		assertEquals(Integer.valueOf(HomebasePresence.packCoord(here)), Presence.coordToSend(true, here));
 	}
 }

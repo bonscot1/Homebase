@@ -11,7 +11,6 @@ import com.homebase.data.Ids;
 import com.homebase.goals.GoalService;
 import com.homebase.party.GroupSync;
 import com.homebase.party.LiveSharing;
-import net.runelite.client.party.PartyDataService;
 import com.homebase.party.Presence;
 import com.homebase.requests.RequestService;
 import com.homebase.sync.GroupStore;
@@ -50,6 +49,7 @@ import net.runelite.client.callback.ClientThread;
 import net.runelite.client.eventbus.EventBus;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ClientShutdown;
+import net.runelite.client.party.PartyDataService;
 import net.runelite.client.party.PartyDataType;
 import net.runelite.client.party.PartyService;
 import net.runelite.client.party.WSClient;
@@ -92,7 +92,6 @@ final class SimulatedClient
 	private long flushTimer;
 	private long saveTimer;
 
-	private Client client;
 	private Injector injector;
 	private EventBus bus;
 	private WSClient wsClient;
@@ -127,7 +126,7 @@ final class SimulatedClient
 	 */
 	private void start()
 	{
-		client = fakeClient();
+		Client client = fakeClient();
 		bus = new EventBus(party::noteError);
 		HomebaseConfig config = fakeConfig();
 		wsClient = construct(WSClient.class, bus, party.http(), HttpUrl.get("https://party.invalid/ws"), gson);
@@ -222,7 +221,7 @@ final class SimulatedClient
 	}
 
 	/**
-	 * Run something each time the group opens, such as giving a service its engine.
+	 * Run something now and each time the group opens again, such as giving a service its engine.
 	 */
 	void onGroupOpened(Consumer<SimulatedClient> hook)
 	{
@@ -313,17 +312,17 @@ final class SimulatedClient
 	}
 
 	/**
-	 * The player joins a party some other way, such as through RuneLite's Party panel.
-	 */
-	/**
-	 * RuneLite's own Party plugin turned on. It's what has the panel to type a party's name into, and it
-	 * sends the character's name to any party.
+	 * RuneLite's own Party plugin is turned on. It has the panel for typing in a party's name, and sends the
+	 * character's name to whichever party they're in.
 	 */
 	void turnOnPartyPlugin()
 	{
 		injector.getInstance(PartyDataService.class).subscribe(new HomebasePlugin(), PartyDataType.CHARACTER_NAME);
 	}
 
+	/**
+	 * The player joins a party some other way, such as through RuneLite's Party panel.
+	 */
 	void joinPartyDirectly(String partyPassphrase)
 	{
 		partyService.changeParty(partyPassphrase);
@@ -364,10 +363,9 @@ final class SimulatedClient
 	}
 
 	/**
-	 * The player closes RuneLite's window. No plugin is stopped when that happens: all a plugin gets is the
-	 * chance to act on {@link ClientShutdown}, so whatever hasn't reached the save file yet is gone unless it
-	 * does. Saving is done here rather than by the plugin, so here it follows whether the plugin would. Stays
-	 * closed until {@link #openRuneLite}.
+	 * The player closes RuneLite's window, which stays closed until {@link #openRuneLite}. Plugins aren't
+	 * stopped when that happens, so anything not yet saved is lost unless the plugin saves on
+	 * {@link ClientShutdown}. The saving is done here, so it only happens if the plugin would do it.
 	 */
 	void closeRuneLite()
 	{
@@ -581,7 +579,7 @@ final class SimulatedClient
 		}
 		catch (NoSuchFieldException e)
 		{
-			// not every version keeps this one
+			// older versions of the plugin don't have every one of these
 		}
 		catch (IllegalAccessException e)
 		{
@@ -601,7 +599,7 @@ final class SimulatedClient
 		}
 		catch (NoSuchFieldException e)
 		{
-			// not every version keeps this one
+			// older versions of the plugin don't have every one of these
 		}
 		catch (IllegalAccessException e)
 		{

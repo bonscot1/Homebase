@@ -3,6 +3,7 @@ package com.homebase.data;
 import java.awt.Color;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -58,6 +59,19 @@ public class GroupIndex
 		long at;
 	}
 
+	/**
+	 * A member's kill count and best time on one boss, either of which may be missing.
+	 */
+	@Value
+	public static class BossRecord
+	{
+		String memberId;
+		String name;
+		Color color;
+		Integer kills;
+		Double bestTime;
+	}
+
 	@Value
 	public static class LogOwner
 	{
@@ -76,6 +90,7 @@ public class GroupIndex
 		final List<MarkedTile> tiles = new ArrayList<>();
 		final List<Highlight> highlights = new ArrayList<>();
 		final List<Pin> pins = new ArrayList<>();
+		final Map<String, KillCountsData> kills = new HashMap<>();
 	}
 
 	private volatile GroupView view;
@@ -89,6 +104,10 @@ public class GroupIndex
 	 */
 	private volatile boolean logOwnersDirty = true;
 	private volatile Map<Integer, List<LogOwner>> logOwners = Collections.emptyMap();
+
+	private Snapshot recordsFrom;
+	private String recordsBoss;
+	private List<BossRecord> records;
 
 	public void setView(GroupView view, Predicate<ProfileData> belongs)
 	{
@@ -189,6 +208,36 @@ public class GroupIndex
 	public List<Pin> pins()
 	{
 		return Collections.unmodifiableList(current().pins);
+	}
+
+	/**
+	 * @return each member's kill count and best time on a boss, for those with either, fastest first
+	 */
+	public List<BossRecord> bossRecords(String boss)
+	{
+		Snapshot members = current();
+		// asked for every frame while a page is open, so the answer is kept until the page or the data changes
+		if (members == recordsFrom && boss.equals(recordsBoss))
+		{
+			return records;
+		}
+		List<BossRecord> out = new ArrayList<>();
+		for (Map.Entry<String, String> member : members.namesById.entrySet())
+		{
+			KillCountsData kills = members.kills.get(member.getKey());
+			Integer count = kills == null ? null : kills.countFor(boss);
+			Double best = kills == null ? null : kills.bestTimeFor(boss);
+			if ((count != null && count > 0) || best != null)
+			{
+				out.add(new BossRecord(member.getKey(), member.getValue(), color(member.getValue()), count, best));
+			}
+		}
+		out.sort(Comparator.comparing(BossRecord::getBestTime, Comparator.nullsLast(Comparator.naturalOrder()))
+			.thenComparing(record -> record.getKills() == null ? 0 : -record.getKills()));
+		recordsFrom = members;
+		recordsBoss = boss;
+		records = out;
+		return out;
 	}
 
 	/**
@@ -296,6 +345,12 @@ public class GroupIndex
 			// the colour they chose, once they've said; before that, what their tiles or highlights were marked in
 			Color chosen = profile.getColor() == null ? color : new Color(profile.getColor() & 0xFFFFFF);
 			out.colors.put(key, chosen);
+
+			KillCountsData kills = view.get(id, Section.KILL_COUNTS, KillCountsData.class);
+			if (kills != null)
+			{
+				out.kills.put(id, kills);
+			}
 
 			PinData pin = view.get(id, Section.PIN, PinData.class);
 			if (pin != null && pin.isPlaced())

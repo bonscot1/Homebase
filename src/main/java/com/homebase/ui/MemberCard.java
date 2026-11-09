@@ -42,6 +42,7 @@ import net.runelite.api.Skill;
 import net.runelite.client.game.SkillIconManager;
 import net.runelite.client.party.PartyMember;
 import net.runelite.client.ui.ColorScheme;
+import net.runelite.client.util.ColorUtil;
 import net.runelite.client.util.QuantityFormatter;
 
 /**
@@ -73,6 +74,11 @@ class MemberCard extends JPanel
 	private static final int SECTION_TEXT_WIDTH = Ui.TEXT_WIDTH - 9;
 
 	/**
+	 * The colour of a best kill time, beside its kill count.
+	 */
+	private static final String BEST_TIME_COLOR = ColorUtil.toHexColor(ColorScheme.LIGHT_GRAY_COLOR);
+
+	/**
 	 * Newest collection log slots listed above the pages.
 	 */
 	private static final int RECENT_SLOTS_SHOWN = 5;
@@ -88,7 +94,7 @@ class MemberCard extends JPanel
 	/**
 	 * Skills in the order of the in-game skills tab, read across three columns.
 	 */
-	private static final List<Skill> SKILL_ORDER = Arrays.asList(
+	static final List<Skill> SKILL_ORDER = Arrays.asList(
 		Skill.ATTACK, Skill.HITPOINTS, Skill.MINING,
 		Skill.STRENGTH, Skill.AGILITY, Skill.SMITHING,
 		Skill.DEFENCE, Skill.HERBLORE, Skill.FISHING,
@@ -220,7 +226,8 @@ class MemberCard extends JPanel
 		}
 		else
 		{
-			statusLabel.setText("Seen " + Ago.format(profileUpdatedAt));
+			// when we last heard about them, which isn't when they last played
+			statusLabel.setText("Updated " + Ago.format(profileUpdatedAt));
 			statusLabel.setForeground(ColorScheme.MEDIUM_GRAY_COLOR);
 		}
 
@@ -358,8 +365,13 @@ class MemberCard extends JPanel
 			return;
 		}
 		int mini = quests.countMiniquests(QuestsData.FINISHED);
+		String summary = quests.count(QuestsData.FINISHED) + " done" + (mini > 0 ? " + " + mini + " mini" : "");
+		if (quests.getPoints() > 0)
+		{
+			summary += " · " + quests.getPoints() + " QP";
+		}
 		String id = memberId + ":" + Section.QUESTS.getKey();
-		addSectionRow(parent, "Quests", quests.count(QuestsData.FINISHED) + " done" + (mini > 0 ? " + " + mini + " mini" : ""), id, context);
+		addSectionRow(parent, "Quests", summary, id, context);
 		if (!context.openSections.contains(id))
 		{
 			return;
@@ -492,7 +504,7 @@ class MemberCard extends JPanel
 			}
 			boolean complete = have >= page.getSize() && page.getSize() > 0;
 			JPanel row = valueRow(e.getKey(), have + "/" + page.getSize(), complete ? ColorScheme.PROGRESS_COMPLETE_COLOR : ColorScheme.LIGHT_GRAY_COLOR);
-			row.setToolTipText("Seen " + Ago.format(page.getSeen()));
+			row.setToolTipText("Updated " + Ago.format(page.getSeen()));
 			list.add(row);
 			listed++;
 		}
@@ -535,7 +547,18 @@ class MemberCard extends JPanel
 		list.setOpaque(false);
 		for (Map.Entry<String, Integer> e : rows)
 		{
-			list.add(valueRow(e.getKey(), QuantityFormatter.formatNumber(e.getValue()), Color.WHITE));
+			Double best = kills.bestTimeFor(e.getKey());
+			String count = QuantityFormatter.formatNumber(e.getValue());
+			if (best == null)
+			{
+				list.add(valueRow(e.getKey(), count, Color.WHITE));
+				continue;
+			}
+			String time = KillCountsData.formatTime(best);
+			JPanel row = valueRow(e.getKey(), "<html>" + count + "&nbsp;&nbsp;<font color='" + BEST_TIME_COLOR + "'>" + time + "</font></html>",
+				Color.WHITE);
+			row.setToolTipText(e.getKey() + ": " + count + " kills, best time " + time);
+			list.add(row);
 		}
 		addContent(parent, list);
 	}

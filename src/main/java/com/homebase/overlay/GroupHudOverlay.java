@@ -73,7 +73,7 @@ public class GroupHudOverlay extends OverlayPanel
 	private static final double MIN_NAME_BRIGHTNESS = 130;
 
 	/**
-	 * How long since it was last drawn that the box still counts as being there for a click.
+	 * How long after the box was last drawn a click on it still counts.
 	 */
 	private static final long MAX_DRAWN_AGE_MS = 250;
 
@@ -98,8 +98,8 @@ public class GroupHudOverlay extends OverlayPanel
 	private volatile boolean mouseOverGround;
 
 	/**
-	 * RuneLite doesn't draw overlays at the login screen, and that doesn't reach render, so this says
-	 * whether what's above is still true.
+	 * When the box was last drawn. RuneLite stops drawing overlays at the login screen without calling
+	 * render, so what's above can be out of date.
 	 */
 	private volatile long drawnAt;
 

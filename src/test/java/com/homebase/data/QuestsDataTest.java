@@ -8,6 +8,18 @@ import org.junit.Test;
 public class QuestsDataTest
 {
 	@Test
+	public void questPointsFromAnotherClientStayInRange()
+	{
+		QuestsData quests = new QuestsData();
+		quests.setPoints(-4);
+		quests.check();
+		assertEquals(0, quests.getPoints());
+		quests.setPoints(1_000_000);
+		quests.check();
+		assertEquals(QuestsData.MAX_POINTS, quests.getPoints());
+	}
+
+	@Test
 	public void miniquestsAreCountedApart()
 	{
 		QuestsData data = new QuestsData();

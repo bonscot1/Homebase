@@ -287,10 +287,10 @@ public class GroupSync
 
 	/**
 	 * A member at the login screen has no name for anyone who joins after them, and anyone nameless who
-	 * says something stops sharing for whoever hears it. So once logged out, this only finishes sending
-	 * what was waiting, then goes quiet, and whoever joins next takes it for a closed connection. Nothing
-	 * is lost: what's left goes out at the next login. An alt on the same client says nothing at all, or
-	 * it would look like a stranger to everyone else.
+	 * says something stops sharing for whoever hears it. So after logging out we only finish sending what
+	 * was waiting, then go quiet, and whoever joins next takes us for a closed connection. The rest goes
+	 * out at the next login. An alt on the same client sends nothing at all, or it would look like a
+	 * stranger to everyone else.
 	 */
 	static boolean isFinishingAfterLogout(GameState state, long sinceLogout)
 	{
@@ -317,7 +317,7 @@ public class GroupSync
 	}
 
 	/**
-	 * @return true if everyone holding up sharing has no name and hasn't said anything yet
+	 * @return true if everyone holding up sharing has no name and hasn't said anything lately
 	 */
 	private boolean isWaitingOnSilentMembers()
 	{
@@ -347,9 +347,8 @@ public class GroupSync
 			{
 				continue;
 			}
-			boolean named = hasName(member);
 			long lastSign = Math.max(listedAt.getOrDefault(member.getMemberId(), now), heardAt.getOrDefault(member.getMemberId(), 0L));
-			boolean closed = isClosedConnection(named, lastSign, now);
+			boolean closed = isClosedConnection(hasName(member), lastSign, now);
 			if (!isVerified(member) && !closed)
 			{
 				out.add(member);
@@ -360,9 +359,9 @@ public class GroupSync
 
 	/**
 	 * @param lastSign when they were listed or last heard from, whichever came later
-	 * @return true if a party member is most likely a connection that has already closed, or a member at
-	 * the login screen, who has no name for anyone who joined after them: they have no name, and haven't
-	 * said anything for a while
+	 * @return true if a party member has no name and has said nothing for a while. That's most likely a
+	 * connection that has already closed, or someone at the login screen, who has no name for anyone who
+	 * joined after them.
 	 */
 	static boolean isClosedConnection(boolean named, long lastSign, long now)
 	{
@@ -412,8 +411,9 @@ public class GroupSync
 		}
 		ClanSettings settings = client.getClanSettings(ClanID.GROUP_IRONMAN);
 		// the list can go missing for a moment, such as when hopping worlds, which doesn't mean we've left
-		boolean inGroup = settings == null ? localInGroup : settings.getName() != null
-			&& rosterKey(settings.getName()).equals(rosterKey(group));
+		boolean inGroup = settings == null
+			? localInGroup
+			: settings.getName() != null && rosterKey(settings.getName()).equals(rosterKey(group));
 		if (inGroup && settings != null)
 		{
 			Set<String> names = new HashSet<>();
@@ -547,30 +547,36 @@ public class GroupSync
 		notifyStatus();
 	}
 
-	// anything from a party member shows their connection is open, whoever they are
+	/**
+	 * Anything from a party member shows their connection is open, whoever they are.
+	 */
+	private void heardFrom(long memberId)
+	{
+		heardAt.put(memberId, System.currentTimeMillis());
+	}
 
 	@Subscribe
 	public void onPartyData(PartyData message)
 	{
-		heardAt.put(message.getMemberId(), System.currentTimeMillis());
+		heardFrom(message.getMemberId());
 	}
 
 	@Subscribe
 	public void onHomebasePresence(HomebasePresence message)
 	{
-		heardAt.put(message.getMemberId(), System.currentTimeMillis());
+		heardFrom(message.getMemberId());
 	}
 
 	@Subscribe
 	public void onHomebasePing(HomebasePing message)
 	{
-		heardAt.put(message.getMemberId(), System.currentTimeMillis());
+		heardFrom(message.getMemberId());
 	}
 
 	@Subscribe
 	public void onHomebaseSyncMessage(HomebaseSyncMessage message)
 	{
-		heardAt.put(message.getMemberId(), System.currentTimeMillis());
+		heardFrom(message.getMemberId());
 		SyncEngine engine = this.engine;
 		if (engine == null || !isGroupParty())
 		{
@@ -650,7 +656,7 @@ public class GroupSync
 			}
 			notifyStatus();
 		}
-		// our name went out just before this, and whatever gets there ahead of it is ignored, so it waits a turn
+		// our name has only just gone out, and anything that arrives before it is ignored, so wait a turn
 		presence.tick(safe, sharing && !justStarted);
 		if (justStarted)
 		{
