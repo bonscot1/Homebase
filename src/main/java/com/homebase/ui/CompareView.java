@@ -9,6 +9,7 @@ import com.homebase.data.GroupView;
 import com.homebase.data.KillCountsData;
 import com.homebase.data.ProfileData;
 import com.homebase.data.QuestsData;
+import com.homebase.data.RanksData;
 import com.homebase.data.Section;
 import com.homebase.data.SkillsData;
 import java.awt.BorderLayout;
@@ -20,6 +21,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.TreeSet;
 import java.util.function.Consumer;
@@ -31,16 +33,16 @@ import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.border.EmptyBorder;
-import lombok.AllArgsConstructor;
 import net.runelite.api.Experience;
 import net.runelite.api.Skill;
+import net.runelite.client.hiscore.HiscoreSkill;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.FontManager;
 import net.runelite.client.util.QuantityFormatter;
 
 /**
  * Any two members side by side: levels, quests, diaries, combat achievements, the collection log, kill
- * counts and best times, with whoever is ahead in green and a winner at the top.
+ * counts, best times and hiscore ranks, with whoever is ahead in green and a winner at the top.
  */
 class CompareView extends JPanel
 {
@@ -53,6 +55,9 @@ class CompareView extends JPanel
 	private static final String SKILLS_ID = "compare:skills";
 	private static final String KILLS_ID = "compare:kills";
 	private static final String TIMES_ID = "compare:times";
+	private static final String RANKS_ID = "compare:ranks";
+
+	private static final String RANKS_TIP = "From the hiscores, read when each of you last logged in";
 
 	private final HomebasePlugin plugin;
 	private final Supplier<GroupView> views;
@@ -68,7 +73,6 @@ class CompareView extends JPanel
 	/**
 	 * One row: what's compared, each member's value as shown, and who's ahead.
 	 */
-	@AllArgsConstructor
 	static final class Line
 	{
 		final JComponent label;
@@ -76,9 +80,30 @@ class CompareView extends JPanel
 		final String b;
 
 		/**
+		 * Shown on hovering each value, for values shortened to fit.
+		 */
+		final String tipA;
+		final String tipB;
+
+		/**
 		 * Above 0 if the first member is ahead, below 0 if the second is.
 		 */
 		final int compare;
+
+		Line(JComponent label, String a, String b, int compare)
+		{
+			this(label, a, b, a, b, compare);
+		}
+
+		Line(JComponent label, String a, String b, String tipA, String tipB, int compare)
+		{
+			this.label = label;
+			this.a = a;
+			this.b = b;
+			this.tipA = tipA;
+			this.tipB = tipB;
+			this.compare = compare;
+		}
 	}
 
 	CompareView(HomebasePlugin plugin, Supplier<GroupView> views, Supplier<String> me, MemberCard.Context context)
@@ -118,11 +143,13 @@ class CompareView extends JPanel
 		List<Line> skills = skills(view);
 		List<Line> kills = kills(view);
 		List<Line> times = bestTimes(view);
+		List<Line> ranks = ranks(view);
 		List<Line> all = new ArrayList<>();
 		all.addAll(overview);
 		all.addAll(skills);
 		all.addAll(kills);
 		all.addAll(times);
+		all.addAll(ranks);
 
 		JPanel card = new JPanel();
 		card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
@@ -136,6 +163,7 @@ class CompareView extends JPanel
 		addSection(card, "Skills", skills, SKILLS_ID);
 		addSection(card, "Kill counts", kills, KILLS_ID);
 		addSection(card, "Best times", times, TIMES_ID);
+		addSection(card, "Hiscore ranks", ranks, RANKS_ID);
 		Ui.alignChildrenLeft(card);
 		card.setAlignmentX(Component.LEFT_ALIGNMENT);
 		add(card);
@@ -267,10 +295,15 @@ class CompareView extends JPanel
 		CombatAchievementsData cb = view.get(right, Section.COMBAT_ACHIEVEMENTS, CombatAchievementsData.class);
 		CollectionLogData la = view.get(left, Section.COLLECTION_LOG, CollectionLogData.class);
 		CollectionLogData lb = view.get(right, Section.COLLECTION_LOG, CollectionLogData.class);
+		RanksData ra = view.get(left, Section.RANKS, RanksData.class);
+		RanksData rb = view.get(right, Section.RANKS, RanksData.class);
 
 		List<Line> out = new ArrayList<>();
 		out.add(numbers("Combat level", a == null ? null : combatLevel(a), b == null ? null : combatLevel(b)));
 		out.add(numbers("Total level", a == null ? null : a.getTotalLevel(), b == null ? null : b.getTotalLevel()));
+		// older versions of the plugin don't share ranks
+		String overall = HiscoreSkill.OVERALL.getName();
+		out.add(rankLine("Hiscore rank", rank(ra, overall), rank(rb, overall)));
 		out.add(numbers("Quests", qa == null ? null : qa.count(QuestsData.FINISHED), qb == null ? null : qb.count(QuestsData.FINISHED)));
 		// older versions of the plugin don't share quest points
 		out.add(numbers("Quest points", qa == null ? null : positive(qa.getPoints()), qb == null ? null : positive(qb.getPoints())));
@@ -306,8 +339,8 @@ class CompareView extends JPanel
 		KillCountsData a = view.get(left, Section.KILL_COUNTS, KillCountsData.class);
 		KillCountsData b = view.get(right, Section.KILL_COUNTS, KillCountsData.class);
 		TreeSet<String> bosses = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
-		addBosses(bosses, a == null ? null : a.getCounts());
-		addBosses(bosses, b == null ? null : b.getCounts());
+		addNames(bosses, a == null ? null : a.getCounts());
+		addNames(bosses, b == null ? null : b.getCounts());
 		List<String> rows = merged(bosses);
 		rows.removeIf(boss -> count(a, boss) <= 0 && count(b, boss) <= 0);
 		rows.sort(Comparator.comparing((String boss) -> -Math.max(count(a, boss), count(b, boss))));
@@ -324,8 +357,8 @@ class CompareView extends JPanel
 		KillCountsData a = view.get(left, Section.KILL_COUNTS, KillCountsData.class);
 		KillCountsData b = view.get(right, Section.KILL_COUNTS, KillCountsData.class);
 		TreeSet<String> bosses = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
-		addBosses(bosses, a == null ? null : a.getBestTimes());
-		addBosses(bosses, b == null ? null : b.getBestTimes());
+		addNames(bosses, a == null ? null : a.getBestTimes());
+		addNames(bosses, b == null ? null : b.getBestTimes());
 		List<Line> out = new ArrayList<>();
 		for (String boss : merged(bosses))
 		{
@@ -339,11 +372,89 @@ class CompareView extends JPanel
 		return out;
 	}
 
-	private static void addBosses(TreeSet<String> bosses, Map<String, ?> names)
+	/**
+	 * Every hiscores table either member is ranked on, apart from the overall one, in the hiscores' own
+	 * order: skills, then activities like clue scrolls, then bosses.
+	 */
+	private List<Line> ranks(GroupView view)
+	{
+		RanksData a = view.get(left, Section.RANKS, RanksData.class);
+		RanksData b = view.get(right, Section.RANKS, RanksData.class);
+		TreeSet<String> names = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+		addNames(names, a == null ? null : a.getRanks());
+		addNames(names, b == null ? null : b.getRanks());
+		names.remove(HiscoreSkill.OVERALL.getName());
+
+		List<String> ordered = new ArrayList<>();
+		for (HiscoreSkill table : HiscoreSkill.values())
+		{
+			if (names.remove(table.getName()))
+			{
+				ordered.add(table.getName());
+			}
+		}
+		// tables this version of RuneLite doesn't know yet go last
+		ordered.addAll(names);
+
+		List<Line> out = new ArrayList<>();
+		for (String name : ordered)
+		{
+			out.add(rankLine(name, rank(a, name), rank(b, name)));
+		}
+		return out;
+	}
+
+	private static Integer rank(RanksData ranks, String name)
+	{
+		return ranks == null ? null : ranks.rankFor(name);
+	}
+
+	private static Line rankLine(String label, Integer a, Integer b)
+	{
+		JLabel name = Ui.small(label, ColorScheme.LIGHT_GRAY_COLOR);
+		name.setToolTipText(RANKS_TIP);
+		return new Line(name, rankText(a), rankText(b), rankTip(a), rankTip(b), compareRanks(a, b));
+	}
+
+	/**
+	 * @return a rank short enough for its column, such as "8,412", "312K" or "1.2M"
+	 */
+	static String rankText(Integer rank)
+	{
+		if (rank == null)
+		{
+			return NONE;
+		}
+		if (rank < 100_000)
+		{
+			return QuantityFormatter.formatNumber(rank);
+		}
+		if (rank < 1_000_000)
+		{
+			return rank / 1_000 + "K";
+		}
+		return String.format(Locale.ROOT, "%.1fM", Math.floor(rank / 100_000.0) / 10);
+	}
+
+	private static String rankTip(Integer rank)
+	{
+		return rank == null ? "Not ranked" : "Rank " + QuantityFormatter.formatNumber(rank);
+	}
+
+	/**
+	 * @return above 0 if the first rank is better, which is the lower one, below 0 if the second is, and
+	 * 0 for a tie or if either isn't ranked
+	 */
+	static int compareRanks(Integer a, Integer b)
+	{
+		return compare(b, a);
+	}
+
+	private static void addNames(TreeSet<String> into, Map<String, ?> names)
 	{
 		if (names != null)
 		{
-			bosses.addAll(names.keySet());
+			into.addAll(names.keySet());
 		}
 	}
 
@@ -406,18 +517,18 @@ class CompareView extends JPanel
 		row.add(line.label, BorderLayout.CENTER);
 		JPanel values = new JPanel(new GridLayout(1, 2, 4, 0));
 		values.setOpaque(false);
-		values.add(value(line.a, line.compare > 0 ? AHEAD : Color.WHITE));
-		values.add(value(line.b, line.compare < 0 ? AHEAD : Color.WHITE));
+		values.add(value(line.a, line.tipA, line.compare > 0 ? AHEAD : Color.WHITE));
+		values.add(value(line.b, line.tipB, line.compare < 0 ? AHEAD : Color.WHITE));
 		row.add(values, BorderLayout.EAST);
 		return row;
 	}
 
-	private static JLabel value(String text, Color color)
+	private static JLabel value(String text, String tip, Color color)
 	{
 		JLabel label = Ui.small(text, color);
 		label.setHorizontalAlignment(JLabel.RIGHT);
 		label.setPreferredSize(new Dimension(VALUE_WIDTH, label.getPreferredSize().height));
-		label.setToolTipText(text);
+		label.setToolTipText(tip);
 		return label;
 	}
 }
