@@ -52,7 +52,7 @@ public class GroupHiscores
 		LOOKING,
 		FOUND,
 		/**
-		 * The group isn't on the hiscores, or isn't on a board's pages where it should be.
+		 * There's no group by that name on the hiscores.
 		 */
 		NOT_FOUND,
 		FAILED
@@ -105,8 +105,7 @@ public class GroupHiscores
 	}
 
 	/**
-	 * The group's line on a board, and the line above it. Some ranks are never listed, such as those of
-	 * hardcore groups on the regular board, so the group above isn't always one rank higher.
+	 * The group's line on a board, and the line above it.
 	 */
 	@Value
 	static class Place
@@ -132,8 +131,8 @@ public class GroupHiscores
 		Row row;
 
 		/**
-		 * The group one place above, or null when the group is top of its board. Its skills are only known
-		 * when it has a name to look it up by.
+		 * The group one place above, or null when the group is top of its board or wasn't asked about.
+		 * Its skills are only known if its page could be read.
 		 */
 		Row above;
 		Group aboveGroup;
@@ -166,6 +165,7 @@ public class GroupHiscores
 	private static final Pattern SKILL = Pattern.compile("<span class='ua-skill-icon ua-skill-icon--[a-z_]+'>([^<]+)</span>\\s*</dt>"
 		+ "\\s*<dd class='um-detail-list__value um-detail-list__value--type-(level|xp)'[^>]*>([\\d,]+)</dd>");
 	private static final Pattern TITLE = Pattern.compile("<title>[^<]*- Hiscores - ([^<]*)</title>");
+
 	/**
 	 * A line of a board: its rank, link, name, level and XP. Prestiged groups have a star before their
 	 * name, and perished hardcore groups a skull before their level.
@@ -259,6 +259,7 @@ public class GroupHiscores
 	{
 		try
 		{
+			// a hardcore group that has lost a member counts as a regular group, so the regular board comes next
 			Standing fallback = Standing.NOT_FOUND;
 			for (Board board : Board.values())
 			{
@@ -271,7 +272,6 @@ public class GroupHiscores
 				Row above = place == null || !withAbove ? null : place.getAbove();
 				Standing standing = new Standing(State.FOUND, board, group, place == null ? null : place.getRow(), above,
 					above == null ? null : details(above));
-				// a hardcore group that has lost a member counts as a regular group, so it's ranked on the regular board
 				if (place != null && !place.getRow().isPerished())
 				{
 					return standing;
@@ -281,7 +281,7 @@ public class GroupHiscores
 					fallback = standing;
 				}
 			}
-			// otherwise it's shown where it was found, even without a rank
+			// otherwise show it where it was found, even without a rank
 			return fallback;
 		}
 		catch (IOException | RuntimeException e)
@@ -292,10 +292,6 @@ public class GroupHiscores
 	}
 
 	/**
-	 * Read a page, trying again after a pause if the site is busy. The hiscores often time out on one
-	 * page in a few, and a search reads around a dozen.
-	 */
-	/**
 	 * @return the group on a board line's own page, or null if the line doesn't link to the hiscores
 	 */
 	private Group details(Row row) throws IOException
@@ -304,6 +300,10 @@ public class GroupHiscores
 		return url == null || !url.host().equals(HOST) ? null : parseGroup(fetch(url));
 	}
 
+	/**
+	 * Read a page, trying again after a pause if the site is busy. The hiscores often time out on one
+	 * page in a few, and a search reads around a dozen.
+	 */
 	private String fetch(HttpUrl url) throws IOException
 	{
 		for (int attempt = 1; ; attempt++)
@@ -360,6 +360,9 @@ public class GroupHiscores
 			.build();
 	}
 
+	/**
+	 * A board's pages by number, so the tests can make a board up.
+	 */
 	interface Pages
 	{
 		Page get(int page) throws IOException;
@@ -529,7 +532,7 @@ public class GroupHiscores
 	 */
 	public static String normalize(String name)
 	{
-		return name.replace(' ', ' ').replaceAll("\\s+", " ").trim().toLowerCase(Locale.ROOT);
+		return name.replace('\u00A0', ' ').replaceAll("\\s+", " ").trim().toLowerCase(Locale.ROOT);
 	}
 
 	private static String unescape(String text)

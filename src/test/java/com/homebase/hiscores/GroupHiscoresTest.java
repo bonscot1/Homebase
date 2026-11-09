@@ -151,7 +151,7 @@ public class GroupHiscoresTest
 	@Test
 	public void namesMatchWhateverTheGameDoesWithSpaces()
 	{
-		assertEquals("muddy boots", GroupHiscores.normalize("Muddy Boots "));
+		assertEquals("muddy boots", GroupHiscores.normalize("Muddy\u00A0Boots "));
 	}
 
 	/**
