@@ -8,12 +8,12 @@ import com.homebase.hiscores.GroupHiscores.Group;
 import com.homebase.hiscores.GroupHiscores.Page;
 import com.homebase.hiscores.GroupHiscores.Place;
 import com.homebase.hiscores.GroupHiscores.Row;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.CompletableFuture;
 import org.junit.Test;
 
 public class GroupHiscoresTest
@@ -74,7 +74,7 @@ public class GroupHiscoresTest
 	}
 
 	@Test
-	public void findsTheGroupAndTheOneAboveInAFewPages() throws IOException
+	public void findsTheGroupAndTheOneAboveInAFewPages()
 	{
 		List<Row> board = board(30_000);
 		Row ours = board.get(12_345);
@@ -84,7 +84,7 @@ public class GroupHiscoresTest
 		{
 			reads[0]++;
 			return page(board, number);
-		});
+		}).join();
 
 		assertNotNull(place);
 		assertEquals(ours, place.getRow());
@@ -93,35 +93,35 @@ public class GroupHiscoresTest
 	}
 
 	@Test
-	public void theGroupAboveCanBeOnThePageBefore() throws IOException
+	public void theGroupAboveCanBeOnThePageBefore()
 	{
 		List<Row> board = board(2_000);
 		Row ours = board.get(PER_PAGE * 7);
 
-		Place place = GroupHiscores.locate(group(ours), number -> page(board, number));
+		Place place = GroupHiscores.locate(group(ours), number -> page(board, number)).join();
 
 		assertNotNull(place);
 		assertEquals(board.get(PER_PAGE * 7 - 1), place.getAbove());
 	}
 
 	@Test
-	public void theTopGroupHasNobodyAbove() throws IOException
+	public void theTopGroupHasNobodyAbove()
 	{
 		List<Row> board = board(500);
 
-		Place place = GroupHiscores.locate(group(board.get(0)), number -> page(board, number));
+		Place place = GroupHiscores.locate(group(board.get(0)), number -> page(board, number)).join();
 
 		assertNotNull(place);
 		assertNull(place.getAbove());
 	}
 
 	@Test
-	public void aGroupThatIsntListedIsntFound() throws IOException
+	public void aGroupThatIsntListedIsntFound()
 	{
 		List<Row> board = board(5_000);
 		Row hidden = board.remove(2_222);
 
-		assertNull(GroupHiscores.locate(group(hidden), number -> page(board, number)));
+		assertNull(GroupHiscores.locate(group(hidden), number -> page(board, number)).join());
 	}
 
 	@Test
@@ -175,12 +175,12 @@ public class GroupHiscoresTest
 		return new Group(row.getName(), 4, row.getLevel(), row.getXp(), Collections.emptyMap(), Collections.emptyMap());
 	}
 
-	private static Page page(List<Row> board, int number)
+	private static CompletableFuture<Page> page(List<Row> board, int number)
 	{
 		int from = Math.min(board.size(), (number - 1) * PER_PAGE);
 		int to = Math.min(board.size(), from + PER_PAGE);
 		int last = (board.size() + PER_PAGE - 1) / PER_PAGE;
-		return GroupHiscores.parsePage(boardPage(last, board.subList(from, to)));
+		return CompletableFuture.completedFuture(GroupHiscores.parsePage(boardPage(last, board.subList(from, to))));
 	}
 
 	/**
