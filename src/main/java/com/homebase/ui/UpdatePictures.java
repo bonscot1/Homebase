@@ -9,6 +9,7 @@ import java.awt.Graphics2D;
 import java.awt.Image;
 import java.awt.RenderingHints;
 import javax.swing.JComponent;
+import javax.swing.SwingUtilities;
 import net.runelite.api.Item;
 import net.runelite.api.Skill;
 import net.runelite.api.gameval.ItemID;
@@ -89,8 +90,8 @@ final class UpdatePictures
 
 	private void sprite(Picture picture, int spriteId)
 	{
-		// this can call back on the client thread, which is fine, since show only sets the image and repaints
-		sprites.getSpriteAsync(spriteId, 0, picture::show);
+		// the sprite can arrive on the client thread
+		sprites.getSpriteAsync(spriteId, 0, image -> SwingUtilities.invokeLater(() -> picture.show(image)));
 	}
 
 	private void item(Picture picture, int itemId)

@@ -419,7 +419,7 @@ public class GroupHiscores
 			{
 				continue;
 			}
-			if (i > 0 || number == 1 || read >= MAX_PAGES)
+			if (i > 0 || number == 1)
 			{
 				return CompletableFuture.completedFuture(new Place(row, i > 0 ? rows.get(i - 1) : null));
 			}
