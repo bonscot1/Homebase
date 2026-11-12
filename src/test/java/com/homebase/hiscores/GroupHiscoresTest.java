@@ -154,6 +154,12 @@ public class GroupHiscoresTest
 		assertEquals("muddy boots", GroupHiscores.normalize("Muddy\u00A0Boots "));
 	}
 
+	@Test
+	public void theHiscoresAreAskedForTheNameWithPlainSpaces()
+	{
+		assertEquals("Muddy Boots", GroupHiscores.groupUrl(GroupHiscores.Board.REGULAR, "Muddy\u00A0Boots").queryParameter("name"));
+	}
+
 	/**
 	 * A board of made-up groups, from the highest total level down, with every rank listed.
 	 */

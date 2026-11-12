@@ -195,6 +195,10 @@ public class GroupHiscores
 		Standing standing;
 		long foundAt;
 		boolean running;
+		/**
+		 * Set when the plugin is turned off, so the pages still to read aren't asked for.
+		 */
+		volatile boolean stopped;
 	}
 
 	private final OkHttpClient http;
@@ -245,7 +249,7 @@ public class GroupHiscores
 		if (due && !lookup.running)
 		{
 			lookup.running = true;
-			lookUp(groupName, withAbove, 0, Standing.NOT_FOUND).whenComplete((found, error) ->
+			lookUp(lookup, groupName, withAbove, 0, Standing.NOT_FOUND).whenComplete((found, error) ->
 			{
 				if (error != null)
 				{
@@ -261,6 +265,10 @@ public class GroupHiscores
 	{
 		synchronized (this)
 		{
+			if (lookup.stopped)
+			{
+				return;
+			}
 			lookup.running = false;
 			lookup.standing = found;
 			lookup.foundAt = System.currentTimeMillis();
@@ -269,29 +277,41 @@ public class GroupHiscores
 	}
 
 	/**
+	 * Stop the lookups that are still going and forget what was found, for when the plugin is turned off.
+	 */
+	public synchronized void stop()
+	{
+		for (Lookup lookup : lookups.values())
+		{
+			lookup.stopped = true;
+		}
+		lookups.clear();
+	}
+
+	/**
 	 * Look the group up on each board in turn, starting from {@code board}. A hardcore group that has lost a
 	 * member counts as a regular group, so it goes on to the regular board, and is only shown on the
 	 * hardcore one if the regular one doesn't have it.
 	 */
-	private CompletableFuture<Standing> lookUp(String groupName, boolean withAbove, int board, Standing fallback)
+	private CompletableFuture<Standing> lookUp(Lookup lookup, String groupName, boolean withAbove, int board, Standing fallback)
 	{
 		if (board >= Board.values().length)
 		{
 			return CompletableFuture.completedFuture(fallback);
 		}
 		Board on = Board.values()[board];
-		return fetch(groupUrl(on, groupName)).thenCompose(html ->
+		return fetch(lookup, groupUrl(on, groupName)).thenCompose(html ->
 		{
 			Group group = parseGroup(html);
 			if (group == null)
 			{
-				return lookUp(groupName, withAbove, board + 1, fallback);
+				return lookUp(lookup, groupName, withAbove, board + 1, fallback);
 			}
-			return locate(group, page -> fetch(pageUrl(on, group.getSize(), page)).thenApply(GroupHiscores::parsePage))
+			return locate(group, page -> fetch(lookup, pageUrl(on, group.getSize(), page)).thenApply(GroupHiscores::parsePage))
 				.thenCompose(place ->
 				{
 					Row above = place == null || !withAbove ? null : place.getAbove();
-					return details(above).thenCompose(aboveGroup ->
+					return details(lookup, above).thenCompose(aboveGroup ->
 					{
 						// even without a rank, a group that's on the hiscores can be compared
 						Standing standing = new Standing(State.FOUND, on, group, place == null ? null : place.getRow(), above, aboveGroup);
@@ -299,7 +319,7 @@ public class GroupHiscores
 						{
 							return CompletableFuture.completedFuture(standing);
 						}
-						return lookUp(groupName, withAbove, board + 1, fallback.getState() == State.NOT_FOUND ? standing : fallback);
+						return lookUp(lookup, groupName, withAbove, board + 1, fallback.getState() == State.NOT_FOUND ? standing : fallback);
 					});
 				});
 		});
@@ -308,29 +328,35 @@ public class GroupHiscores
 	/**
 	 * @return the group on a board line's own page, or null if there's no line or it doesn't link to the hiscores
 	 */
-	private CompletableFuture<Group> details(Row row)
+	private CompletableFuture<Group> details(Lookup lookup, Row row)
 	{
 		HttpUrl url = row == null ? null : HttpUrl.parse(row.getLink());
 		if (url == null || !url.host().equals(HOST))
 		{
 			return CompletableFuture.completedFuture(null);
 		}
-		return fetch(url).thenApply(GroupHiscores::parseGroup);
+		return fetch(lookup, url).thenApply(GroupHiscores::parseGroup);
 	}
 
 	/**
 	 * Read a page. The hiscores often time out on one page in a few, and a search reads around a dozen,
-	 * so a page that fails is asked for again a little later.
+	 * so a page that times out or that the site couldn't serve is asked for again a little later. Any other
+	 * answer, such as being told to slow down, ends the lookup until its next turn.
 	 */
-	private CompletableFuture<String> fetch(HttpUrl url)
+	private CompletableFuture<String> fetch(Lookup lookup, HttpUrl url)
 	{
 		CompletableFuture<String> page = new CompletableFuture<>();
-		fetch(url, 1, page);
+		fetch(lookup, url, 1, page);
 		return page;
 	}
 
-	private void fetch(HttpUrl url, int attempt, CompletableFuture<String> page)
+	private void fetch(Lookup lookup, HttpUrl url, int attempt, CompletableFuture<String> page)
 	{
+		if (lookup.stopped)
+		{
+			page.cancel(false);
+			return;
+		}
 		Request request = new Request.Builder().url(url).build();
 		http.newCall(request).enqueue(new Callback()
 		{
@@ -346,9 +372,14 @@ public class GroupHiscores
 				try (Response answer = response)
 				{
 					ResponseBody body = answer.body();
-					if (!answer.isSuccessful() || body == null)
+					if (answer.code() >= 500)
 					{
 						tryAgain(new IOException("The hiscores answered " + answer.code()));
+						return;
+					}
+					if (!answer.isSuccessful() || body == null)
+					{
+						page.completeExceptionally(new IOException("The hiscores answered " + answer.code()));
 						return;
 					}
 					page.complete(body.string());
@@ -366,15 +397,16 @@ public class GroupHiscores
 					page.completeExceptionally(e);
 					return;
 				}
-				executor.schedule(() -> fetch(url, attempt + 1, page), RETRY_DELAY_MS * attempt, TimeUnit.MILLISECONDS);
+				executor.schedule(() -> fetch(lookup, url, attempt + 1, page), RETRY_DELAY_MS * attempt, TimeUnit.MILLISECONDS);
 			}
 		});
 	}
 
-	private static HttpUrl groupUrl(Board board, String name)
+	static HttpUrl groupUrl(Board board, String name)
 	{
+		// the game writes the spaces in a group's name as non-breaking ones, and the hiscores only find plain ones
 		return HttpUrl.get(SITE + board.getSite() + "/group-ironman/view-group").newBuilder()
-			.addQueryParameter("name", name)
+			.addQueryParameter("name", name.replace('\u00A0', ' ').trim())
 			.build();
 	}
 

@@ -17,6 +17,7 @@ import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.GridLayout;
+import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -53,6 +54,10 @@ import net.runelite.client.util.QuantityFormatter;
 class CompareView extends JPanel
 {
 	private static final int MAX_NAME = 20;
+	/**
+	 * Boss names come from other members' data, so they're cleaned and cut short like anything else they send.
+	 */
+	private static final int MAX_BOSS_NAME = 40;
 	private static final int VALUE_WIDTH = 38;
 	private static final Color AHEAD = ColorScheme.PROGRESS_COMPLETE_COLOR;
 	private static final String NONE = "-";
@@ -682,37 +687,58 @@ class CompareView extends JPanel
 
 	private List<Line> kills(GroupView view)
 	{
-		KillCountsData a = view.get(left, Section.KILL_COUNTS, KillCountsData.class);
-		KillCountsData b = view.get(right, Section.KILL_COUNTS, KillCountsData.class);
+		return kills(view.get(left, Section.KILL_COUNTS, KillCountsData.class), view.get(right, Section.KILL_COUNTS, KillCountsData.class));
+	}
+
+	static List<Line> kills(KillCountsData a, KillCountsData b)
+	{
 		TreeSet<String> bosses = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
 		addNames(bosses, a == null ? null : a.getCounts());
 		addNames(bosses, b == null ? null : b.getCounts());
-		List<String> rows = merged(bosses);
-		rows.removeIf(boss -> count(a, boss) <= 0 && count(b, boss) <= 0);
-		rows.sort(Comparator.comparing((String boss) -> -Math.max(count(a, boss), count(b, boss))));
-		List<Line> out = new ArrayList<>();
-		for (String boss : rows)
+		// each boss's counts are found once, because finding a boss kept under another name is slow
+		List<Map.Entry<String, int[]>> rows = new ArrayList<>();
+		for (String boss : merged(bosses))
 		{
-			out.add(numbers(boss, positive(count(a, boss)), positive(count(b, boss))));
+			String name = Clean.text(boss, MAX_BOSS_NAME);
+			int countA = count(a, boss);
+			int countB = count(b, boss);
+			if (name != null && (countA > 0 || countB > 0))
+			{
+				rows.add(new AbstractMap.SimpleEntry<>(name, new int[]{countA, countB}));
+			}
+		}
+		rows.sort(Comparator.comparingInt(row -> -Math.max(row.getValue()[0], row.getValue()[1])));
+		List<Line> out = new ArrayList<>();
+		for (Map.Entry<String, int[]> row : rows)
+		{
+			out.add(numbers(row.getKey(), positive(row.getValue()[0]), positive(row.getValue()[1])));
 		}
 		return out;
 	}
 
 	private List<Line> bestTimes(GroupView view)
 	{
-		KillCountsData a = view.get(left, Section.KILL_COUNTS, KillCountsData.class);
-		KillCountsData b = view.get(right, Section.KILL_COUNTS, KillCountsData.class);
+		return bestTimes(view.get(left, Section.KILL_COUNTS, KillCountsData.class), view.get(right, Section.KILL_COUNTS, KillCountsData.class));
+	}
+
+	static List<Line> bestTimes(KillCountsData a, KillCountsData b)
+	{
 		TreeSet<String> bosses = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
 		addNames(bosses, a == null ? null : a.getBestTimes());
 		addNames(bosses, b == null ? null : b.getBestTimes());
 		List<Line> out = new ArrayList<>();
 		for (String boss : merged(bosses))
 		{
+			String name = Clean.text(boss, MAX_BOSS_NAME);
+			if (name == null)
+			{
+				continue;
+			}
 			Double timeA = a == null ? null : a.bestTimeFor(boss);
 			Double timeB = b == null ? null : b.bestTimeFor(boss);
 			// a faster time is better, so the lower one wins
 			int compare = timeA == null || timeB == null ? 0 : -Double.compare(timeA, timeB);
-			out.add(new Line(Ui.small(boss, ColorScheme.LIGHT_GRAY_COLOR), timeA == null ? NONE : KillCountsData.formatTime(timeA),
+			out.add(new Line(Ui.small(name, ColorScheme.LIGHT_GRAY_COLOR), timeA == null ? NONE : KillCountsData.formatTime(timeA),
 				timeB == null ? NONE : KillCountsData.formatTime(timeB), compare));
 		}
 		return out;

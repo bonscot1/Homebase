@@ -13,6 +13,7 @@ import com.homebase.collect.CollectionLogSearch;
 import com.homebase.collect.FeedCollector;
 import com.homebase.collect.LocalCollector;
 import com.homebase.collect.PersonalBests;
+import com.homebase.hiscores.GroupHiscores;
 import com.homebase.data.GroupIndex;
 import com.homebase.data.GroupView;
 import com.homebase.data.Ids;
@@ -197,6 +198,9 @@ public class HomebasePlugin extends Plugin
 
 	@Inject
 	private PersonalBests personalBests;
+
+	@Inject
+	private GroupHiscores groupHiscores;
 
 	@Inject
 	private MapPins mapPins;
@@ -389,6 +393,7 @@ public class HomebasePlugin extends Plugin
 		eventBus.unregister(findOnMap);
 		eventBus.unregister(mapPins);
 		eventBus.unregister(personalBests);
+		groupHiscores.stop();
 		eventBus.unregister(feedCollector);
 		eventBus.unregister(collector);
 		eventBus.unregister(presence);
