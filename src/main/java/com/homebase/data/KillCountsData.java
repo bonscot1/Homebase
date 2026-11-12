@@ -4,6 +4,7 @@ import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 import lombok.Data;
 
 /**
@@ -22,6 +23,13 @@ public class KillCountsData implements Checkable
 	 * Longest best time kept, in seconds: a day.
 	 */
 	static final double MAX_SECONDS = 24 * 60 * 60;
+
+	/**
+	 * For matching boss names, which happens a lot on the Compare tab.
+	 */
+	private static final Pattern NOT_WORD = Pattern.compile("[^a-z0-9 ]");
+	private static final Pattern SPACES = Pattern.compile("\\s+");
+	private static final Pattern CHESTS = Pattern.compile(" chests?$");
 
 	/**
 	 * Boss name to kill count.
@@ -96,12 +104,12 @@ public class KillCountsData implements Checkable
 	 */
 	public static String bossKey(String name)
 	{
-		String key = name.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9 ]", "").replaceAll("\\s+", " ").trim();
+		String key = SPACES.matcher(NOT_WORD.matcher(name.toLowerCase(Locale.ROOT)).replaceAll("")).replaceAll(" ").trim();
 		if (key.startsWith("the "))
 		{
 			key = key.substring(4);
 		}
-		key = key.replaceAll(" chests?$", "");
+		key = CHESTS.matcher(key).replaceAll("");
 		return key.endsWith("s") ? key.substring(0, key.length() - 1) : key;
 	}
 
