@@ -575,7 +575,8 @@ public class HomebasePlugin extends Plugin
 	 */
 	private void onGroupNameRead(String name)
 	{
-		if (Strings.isNullOrEmpty(config.groupPassphrase()) && !name.equals(config.gimGroup()))
+		// a passphrase of only spaces counts as none, the same as when the group is chosen
+		if (Strings.nullToEmpty(config.groupPassphrase()).trim().isEmpty() && !name.equals(config.gimGroup()))
 		{
 			// remembering it changes the config, which switches to the group
 			configManager.setConfiguration(HomebaseConfig.GROUP, HomebaseConfig.GIM_GROUP_KEY, name);

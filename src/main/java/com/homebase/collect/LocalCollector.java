@@ -45,6 +45,7 @@ import net.runelite.api.events.StatChanged;
 import net.runelite.api.events.VarbitChanged;
 import net.runelite.api.gameval.InventoryID;
 import net.runelite.api.gameval.VarPlayerID;
+import net.runelite.api.gameval.VarbitID;
 import net.runelite.client.eventbus.Subscribe;
 
 /**
@@ -61,6 +62,18 @@ public class LocalCollector
 	 * Ticks to wait after login before reading the account, so names and containers are loaded.
 	 */
 	private static final int LOGIN_DELAY_TICKS = 2;
+
+	/**
+	 * The account type varbit's values for a Group Ironman, a Hardcore one and an Unranked one.
+	 */
+	private static final int FIRST_GROUP_IRONMAN_TYPE = 4;
+	private static final int LAST_GROUP_IRONMAN_TYPE = 6;
+
+	/**
+	 * How long after login a Group Ironman without a group is told it's still being looked for: half a
+	 * minute. Someone who isn't in a group yet gets the usual way to make one after that.
+	 */
+	private static final int GROUP_WAIT_TICKS = 50;
 
 	/**
 	 * Quests are read a little after login so the game has loaded them, otherwise a member would
@@ -123,6 +136,14 @@ public class LocalCollector
 	private volatile Consumer<String> groupListener;
 
 	/**
+	 * True for a while after logging in on a Group Ironman account whose group isn't known yet, so the
+	 * panel can say the group is on its way instead of offering to make a new one.
+	 */
+	private volatile boolean lookingForGroup;
+
+	private int ticksWithoutGroup;
+
+	/**
 	 * Decides whether the logged in account's data belongs in the current group. Data waits until it
 	 * does, so an alt that isn't in the group never shares anything.
 	 */
@@ -143,7 +164,7 @@ public class LocalCollector
 	private final Set<Section> withheld = ConcurrentHashMap.newKeySet();
 
 	@Inject
-	private LocalCollector(Client client, Gson gson, HomebaseConfig config)
+	LocalCollector(Client client, Gson gson, HomebaseConfig config)
 	{
 		this.client = client;
 		this.gson = gson;
@@ -162,6 +183,11 @@ public class LocalCollector
 	public void setGroupListener(Consumer<String> groupListener)
 	{
 		this.groupListener = groupListener;
+	}
+
+	public boolean isLookingForGroup()
+	{
+		return lookingForGroup;
 	}
 
 	public void setSharePolicy(Predicate<ProfileData> sharePolicy)
@@ -198,6 +224,8 @@ public class LocalCollector
 		sharePolicy = p -> true;
 		memberId = null;
 		profile = null;
+		lookingForGroup = false;
+		ticksWithoutGroup = 0;
 		loginTicks = -1;
 		pending.clear();
 		lastPublished.clear();
@@ -232,6 +260,8 @@ public class LocalCollector
 				flush(true);
 				memberId = null;
 				profile = null;
+				lookingForGroup = false;
+				ticksWithoutGroup = 0;
 				loginTicks = -1;
 				questTicks = -1;
 				pending.clear();
@@ -249,6 +279,7 @@ public class LocalCollector
 		}
 		if (memberId != null)
 		{
+			lookForGroup();
 			if (questTicks >= 0 && --questTicks <= 0)
 			{
 				questTicks = -1;
@@ -483,6 +514,25 @@ public class LocalCollector
 			lastPublished.put(section, now);
 			it.remove();
 		}
+	}
+
+	/**
+	 * The game can send the group's details well after login, and only says so when the chat channel is
+	 * what arrives, so while a Group Ironman's group isn't known it's looked for on every tick.
+	 */
+	private void lookForGroup()
+	{
+		int accountType = client.getVarbitValue(VarbitID.IRONMAN);
+		boolean groupIronman = accountType >= FIRST_GROUP_IRONMAN_TYPE && accountType <= LAST_GROUP_IRONMAN_TYPE;
+		ProfileData current = profile;
+		boolean missing = groupIronman && current != null && current.getGroupName() == null;
+		if (missing && readGroupName() != null)
+		{
+			capture(Section.PROFILE, readProfile());
+			missing = false;
+		}
+		ticksWithoutGroup = missing ? ticksWithoutGroup + 1 : 0;
+		lookingForGroup = missing && ticksWithoutGroup <= GROUP_WAIT_TICKS;
 	}
 
 	private ProfileData readProfile()

@@ -633,6 +633,13 @@ public class HomebasePanel extends PluginPanel
 		switch (groupSync.getStatus())
 		{
 			case NO_GROUP:
+				if (collector.isLookingForGroup())
+				{
+					// a new group made here would leave them out of their real one
+					setStatus(ColorScheme.MEDIUM_GRAY_COLOR, "Looking for your Group Ironman group. The game can take a little while "
+						+ "to say which group you're in after you log in.", null, null, null, null);
+					break;
+				}
 				setStatus(ColorScheme.MEDIUM_GRAY_COLOR, "Log in on your Group Ironman account to set up your group. "
 					+ "For other groups, create a passphrase or paste one into this plugin's settings.", "Create group", plugin::createGroup, null, null);
 				break;
