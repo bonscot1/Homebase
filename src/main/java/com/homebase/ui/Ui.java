@@ -14,12 +14,16 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import javax.swing.Icon;
 import javax.swing.JButton;
+import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JMenuItem;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
+import javax.swing.SwingUtilities;
 import javax.swing.border.EmptyBorder;
+import javax.swing.event.PopupMenuEvent;
+import javax.swing.event.PopupMenuListener;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.FontManager;
 import net.runelite.client.ui.components.PluginErrorPanel;
@@ -302,6 +306,61 @@ final class Ui
 		JPopupMenu menu = new JPopupMenu();
 		menu.add(item);
 		return menu;
+	}
+
+	/**
+	 * @return true if a dropdown anywhere in the component has its list open
+	 */
+	static boolean hasOpenDropdown(Component component)
+	{
+		if (component instanceof JComboBox && ((JComboBox<?>) component).isPopupVisible())
+		{
+			return true;
+		}
+		if (component instanceof Container)
+		{
+			for (Component child : ((Container) component).getComponents())
+			{
+				if (hasOpenDropdown(child))
+				{
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Run something now, or once the dropdown's list has closed if it's open, so what's in the list
+	 * doesn't change while someone is scrolling through it.
+	 */
+	static void whenClosed(JComboBox<?> box, Runnable action)
+	{
+		if (!box.isPopupVisible())
+		{
+			action.run();
+			return;
+		}
+		box.addPopupMenuListener(new PopupMenuListener()
+		{
+			@Override
+			public void popupMenuWillBecomeInvisible(PopupMenuEvent e)
+			{
+				box.removePopupMenuListener(this);
+				// after the list has finished closing
+				SwingUtilities.invokeLater(action);
+			}
+
+			@Override
+			public void popupMenuWillBecomeVisible(PopupMenuEvent e)
+			{
+			}
+
+			@Override
+			public void popupMenuCanceled(PopupMenuEvent e)
+			{
+			}
+		});
 	}
 
 	static void clickable(JComponent component, Runnable onClick)

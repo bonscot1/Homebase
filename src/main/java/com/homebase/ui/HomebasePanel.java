@@ -424,6 +424,13 @@ public class HomebasePanel extends PluginPanel
 			rebuildWhenShown = true;
 			return;
 		}
+		if (Ui.hasOpenDropdown(this))
+		{
+			// a rebuild takes the dropdowns out and puts them back, which closes the list someone is
+			// scrolling through, so it waits until they've closed it
+			rebuildTimer.restart();
+			return;
+		}
 		rebuildWhenShown = false;
 		cards.clear();
 		tabBar.setVisible(view != null);

@@ -538,19 +538,21 @@ class GoalsView extends JPanel
 	 */
 	private void resolveNames(List<Integer> ids)
 	{
-		ItemNames.resolve(ids, itemManager, clientThread, () ->
+		JComboBox<Integer> box = bountyItemBox;
+		// the list is sorted again once the names are in, which would close it if it's open
+		ItemNames.resolve(ids, itemManager, clientThread, () -> Ui.whenClosed(box, () ->
 		{
-			if (bountyItemBox != null && ids.equals(bountyItemIds))
+			if (bountyItemBox == box && ids.equals(bountyItemIds))
 			{
 				// the first item is only chosen by default, so whichever item sorts first now takes its place
-				Object chosen = bountyItemBox.getSelectedIndex() > 0 ? bountyItemBox.getSelectedItem() : null;
-				bountyItemBox.setModel(new DefaultComboBoxModel<>(sortedByName(ids)));
+				Object chosen = box.getSelectedIndex() > 0 ? box.getSelectedItem() : null;
+				box.setModel(new DefaultComboBoxModel<>(sortedByName(ids)));
 				if (chosen != null)
 				{
-					bountyItemBox.setSelectedItem(chosen);
+					box.setSelectedItem(chosen);
 				}
 			}
-		});
+		}));
 	}
 
 	private void typeChanged()
